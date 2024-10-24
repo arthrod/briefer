@@ -17,6 +17,7 @@ import { logger } from './logger.js'
 import { setupYJSSocketServerV2 } from './yjs/v2/index.js'
 import { runSchedule } from './schedule/index.js'
 import { initUpdateChecker } from './update-checker.js'
+import mfRouter from './mf/index.js'
 
 const getDBUrl = async () => {
   const username = config().POSTGRES_USERNAME
@@ -89,7 +90,7 @@ async function main() {
 
   app.use('/auth', authRouter(socketServer.io))
   app.use('/v1', v1Router(socketServer.io))
-
+  app.use('/mf', mfRouter())
   let shuttingDown = false
   app.get('/livez', (_req, res) => {
     if (shuttingDown) {

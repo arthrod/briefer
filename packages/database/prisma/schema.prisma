@@ -486,3 +486,6 @@ model ReusableComponent {
 
   document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
 }
+
+model Chat {
+}

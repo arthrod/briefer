@@ -23,6 +23,7 @@ export * from './users.js'
 export * from './workspaces.js'
 export * from './environments.js'
 export * from './components.js'
+export * from './chat/index.js'
 
 export type PrismaTransaction = Omit<PrismaClient, ITXClientDenyList>
 
