@@ -305,3 +305,10 @@ body {
     display: none !important;
   }
 }
+
+.mf-home-new-button-bg {
+  background: linear-gradient(0deg, rgba(47, 105, 254, 0.12), rgba(47, 105, 254, 0.12)), #FFFFFF;
+
+  box-sizing: border-box;
+  border: 1px solid rgba(47, 105, 254, 0.12);
+}

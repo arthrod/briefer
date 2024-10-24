@@ -29,6 +29,10 @@ type API = {
 
 type UseUsers = [WorkspaceUser[], API]
 
+export type HistoryChat = {
+  name: string;
+  id: number;
+}
 export const useChats = () => {
 
   const getChatList = useCallback(

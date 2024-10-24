@@ -79,6 +79,9 @@ const config: Config = {
         'gradient-conic':
           'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))',
       },
+      background: {
+        chat_linear: 'linear-gradient(0deg, rgba(47, 105, 254, 0.12), rgba(47, 105, 254, 0.12)), #FFFFFF'
+      },
       colors: {
         'dashboard-gray': '#fafbfd',
         primary: {
@@ -132,7 +135,7 @@ const config: Config = {
           800: 'rgb(var(--tw-color-ceramic-800) / <alpha-value>)',
           900: 'rgb(var(--tw-color-ceramic-900) / <alpha-value>)',
           950: 'rgb(var(--tw-color-ceramic-950) / <alpha-value>)',
-        },
+        }
       },
     },
   },
