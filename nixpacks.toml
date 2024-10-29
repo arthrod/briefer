@@ -1,10 +1,8 @@
 [phases.setup]
-nixPkgs = ["docker", "docker-compose"]  # Inclua o Docker se precisar de comandos relacionados
+nixPkgs = ["docker"]
 
 [phases.build]
 cmds = ["echo 'Building...'"]
 
 [phases.start]
-cmds = [
-  "docker run -d -p 3000:3000 -v briefer_psql_data:/var/lib/postgresql/data -v briefer_jupyter_data:/home/jupyteruser -v briefer_briefer_data:/home/briefer briefercloud/briefer"
-]
+cmds = ["npm run start"]
