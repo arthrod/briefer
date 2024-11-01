@@ -39,6 +39,7 @@ export type PythonBlock = BaseBlock<BlockType.Python> & {
   aiSuggestions: Y.Text | null
   componentId: string | null
 }
+
 export const isPythonBlock = (
   block: YBlock
 ): block is Y.XmlElement<PythonBlock> =>

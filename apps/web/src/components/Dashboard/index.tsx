@@ -130,14 +130,14 @@ export default function Dashboard(props: Props) {
           <EyeIcon className="w-4 h-4" />
         )}
         <span className="w-full truncate">
-          <span className="font-semibold">
+          {documentTitle}{' '}
+          <span className="font-semibold ml-1">
             {props.isEditing ? (
-              'Editing'
+              '编辑'
             ) : (
-              <span className="text-ceramic-500">Viewing</span>
+              <span className="text-ceramic-500 ">编辑中</span>
             )}
-          </span>{' '}
-          {documentTitle}
+          </span>
         </span>
       </div>
       <DashboardNotebookGroupButton
@@ -216,10 +216,7 @@ export default function Dashboard(props: Props) {
   const lastUpdatedAt = useLastUpdatedAt(yDoc)
 
   return (
-    <Layout
-      topBarClassname={!props.isEditing ? 'bg-gray-50' : undefined}
-      topBarContent={topBarContent}
-    >
+    <Layout topBarContent={topBarContent}>
       <div className="w-full flex relative subpixel-antialiased bg-dashboard-gray">
         <div className="w-full flex flex-col relative">
           {syncing ? (

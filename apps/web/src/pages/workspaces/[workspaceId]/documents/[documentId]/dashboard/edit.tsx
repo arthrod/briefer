@@ -27,14 +27,8 @@ export default function EditDashboardPage() {
   const session = useSession()
   const workspaceId = useStringQuery('workspaceId')
   const documentId = useStringQuery('documentId')
-  const [{ document, loading: documentLoading }] = useDocument(
-    workspaceId,
-    documentId
-  )
-  const [{ publishing }, { publish}] = useDocument(
-    workspaceId,
-    documentId
-  )
+  const [{ document, loading: documentLoading }] = useDocument(workspaceId, documentId)
+  const [{ publishing }, { publish }] = useDocument(workspaceId, documentId)
 
   const loading = session.isLoading || documentLoading
   const user = session.data
@@ -52,9 +46,7 @@ export default function EditDashboardPage() {
     }
 
     if (!role || role === 'viewer') {
-      router.replace(
-        `/workspaces/${workspaceId}/documents/${documentId}/dashboard`
-      )
+      router.replace(`/workspaces/${workspaceId}/documents/${documentId}/dashboard`)
     }
   }, [document, workspaceId, role, loading])
 

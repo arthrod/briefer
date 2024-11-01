@@ -1,0 +1,22 @@
+.chatLayout {
+  flex-direction: column;
+  height: 100%;
+  width: 33%;
+  transition: all 0.18s;
+  .top {
+    display: flex;
+    align-items: center;
+    padding: 16px;
+    gap: 8px;
+    box-sizing: border-box;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  }
+  .middle {
+    height: calc(100% - 142px);
+  }
+  .bottom {
+    padding: 16px 24px;
+    .chatArea {
+    }
+  }
+}

@@ -31,3 +31,8 @@ export const useStringQuery = (name: string): string => {
 
   return arg
 }
+
+export function extractQueryParamValue(paramName: string) {
+  if (typeof window === 'undefined') return ''
+  return new URL(window.location.href).searchParams.get(paramName) ?? ''
+}

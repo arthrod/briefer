@@ -1,8 +1,14 @@
 {
   "trailingComma": "es5",
+  "printWidth": 100,
+  "bracketSpacing": true,
+  "jsxBracketSameLine": true,
+  "arrowParens": "always",
   "singleQuote": true,
   "semi": false,
   "importOrder": ["^@/", "^[./]"],
   "importOrderSeparation": true,
-  "tabWidth": 2
+  "tabWidth": 2,
+  "plugins": ["prettier-plugin-tailwindcss"],
+  "tailwindFunctions":["clsx"]
 }

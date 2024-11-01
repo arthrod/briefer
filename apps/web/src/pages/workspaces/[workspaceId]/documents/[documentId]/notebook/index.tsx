@@ -8,10 +8,7 @@ import Head from 'next/head'
 import Layout from '@/components/Layout'
 import clsx from 'clsx'
 import { widthClasses } from '@/components/v2Editor/constants'
-import {
-  ContentSkeleton,
-  TitleSkeleton,
-} from '@/components/v2Editor/ContentSkeleton'
+import { ContentSkeleton, TitleSkeleton } from '@/components/v2Editor/ContentSkeleton'
 
 export default function NotebookPage() {
   const session = useSession()
@@ -21,7 +18,7 @@ export default function NotebookPage() {
   if (!session.data && session.isLoading && !session.error) {
     return (
       <Layout>
-        <div className="w-full flex justify-center">
+        <div className="flex w-full justify-center">
           <div className={clsx(widthClasses, 'py-20')}>
             <TitleSkeleton visible />
             <ContentSkeleton visible />
@@ -32,13 +29,7 @@ export default function NotebookPage() {
   }
 
   if (session.data && session.data.roles[workspaceId]) {
-    return (
-      <Notebook
-        workspaceId={workspaceId}
-        documentId={documentId}
-        user={session.data}
-      />
-    )
+    return <Notebook workspaceId={workspaceId} documentId={documentId} user={session.data} />
   }
 
   return null
@@ -50,10 +41,7 @@ interface Props {
   user: SessionUser
 }
 function Notebook(props: Props) {
-  const [{ document, loading }] = useDocument(
-    props.workspaceId,
-    props.documentId
-  )
+  const [{ document, loading }] = useDocument(props.workspaceId, props.documentId)
   const router = useRouter()
 
   useEffect(() => {
@@ -67,16 +55,14 @@ function Notebook(props: Props) {
     }
 
     if (document.publishedAt === null) {
-      router.replace(
-        `/workspaces/${props.workspaceId}/documents/${props.documentId}/notebook/edit`
-      )
+      router.replace(`/workspaces/${props.workspaceId}/documents/${props.documentId}/notebook/edit`)
     }
   }, [document, loading, props.user])
 
   if (loading || !document || document.publishedAt === null) {
     return (
       <Layout>
-        <div className="w-full flex justify-center">
+        <div className="flex w-full justify-center">
           <div className={clsx(widthClasses, 'py-20')}>
             <TitleSkeleton visible />
             <ContentSkeleton visible />

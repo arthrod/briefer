@@ -8,7 +8,12 @@ const nextConfig = {
     esmExternals: 'loose',
   },
   transpilePackages: [],
+  sassOptions: { implementation: 'sass-embedded' },
   webpack(config, { dev, isServer }) {
+    config.module.rules.push({
+      test: /\.svg$/,
+      use: ['@svgr/webpack'],
+    })
     if (dev && !isServer) {
       const originalEntry = config.entry
       config.entry = async () => {

@@ -27,6 +27,7 @@
     "@monaco-editor/react": "^4.6.0",
     "@react-email/render": "^0.0.9",
     "@replit/codemirror-vscode-keymap": "6.0.2",
+    "@svgr/webpack": "^8.1.0",
     "@simbathesailor/use-what-changed": "^2.0.0",
     "@tailwindcss/forms": "^0.5.6",
     "@tailwindcss/typography": "^0.5.10",

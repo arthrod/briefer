@@ -7,28 +7,19 @@ interface Props extends React.HTMLAttributes<HTMLDivElement> {
   className?: string
   disabled?: boolean
 }
-const ScrollBar = forwardRef<HTMLDivElement, Props>(function ScrollBar(
-  props,
-  ref
-) {
-  if (
-    props.disabled ||
-    (typeof window !== 'undefined' &&
-      window.navigator.userAgent.toUpperCase().includes('MAC OS'))
-  ) {
-    return <div {...props} ref={ref} />
+const ScrollBar = forwardRef<HTMLDivElement, Props>(
+  function ScrollBar(props, ref) {
+    return (
+      <SimpleBar
+        className={clsx('no-scrollbar', props.className)}
+        scrollableNodeProps={{
+          ref,
+        }}
+      >
+        {props.children}
+      </SimpleBar>
+    )
   }
-
-  return (
-    <SimpleBar
-      className={clsx('no-scrollbar', props.className)}
-      scrollableNodeProps={{
-        ref,
-      }}
-    >
-      {props.children}
-    </SimpleBar>
-  )
-})
+)
 
 export default ScrollBar

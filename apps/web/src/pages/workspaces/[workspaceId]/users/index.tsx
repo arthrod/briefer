@@ -31,8 +31,7 @@ export default function UsersPage() {
 
   const isAdmin = session.data?.roles[workspaceId] === UserWorkspaceRole.admin
 
-  const [users, { removeUser, updateUser, resetPassword }] =
-    useUsers(workspaceId)
+  const [users, { removeUser, updateUser, resetPassword }] = useUsers(workspaceId)
 
   const onChangeRole = useCallback(
     (id: string, role: UserWorkspaceRole) => {
@@ -67,20 +66,17 @@ export default function UsersPage() {
 
   return (
     <Layout pagePath={pagePath(workspaceId ?? '')}>
-      <div className="w-full bg-white h-full overflow-scroll">
+      <div className="h-full w-full overflow-scroll bg-white">
         <div className="px-4 sm:p-6 lg:p-8">
           <div className="border-b border-gray-200 pb-4 sm:flex sm:items-center sm:justify-between">
-            <h3 className="text-lg font-medium leading-6 text-gray-900">
-              Users
-            </h3>
+            <h3 className="text-lg font-medium leading-6 text-gray-900">Users</h3>
             <Tooltip
               title="You've hit the free limit"
               message="Upgrade to the professional plan to add more users."
               className="flex"
               tooltipClassname="w-48"
               position="left"
-              active={false}
-            >
+              active={false}>
               <button
                 onClick={() => {
                   router.push(`/workspaces/${workspaceId}/users/new`)
@@ -89,10 +85,9 @@ export default function UsersPage() {
                 className={clsx(
                   isAddEnabled
                     ? 'bg-primary-200 hover:bg-primary-300'
-                    : 'bg-gray-300 cursor-not-allowed',
-                  'flex items-center gap-x-2 rounded-sm shadow-sm px-3.5 py-2.5 text-sm font-semibold border-stone-950'
-                )}
-              >
+                    : 'cursor-not-allowed bg-gray-300',
+                  'flex items-center gap-x-2 rounded-sm border-stone-950 px-3.5 py-2.5 text-sm font-semibold shadow-sm'
+                )}>
                 <UserPlusIcon className="h-4 w-4" /> Add user
               </button>
             </Tooltip>
@@ -109,11 +104,7 @@ export default function UsersPage() {
           />
         </div>
       </div>
-      <PasswordDialog
-        user={newPassword}
-        onClose={onClosePasswordDialog}
-        isReset
-      />
+      <PasswordDialog user={newPassword} onClose={onClosePasswordDialog} isReset />
     </Layout>
   )
 }

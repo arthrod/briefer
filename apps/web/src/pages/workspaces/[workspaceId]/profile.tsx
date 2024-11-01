@@ -33,13 +33,7 @@ function ProfilePage() {
     return null
   }
 
-  return (
-    <Profile
-      workspaceId={workspaceId}
-      user={session.data}
-      onSuccess={onSuccess}
-    />
-  )
+  return <Profile workspaceId={workspaceId} user={session.data} onSuccess={onSuccess} />
 }
 
 interface Props {
@@ -48,17 +42,16 @@ interface Props {
   onSuccess: () => void
 }
 function Profile(props: Props) {
-  const { register, formState, handleSubmit, getValues, setError, reset } =
-    useForm<FormValues>({
-      mode: 'onSubmit',
-      reValidateMode: 'onSubmit',
-      values: {
-        name: props.user.name,
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: '',
-      },
-    })
+  const { register, formState, handleSubmit, getValues, setError, reset } = useForm<FormValues>({
+    mode: 'onSubmit',
+    reValidateMode: 'onSubmit',
+    values: {
+      name: props.user.name,
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: '',
+    },
+  })
 
   const [success, setSuccess] = useState(false)
   const onCloseSuccessNotificaiton = useCallback(() => {
@@ -105,20 +98,15 @@ function Profile(props: Props) {
 
   return (
     <Layout pagePath={pagePath}>
-      <div className="w-full flex justify-center">
+      <div className="flex w-full justify-center">
         <div className="w-full overflow-scroll">
-          <form
-            className="px-4 sm:p-6 lg:p-12"
-            onSubmit={handleSubmit(onSubmitHandler)}
-            noValidate
-          >
+          <form className="px-4 sm:p-6 lg:p-12" onSubmit={handleSubmit(onSubmitHandler)} noValidate>
             <div className="border-b border-gray-900/10 pb-6">
               <div className="grid grid-cols-3 gap-x-6 gap-y-2">
                 <div className="col-span-3 pb-6">
                   <label
                     htmlFor="name"
-                    className="block text-sm font-medium leading-6 text-gray-900"
-                  >
+                    className="block text-sm font-medium leading-6 text-gray-900">
                     Name
                   </label>
                   <div className="mt-2">
@@ -133,16 +121,15 @@ function Profile(props: Props) {
                       name="name"
                       placeholder="John Doe"
                       required
-                      className="block w-full rounded-md border-0 py-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-ceramic-200/70 sm:text-md sm:leading-6"
+                      className="focus:ring-ceramic-200/70 sm:text-md block w-full rounded-md border-0 py-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset sm:leading-6"
                     />
                     <FormError msg={formState.errors.name?.message} />
                   </div>
                 </div>
-                <div className="col-span-3 lg:col-span-1 pb-6">
+                <div className="col-span-3 pb-6 lg:col-span-1">
                   <label
                     htmlFor="currentPassword"
-                    className="block text-sm font-medium leading-6 text-gray-900"
-                  >
+                    className="block text-sm font-medium leading-6 text-gray-900">
                     Current password
                   </label>
                   <div className="mt-2">
@@ -152,8 +139,7 @@ function Profile(props: Props) {
                           const { newPassword, confirmPassword } = getValues()
                           if (
                             value.length === 0 &&
-                            (newPassword.length > 0 ||
-                              confirmPassword.length > 0)
+                            (newPassword.length > 0 || confirmPassword.length > 0)
                           ) {
                             return 'Current password is required for changing password.'
                           }
@@ -161,43 +147,35 @@ function Profile(props: Props) {
                       })}
                       type="password"
                       name="currentPassword"
-                      className="block w-full rounded-md border-0 py-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-ceramic-200/70 sm:text-md sm:leading-6"
+                      className="focus:ring-ceramic-200/70 sm:text-md block w-full rounded-md border-0 py-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset sm:leading-6"
                     />
                     {!Boolean(formState.errors.currentPassword) && (
-                      <span className="block text-sm text-gray-900 empty:before:content-['\200b'] pt-1 pb-1">
+                      <span className="block pb-1 pt-1 text-sm text-gray-900 empty:before:content-['\\200b']">
                         Leave empty to keep previous password
                       </span>
                     )}
-                    <FormError
-                      msg={formState.errors.currentPassword?.message}
-                    />
+                    <FormError msg={formState.errors.currentPassword?.message} />
                   </div>
                 </div>
 
-                <div className="col-span-3 lg:col-span-1 pb-6">
+                <div className="col-span-3 pb-6 lg:col-span-1">
                   <label
                     htmlFor="newPassword"
-                    className="block text-sm font-medium leading-6 text-gray-900"
-                  >
+                    className="block text-sm font-medium leading-6 text-gray-900">
                     New password
                   </label>
                   <div className="mt-2">
                     <input
                       {...register('newPassword', {
                         validate: (value) => {
-                          const { currentPassword, confirmPassword } =
-                            getValues()
-                          if (
-                            currentPassword.length === 0 &&
-                            value.length === 0
-                          ) {
+                          const { currentPassword, confirmPassword } = getValues()
+                          if (currentPassword.length === 0 && value.length === 0) {
                             return true
                           }
 
                           if (
                             value.length === 0 &&
-                            (currentPassword.length > 0 ||
-                              confirmPassword.length > 0)
+                            (currentPassword.length > 0 || confirmPassword.length > 0)
                           ) {
                             return 'New password is required for changing password.'
                           }
@@ -209,16 +187,15 @@ function Profile(props: Props) {
                       })}
                       type="password"
                       name="newPassword"
-                      className="block w-full rounded-md border-0 py-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-ceramic-200/70 sm:text-md sm:leading-6"
+                      className="focus:ring-ceramic-200/70 sm:text-md block w-full rounded-md border-0 py-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset sm:leading-6"
                     />
                     <FormError msg={formState.errors.newPassword?.message} />
                   </div>
                 </div>
-                <div className="col-span-3 lg:col-span-1 pb-6">
+                <div className="col-span-3 pb-6 lg:col-span-1">
                   <label
                     htmlFor="confirmPassword"
-                    className="block text-sm font-medium leading-6 text-gray-900"
-                  >
+                    className="block text-sm font-medium leading-6 text-gray-900">
                     Confirm new password
                   </label>
                   <div className="mt-2">
@@ -228,8 +205,7 @@ function Profile(props: Props) {
                           const { currentPassword, newPassword } = getValues()
                           if (
                             value.length === 0 &&
-                            (currentPassword.length > 0 ||
-                              newPassword.length > 0)
+                            (currentPassword.length > 0 || newPassword.length > 0)
                           ) {
                             return 'Confirm new password is required for changing password.'
                           }
@@ -241,11 +217,9 @@ function Profile(props: Props) {
                       })}
                       type="password"
                       name="confirmPassword"
-                      className="block w-full rounded-md border-0 py-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-ceramic-200/70 sm:text-md sm:leading-6"
+                      className="focus:ring-ceramic-200/70 sm:text-md block w-full rounded-md border-0 py-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset sm:leading-6"
                     />
-                    <FormError
-                      msg={formState.errors.confirmPassword?.message}
-                    />
+                    <FormError msg={formState.errors.confirmPassword?.message} />
                   </div>
                 </div>
               </div>
@@ -253,25 +227,20 @@ function Profile(props: Props) {
             <div className="mt-6 flex items-center justify-end gap-x-4">
               <Link
                 href={`/workspaces/${props.workspaceId}`}
-                className="text-sm font-semibold leading-6 text-gray-600 border border-gray-200 px-6 py-1.5 rounded-sm shadow-sm hover:bg-gray-50"
-              >
+                className="rounded-sm border border-gray-200 px-6 py-1.5 text-sm font-semibold leading-6 text-gray-600 shadow-sm hover:bg-gray-50">
                 Cancel
               </Link>
               <button
                 type="submit"
-                className="flex items-center gap-x-2 rounded-sm shadow-sm bg-primary-200 px-6 py-2.5 text-sm font-semibold hover:bg-primary-300 border-stone-950 disabled:bg-gray-300 disabled:cursor-not-allowed"
-                disabled={formState.isSubmitting}
-              >
+                className="bg-primary-200 hover:bg-primary-300 flex items-center gap-x-2 rounded-sm border-stone-950 px-6 py-2.5 text-sm font-semibold shadow-sm disabled:cursor-not-allowed disabled:bg-gray-300"
+                disabled={formState.isSubmitting}>
                 Save {formState.isSubmitting && <Spin />}
               </button>
             </div>
           </form>
         </div>
       </div>
-      <SuccessNotification
-        show={success}
-        onClose={onCloseSuccessNotificaiton}
-      />
+      <SuccessNotification show={success} onClose={onCloseSuccessNotificaiton} />
     </Layout>
   )
 }
@@ -281,19 +250,15 @@ function SuccessNotification(props: { show: boolean; onClose: () => void }) {
     <>
       <div
         aria-live="assertive"
-        className="pointer-events-none fixed inset-0 flex items-end px-4 py-6 sm:items-start sm:p-6"
-      >
+        className="pointer-events-none fixed inset-0 flex items-end px-4 py-6 sm:items-start sm:p-6">
         <div className="flex w-full flex-col items-center space-y-4 sm:items-end">
           {/* Notification panel, dynamically insert this into the live region when it needs to be displayed */}
           <Transition show={props.show}>
-            <div className="pointer-events-auto max-w-sm overflow-hidden rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition data-[closed]:data-[enter]:translate-y-2 data-[enter]:transform data-[closed]:opacity-0 data-[enter]:duration-300 data-[leave]:duration-100 data-[enter]:ease-out data-[leave]:ease-in data-[closed]:data-[enter]:sm:translate-x-2 data-[closed]:data-[enter]:sm:translate-y-0 w-80">
+            <div className="pointer-events-auto w-80 max-w-sm overflow-hidden rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition data-[closed]:data-[enter]:translate-y-2 data-[enter]:transform data-[closed]:opacity-0 data-[enter]:duration-300 data-[leave]:duration-100 data-[enter]:ease-out data-[leave]:ease-in data-[closed]:data-[enter]:sm:translate-x-2 data-[closed]:data-[enter]:sm:translate-y-0">
               <div className="p-4">
                 <div className="flex items-start">
                   <div className="flex-shrink-0">
-                    <CheckCircleIcon
-                      aria-hidden="true"
-                      className="h-6 w-6 text-green-400"
-                    />
+                    <CheckCircleIcon aria-hidden="true" className="h-6 w-6 text-green-400" />
                   </div>
                   <div className="ml-3 w-0 flex-1 pt-0.5">
                     <p className="text-sm font-medium text-gray-900">
@@ -304,8 +269,7 @@ function SuccessNotification(props: { show: boolean; onClose: () => void }) {
                     <button
                       type="button"
                       onClick={props.onClose}
-                      className="inline-flex rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                    >
+                      className="inline-flex rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
                       <span className="sr-only">Close</span>
                       <XMarkIcon aria-hidden="true" className="h-5 w-5" />
                     </button>

@@ -227,39 +227,39 @@ function PrivateDocumentPageInner(
   const topBarContent = (
     <div className="flex items-center w-full justify-between gap-x-6">
       <div className="w-full overflow-hidden flex items-center gap-x-1.5 text-sm text-gray-400 font-sans">
-        {props.isApp ? (
-          <EyeIcon className="w-4 h-4" />
-        ) : (
-          <PencilIcon className="w-4 h-4" />
-        )}
-        <span className="w-full truncate">
-          <span className="font-semibold">
-            {props.isApp ? (
-              <span className="text-ceramic-500">Viewing</span>
-            ) : (
-              'Editing'
-            )}
-          </span>{' '}
+        <span className="flex items-center w-full truncate ">
           {documentTitle}
+          <span className="font-semibold ml-1">
+            {props.isApp ? (
+              <span className="text-ceramic-500 mr-1">查看中</span>
+            ) : (
+              '编辑中'
+            )}
+          </span>
+          {props.isApp ? (
+            <EyeIcon className="w-4 h-4" />
+          ) : (
+            <img className="w-4 h-4" src="/icons/edit.svg" alt="" />
+          )}
         </span>
       </div>
-      <DashboardNotebookGroupButton
+      {/* <DashboardNotebookGroupButton
         workspaceId={props.workspaceId}
         documentId={props.documentId}
         current="notebook"
         isEditing={!props.isApp}
-      />
+      /> */}
 
       <div className="w-full justify-end flex items-center gap-x-2 h-[30px]">
-        {!props.isApp && (
+        {/* {!props.isApp && (
           <LiveButton
             onClick={onGoToApp}
             disabled={props.document.publishedAt === null}
             tooltipActive={props.document.publishedAt === null}
           />
-        )}
+        )} */}
 
-        <ShareDropdown
+        {/* <ShareDropdown
           link={copyLink}
           isPublic={false}
           onTogglePublic={() => {}}
@@ -269,14 +269,15 @@ function PrivateDocumentPageInner(
           role={props.user.roles[props.workspaceId]}
           isDashboard={false}
           isApp={props.isApp}
-        />
+        /> */}
+
         {props.isApp ? (
           <Link
             className="flex gap-x-2 items-center rounded-sm px-3 py-1 text-sm text-gray-500 bg-white hover:bg-gray-100 border border-gray-200 disabled:cursor-not-allowed disabled:opacity-50 gap-x-1.5 justify-center"
             href={`/workspaces/${props.document.workspaceId}/documents/${props.document.id}/notebook/edit`}
           >
-            <PencilIcon className="w-4 h-4" />
-            <span>Edit</span>
+            <img className="w-4 h-4 " src="/icons/edit.svg" alt="" />
+            <span>编辑</span>
           </Link>
         ) : (
           <>
@@ -293,10 +294,10 @@ function PrivateDocumentPageInner(
                 disabled={props.publishing}
               >
                 <BookUpIcon
-                  className="w-4 h-4 rotate-12 group-hover:rotate-0 transition transition-transform duration-400"
+                  className="w-4 h-4 rotate-12 group-hover:rotate-0 transition-transform duration-400"
                   strokeWidth={1}
                 />
-                <span>Publish</span>
+                <span>预览</span>
                 {isDirty && props.document.publishedAt && (
                   <PublishBlinkingSignal />
                 )}
@@ -324,10 +325,7 @@ function PrivateDocumentPageInner(
   )
 
   return (
-    <Layout
-      topBarClassname={props.isApp ? 'bg-gray-50' : undefined}
-      topBarContent={topBarContent}
-    >
+    <Layout topBarContent={topBarContent}>
       <div className="w-full relative flex">
         <V2Editor
           document={props.document}

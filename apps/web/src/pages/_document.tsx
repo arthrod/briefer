@@ -40,7 +40,6 @@ export default function Document() {
         <script src="/env.js" />
       </Head>
       <body>
-        <title>Briefer</title>
         <Main />
         <NextScript />
       </body>

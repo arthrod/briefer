@@ -1,82 +1,90 @@
 import { HistoryChat, useChats } from '@/hooks/useChats'
-import { forEach } from 'ramda'
-import React, { useCallback, useEffect, useState } from 'react'
-import homeCss from "./index.module.scss";
-function Left() {
-  return (
-    <div
-      className={
-        'mf-left-top flex flex-col flex-1 bg-[#F4F7FE] h-full w-60 p-[16px]'
-      }
-    >
-      <div className="h-[50%]">
-        <div className="flex flex-col w-full">
-          <img className="h-[27px]" src="/icons/mindflow-logo.png"></img>
-          <div
-            className="h-[40px] w-full mt-[19px] border rounded-[8px] mf-home-new-button-bg 
-      flex flex-row px-[12px] items-center text-[#2F69FE] text-[14px] cursor-pointer hover:bg-[#DCE6FA]"
-          >
-            <img
-              src="/icons/chat-new-line.svg"
-              className="w-[16px] h-[16px]"
-            ></img>
-            <span className="ml-[8px]">新建对话</span>
-          </div>
-          <div className="h-[36px] mt-[19px] flex flex-row px-[12px] items-center">
-            <img
-              src="/icons/search-icon.svg"
-              className="w-[16px] h-[16px]"
-            ></img>
-            <input
-              placeholder="搜索历史对话"
-              contentEditable="true"
-              className="text-[#8792A4] p-[0px] hover:border-transparent text-[14px]
-         bg-[#F4F7FE] ml-[8px] border-[0px]"
-            />
-          </div>
-        </div>
-        <div className={homeCss.chatListWrapper}>
-          <ChatList className="mt-[8px]"></ChatList>
-        </div>
-      </div>
-    </div>
-  )
-}
-interface ChatListProps {
-  className?: string
-}
-function ChatList(props: ChatListProps) {
+import React, { useEffect, useState } from 'react'
+import { clsx } from 'clsx'
+import { useRouter } from 'next/router'
+import { useWorkspaces } from '@/hooks/useWorkspaces'
+
+import styles from './index.module.scss'
+import { NoData } from '@/components/mf/NoData'
+import ChatInput from '@/components/mf/ChatInput'
+
+import RagIcon from '../../icons/rag.svg'
+import ReportIcon from '../../icons/report.svg'
+
+export default function Home() {
   const [chatList, setChatList] = useState<HistoryChat[]>([])
+  const [workspaces] = useWorkspaces()
+
+  const router = useRouter()
+
   const [{ getChatList }] = useChats()
+
   useEffect(() => {
     getChatList().then((res) => {
       setChatList(res)
     })
   }, [])
-  return (
-    <div className={props.className}>
-      {chatList.map((item, index) => {
-        let mt = ' mt-[4px]'
-        if (index <= 0) {
-          mt = ''
-        }
-        let className =
-          'flex rounded-[8px] items-center h-[44px] px-[12px] text-[14px] cursor-pointer text-[#272A33] hover:bg-[#DCE6FA]' +
-          mt
-        return (
-          <div key={item.id} className={className}>
-            <div className="text-ellipsis">{item.name}</div>
-          </div>
-        )
-      })}
-    </div>
-  )
-}
 
-export default function Home() {
   return (
-    <div className={homeCss.chatHome}>
-      <Left></Left>
+    <div className={clsx(styles.home)}>
+      <div className={clsx(styles.left, 'text-sm')}>
+        <div className={styles.leftTop}>
+          <div className="flex w-full flex-col">
+            <img height={27} src="/icons/mindflow-logo.png"></img>
+          </div>
+          <div className={styles.createBtn}>
+            <img src="/icons/chat-new-line.svg" width={16} height={16}></img>
+            <span className="ml-[8px]">新建对话</span>
+          </div>
+          <div className={styles.chatListWrapper}>
+            {chatList.length ? (
+              chatList.map((item) => {
+                return (
+                  <div
+                    key={item.id}
+                    className={styles.chatItem}
+                    onClick={() => {
+                      router.replace(`/workspaces/${workspaces.data[0].id}/documents`)
+                    }}>
+                    <div
+                      className={clsx(
+                        'w-[85%] overflow-hidden text-ellipsis text-nowrap break-keep'
+                      )}>
+                      {item.name}
+                    </div>
+                    <img
+                      className={styles.moreOpt}
+                      src="/icons/more.svg"
+                      width={16}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                      }}
+                    />
+                  </div>
+                )
+              })
+            ) : (
+              <NoData className={styles.empty} />
+            )}
+          </div>
+        </div>
+      </div>
+      <div className={styles.main}>
+        <div className={styles.container}>
+          <div className={styles.title}>我能帮你做点儿什么？</div>
+          <ChatInput className={styles.input} />
+          <div className={styles.suggestions}>
+            <div className={styles.item}>
+              <RagIcon />
+              根据需求查找数据
+            </div>
+            <div className={styles.item}>
+              <ReportIcon />
+              撰写数据分析报告
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

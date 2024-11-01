@@ -6,10 +6,7 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
 import Layout from '@/components/Layout'
-import {
-  ContentSkeleton,
-  TitleSkeleton,
-} from '@/components/v2Editor/ContentSkeleton'
+import { ContentSkeleton, TitleSkeleton } from '@/components/v2Editor/ContentSkeleton'
 import clsx from 'clsx'
 import { widthClasses } from '@/components/v2Editor/constants'
 
@@ -29,7 +26,7 @@ export default function EditNotebookPage() {
   if (!session.data || !session.data.roles[workspaceId]) {
     return (
       <Layout>
-        <div className="w-full flex justify-center">
+        <div className="flex w-full justify-center">
           <div className={clsx(widthClasses, 'py-20')}>
             <TitleSkeleton visible />
             <ContentSkeleton visible />
@@ -39,13 +36,7 @@ export default function EditNotebookPage() {
     )
   }
 
-  return (
-    <EditNotebook
-      workspaceId={workspaceId}
-      documentId={documentId}
-      user={session.data}
-    />
-  )
+  return <EditNotebook workspaceId={workspaceId} documentId={documentId} user={session.data} />
 }
 
 interface Props {
@@ -54,10 +45,7 @@ interface Props {
   user: SessionUser
 }
 function EditNotebook(props: Props) {
-  const [{ document, loading }] = useDocument(
-    props.workspaceId,
-    props.documentId
-  )
+  const [{ document, loading }] = useDocument(props.workspaceId, props.documentId)
   const router = useRouter()
 
   useEffect(() => {
@@ -73,7 +61,7 @@ function EditNotebook(props: Props) {
   if (loading || !document) {
     return (
       <Layout>
-        <div className="w-full flex justify-center">
+        <div className="flex w-full justify-center">
           <div className={clsx(widthClasses, 'py-20')}>
             <TitleSkeleton visible />
             <ContentSkeleton visible />

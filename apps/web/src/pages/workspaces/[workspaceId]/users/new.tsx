@@ -39,9 +39,7 @@ export default function NewUserPage() {
   const router = useRouter()
   const workspaceId = useStringQuery('workspaceId')
   const [_users, { createUser }] = useUsers(workspaceId)
-  const [user, setUser] = useState<{ name: string; password: string } | null>(
-    null
-  )
+  const [user, setUser] = useState<{ name: string; password: string } | null>(null)
 
   const onSubmit = useCallback(
     async (data: UserFormValues) => {
@@ -70,11 +68,7 @@ export default function NewUserPage() {
       <div className="w-full overflow-scroll">
         <UserForm workspaceId={workspaceId} onSubmit={onSubmit} />
       </div>
-      <PasswordDialog
-        user={user}
-        onClose={onClosePasswordDialog}
-        isReset={false}
-      />
+      <PasswordDialog user={user} onClose={onClosePasswordDialog} isReset={false} />
     </Layout>
   )
 }
@@ -117,8 +111,7 @@ export function PasswordDialog(props: PasswordDialogProps) {
           enterTo="opacity-100"
           leave="ease-in duration-200"
           leaveFrom="opacity-100"
-          leaveTo="opacity-0"
-        >
+          leaveTo="opacity-0">
           <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
         </Transition.Child>
 
@@ -130,25 +123,20 @@ export function PasswordDialog(props: PasswordDialogProps) {
               enterTo="opacity-100 translate-y-0 sm:scale-100"
               leave="ease-in duration-200"
               leaveFrom="opacity-100 translate-y-0 sm:scale-100"
-              leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-            >
+              leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95">
               <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all data-[closed]:translate-y-4 data-[closed]:opacity-0 data-[enter]:duration-300 data-[leave]:duration-200 data-[enter]:ease-out data-[leave]:ease-in sm:my-8 sm:w-full sm:max-w-lg sm:p-6 data-[closed]:sm:translate-y-0 data-[closed]:sm:scale-95">
                 <div>
                   <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
                     {props.isReset ? (
                       <LockClosedIcon className="h-6 w-6 text-green-600" />
                     ) : (
-                      <UserRoundCheck
-                        aria-hidden="true"
-                        className="h-6 w-6 text-green-600"
-                      />
+                      <UserRoundCheck aria-hidden="true" className="h-6 w-6 text-green-600" />
                     )}
                   </div>
                   <div className="mt-3 text-center sm:mt-5">
                     <Dialog.Title
                       as="h3"
-                      className="text-base font-semibold leading-6 text-gray-900"
-                    >
+                      className="text-base font-semibold leading-6 text-gray-900">
                       {props.isReset
                         ? `We got ${props.user?.name} a new password`
                         : `Time to welcome ${props.user?.name} to Briefer`}
@@ -159,35 +147,32 @@ export function PasswordDialog(props: PasswordDialogProps) {
                           ? `Here's their new random password. Make sure to share it with them. You'll not be able to see it again.`
                           : `Here's the random password we generated for ${props.user?.name}. Make sure to share it with them. You'll not be able to see it again.`}
                       </p>
-                      <div className="my-8 relative">
+                      <div className="relative my-8">
                         <input
                           type={hidden ? 'password' : 'text'}
                           name="password"
-                          className="block w-full rounded-md border-0 py-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-ceramic-200/70 sm:text-md sm:leading-6"
+                          className="focus:ring-ceramic-200/70 sm:text-md block w-full rounded-md border-0 py-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset sm:leading-6"
                           value={props.user?.password}
                           disabled
                         />
-                        <div className="flex items-center absolute inset-y-0 right-0">
+                        <div className="absolute inset-y-0 right-0 flex items-center">
                           <PortalTooltip
                             content={
-                              <div className="font-sans bg-hunter-950 text-white text-center text-xs p-2 rounded-md w-24 -translate-x-1/2">
+                              <div className="bg-hunter-950 w-24 -translate-x-1/2 rounded-md p-2 text-center font-sans text-xs text-white">
                                 {copied ? 'Copied!' : 'Click to copy'}
                               </div>
-                            }
-                          >
+                            }>
                             <button
                               type="button"
                               className="group flex items-center"
-                              onClick={onCopy}
-                            >
+                              onClick={onCopy}>
                               <ClipboardDocumentIcon className="h-5 w-5 text-gray-400 group-hover:text-gray-500" />
                             </button>
                           </PortalTooltip>
                           <button
                             type="button"
                             onClick={() => setHidden(!hidden)}
-                            className="group flex items-center pl-1.5 pr-3"
-                          >
+                            className="group flex items-center pl-1.5 pr-3">
                             {hidden ? (
                               <EyeIcon className="h-5 w-5 text-gray-400 group-hover:text-gray-500" />
                             ) : (
@@ -203,8 +188,7 @@ export function PasswordDialog(props: PasswordDialogProps) {
                   <button
                     type="button"
                     onClick={props.onClose}
-                    className="mt-3 inline-flex w-full justify-center rounded-sm bg-primary-200 px-3 py-2 text-sm text-gray-900 font-medium hover:bg-primary-300 sm:col-start-1 sm:mt-0"
-                  >
+                    className="bg-primary-200 hover:bg-primary-300 mt-3 inline-flex w-full justify-center rounded-sm px-3 py-2 text-sm font-medium text-gray-900 sm:col-start-1 sm:mt-0">
                     Continue
                   </button>
                 </div>

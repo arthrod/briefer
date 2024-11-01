@@ -16,10 +16,7 @@ export default function DashboardPage() {
   const session = useSession()
   const workspaceId = useStringQuery('workspaceId')
   const documentId = useStringQuery('documentId')
-  const [{ document, loading: loadingDocument }] = useDocument(
-    workspaceId,
-    documentId
-  )
+  const [{ document, loading: loadingDocument }] = useDocument(workspaceId, documentId)
 
   const loading = session.isLoading || loadingDocument
 
@@ -40,9 +37,7 @@ export default function DashboardPage() {
         // viewers can't see dashboard in edit mode
         router.replace(`/workspaces/${workspaceId}/documents/${documentId}`)
       } else {
-        router.replace(
-          `/workspaces/${workspaceId}/documents/${documentId}/dashboard/edit`
-        )
+        router.replace(`/workspaces/${workspaceId}/documents/${documentId}/dashboard/edit`)
       }
     }
   }, [document, workspaceId, role, loading])

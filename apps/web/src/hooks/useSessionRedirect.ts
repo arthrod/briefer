@@ -41,6 +41,7 @@ export const useSessionRedirect = (shouldRedirect = true) => {
     } else if (workspaces.data.length === 0) {
       signOut()
     } else {
+      // router.replace(`/home`)
       router.replace(`/workspaces/${workspaces.data[0].id}/documents`)
     }
   }, [properties, workspaces, session, router, shouldRedirect, signOut])

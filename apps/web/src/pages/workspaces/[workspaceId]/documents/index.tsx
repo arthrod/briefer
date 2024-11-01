@@ -1,8 +1,5 @@
 import Layout from '@/components/Layout'
-import {
-  ContentSkeleton,
-  TitleSkeleton,
-} from '@/components/v2Editor/ContentSkeleton'
+import { ContentSkeleton, TitleSkeleton } from '@/components/v2Editor/ContentSkeleton'
 import { widthClasses } from '@/components/v2Editor/constants'
 import { useDocuments } from '@/hooks/useDocuments'
 import { useStringQuery } from '@/hooks/useQueryArgs'
@@ -16,10 +13,7 @@ export default function DocumentsPage() {
   const [state, { createDocument }] = useDocuments(workspaceId)
 
   const documents = useMemo(
-    () =>
-      state.documents.filter(
-        (doc) => doc.deletedAt === null && doc.version > 1
-      ),
+    () => state.documents.filter((doc) => doc.deletedAt === null && doc.version > 1),
     [state.documents]
   )
 
@@ -38,7 +32,7 @@ export default function DocumentsPage() {
 
   return (
     <Layout>
-      <div className="w-full flex justify-center">
+      <div className="flex w-full justify-center">
         <div className={clsx(widthClasses, 'w-full py-20')}>
           <TitleSkeleton visible />
           <ContentSkeleton visible />
