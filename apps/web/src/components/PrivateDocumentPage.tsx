@@ -6,7 +6,6 @@ import { useCallback, useMemo, useState } from 'react'
 import { useRouter } from 'next/router'
 import type { ApiDocument, ApiUser, UserWorkspaceRole } from '@briefer/database'
 import { isNil } from 'ramda'
-import ShareDropdown from './ShareDropdown'
 import { useDocuments } from '@/hooks/useDocuments'
 import Layout from './Layout'
 import Comments from './Comments'
@@ -15,12 +14,10 @@ import useFullScreenDocument from '@/hooks/useFullScreenDocument'
 import Schedules from './Schedules'
 import Snapshots from './Snapshots'
 import { useYDoc } from '@/hooks/useYDoc'
-import DashboardNotebookGroupButton from './DashboarNotebookGroupButton'
 import EllipsisDropdown from './EllipsisDropdown'
 import Link from 'next/link'
-import { EyeIcon, PencilIcon } from '@heroicons/react/24/outline'
+import { EyeIcon } from '@heroicons/react/24/outline'
 import { BookUpIcon } from 'lucide-react'
-import LiveButton from './LiveButton'
 import clsx from 'clsx'
 import { widthClasses } from './v2Editor/constants'
 import { ContentSkeleton, TitleSkeleton } from './v2Editor/ContentSkeleton'
@@ -45,15 +42,12 @@ interface Props {
   isApp: boolean
 }
 export default function PrivateDocumentPage(props: Props) {
-  const [{ document, publishing }, { publish }] = useDocument(
-    props.workspaceId,
-    props.documentId
-  )
+  const [{ document, publishing }, { publish }] = useDocument(props.workspaceId, props.documentId)
 
   if (!document) {
     return (
       <Layout>
-        <div className="w-full flex justify-center">
+        <div className="flex w-full justify-center">
           <div className={clsx(widthClasses, 'py-20')}>
             <TitleSkeleton visible />
             <ContentSkeleton visible />
@@ -80,10 +74,7 @@ function PrivateDocumentPageInner(
     publishing: boolean
   }
 ) {
-  const documentTitle = useMemo(
-    () => props.document.title || 'Untitled',
-    [props.document.title]
-  )
+  const documentTitle = useMemo(() => props.document.title || 'Untitled', [props.document.title])
 
   const [selectedSidebar, setSelectedSidebar] = useState<
     | { _tag: 'comments' }
@@ -104,15 +95,11 @@ function PrivateDocumentPageInner(
   }, [setSelectedSidebar])
 
   const onToggleComments = useCallback(() => {
-    setSelectedSidebar((v) =>
-      v?._tag === 'comments' ? null : { _tag: 'comments' }
-    )
+    setSelectedSidebar((v) => (v?._tag === 'comments' ? null : { _tag: 'comments' }))
   }, [setSelectedSidebar])
 
   const onToggleShortcuts = useCallback(() => {
-    setSelectedSidebar((v) =>
-      v?._tag === 'shortcuts' ? null : { _tag: 'shortcuts' }
-    )
+    setSelectedSidebar((v) => (v?._tag === 'shortcuts' ? null : { _tag: 'shortcuts' }))
   }, [setSelectedSidebar])
 
   const onToggleReusableComponents = useCallback(() => {
@@ -123,9 +110,7 @@ function PrivateDocumentPageInner(
 
   const onToggleSchemaExplorerEllipsis = useCallback(() => {
     setSelectedSidebar((v) =>
-      v?._tag === 'schemaExplorer'
-        ? null
-        : { _tag: 'schemaExplorer', dataSourceId: null }
+      v?._tag === 'schemaExplorer' ? null : { _tag: 'schemaExplorer', dataSourceId: null }
     )
   }, [setSelectedSidebar])
 
@@ -141,15 +126,11 @@ function PrivateDocumentPageInner(
   )
 
   const onToggleSchedules = useCallback(() => {
-    setSelectedSidebar((v) =>
-      v?._tag === 'schedules' ? null : { _tag: 'schedules' }
-    )
+    setSelectedSidebar((v) => (v?._tag === 'schedules' ? null : { _tag: 'schedules' }))
   }, [setSelectedSidebar])
 
   const onToggleSnapshots = useCallback(() => {
-    setSelectedSidebar((v) =>
-      v?._tag === 'snapshots' ? null : { _tag: 'snapshots' }
-    )
+    setSelectedSidebar((v) => (v?._tag === 'snapshots' ? null : { _tag: 'snapshots' }))
   }, [setSelectedSidebar])
 
   const onToggleFiles = useCallback(() => {
@@ -157,26 +138,20 @@ function PrivateDocumentPageInner(
   }, [setSelectedSidebar])
 
   const onTogglePageSettings = useCallback(() => {
-    setSelectedSidebar((v) =>
-      v?._tag === 'pageSettings' ? null : { _tag: 'pageSettings' }
-    )
+    setSelectedSidebar((v) => (v?._tag === 'pageSettings' ? null : { _tag: 'pageSettings' }))
   }, [setSelectedSidebar])
 
   const router = useRouter()
   const copyLink = useMemo(
     () =>
-      `${NEXT_PUBLIC_PUBLIC_URL()}/workspaces/${props.workspaceId}/documents/${
-        props.documentId
-      }`,
+      `${NEXT_PUBLIC_PUBLIC_URL()}/workspaces/${props.workspaceId}/documents/${props.documentId}`,
     [router]
   )
 
   const isViewer = props.user.roles[props.workspaceId] === 'viewer'
   const isDeleted = !isNil(props.document.deletedAt)
 
-  const [isFullScreen, { toggle: onToggleFullScreen }] = useFullScreenDocument(
-    props.document.id
-  )
+  const [isFullScreen, { toggle: onToggleFullScreen }] = useFullScreenDocument(props.document.id)
 
   const [, { restoreDocument }] = useDocuments(props.workspaceId)
   const onRestoreDocument = useCallback(() => {
@@ -213,70 +188,35 @@ function PrivateDocumentPageInner(
     }
 
     await props.publish()
-    router.push(
-      `/workspaces/${props.document.workspaceId}/documents/${props.document.id}/notebook`
-    )
+    router.push(`/workspaces/${props.document.workspaceId}/documents/${props.document.id}/notebook`)
   }, [props.publishing, props.publish])
 
   const onGoToApp = useCallback(() => {
-    router.push(
-      `/workspaces/${props.document.workspaceId}/documents/${props.document.id}/notebook`
-    )
+    router.push(`/workspaces/${props.document.workspaceId}/documents/${props.document.id}/notebook`)
   }, [router])
 
   const topBarContent = (
-    <div className="flex items-center w-full justify-between gap-x-6">
-      <div className="w-full overflow-hidden flex items-center gap-x-1.5 text-sm text-gray-400 font-sans">
-        <span className="flex items-center w-full truncate ">
+    <div className="flex w-full items-center justify-between gap-x-6">
+      <div className="flex w-full items-center gap-x-1.5 overflow-hidden font-sans text-sm text-gray-400">
+        <span className="flex w-full items-center truncate">
           {documentTitle}
-          <span className="font-semibold ml-1">
-            {props.isApp ? (
-              <span className="text-ceramic-500 mr-1">查看中</span>
-            ) : (
-              '编辑中'
-            )}
+          <span className="ml-1 font-semibold">
+            {props.isApp ? <span className="text-ceramic-500 mr-1">查看中</span> : '编辑中'}
           </span>
           {props.isApp ? (
-            <EyeIcon className="w-4 h-4" />
+            <EyeIcon className="h-4 w-4" />
           ) : (
-            <img className="w-4 h-4" src="/icons/edit.svg" alt="" />
+            <img className="h-4 w-4" src="/icons/edit.svg" alt="" />
           )}
         </span>
       </div>
-      {/* <DashboardNotebookGroupButton
-        workspaceId={props.workspaceId}
-        documentId={props.documentId}
-        current="notebook"
-        isEditing={!props.isApp}
-      /> */}
 
-      <div className="w-full justify-end flex items-center gap-x-2 h-[30px]">
-        {/* {!props.isApp && (
-          <LiveButton
-            onClick={onGoToApp}
-            disabled={props.document.publishedAt === null}
-            tooltipActive={props.document.publishedAt === null}
-          />
-        )} */}
-
-        {/* <ShareDropdown
-          link={copyLink}
-          isPublic={false}
-          onTogglePublic={() => {}}
-          workspaceId={props.workspaceId}
-          documentId={props.documentId}
-          documentTitle={documentTitle}
-          role={props.user.roles[props.workspaceId]}
-          isDashboard={false}
-          isApp={props.isApp}
-        /> */}
-
+      <div className="flex h-[30px] w-full items-center justify-end gap-x-2">
         {props.isApp ? (
           <Link
-            className="flex gap-x-2 items-center rounded-sm px-3 py-1 text-sm text-gray-500 bg-white hover:bg-gray-100 border border-gray-200 disabled:cursor-not-allowed disabled:opacity-50 gap-x-1.5 justify-center"
-            href={`/workspaces/${props.document.workspaceId}/documents/${props.document.id}/notebook/edit`}
-          >
-            <img className="w-4 h-4 " src="/icons/edit.svg" alt="" />
+            className="flex items-center justify-center gap-x-1.5 gap-x-2 rounded-sm border border-gray-200 bg-white px-3 py-1 text-sm text-gray-500 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+            href={`/workspaces/${props.document.workspaceId}/documents/${props.document.id}/notebook/edit`}>
+            <img className="h-4 w-4" src="/icons/edit.svg" alt="" />
             <span>编辑</span>
           </Link>
         ) : (
@@ -286,21 +226,17 @@ function PrivateDocumentPageInner(
               message="This notebook has unpublished changes."
               active={props.document.publishedAt !== null && isDirty}
               position="bottom"
-              tooltipClassname="w-40"
-            >
+              tooltipClassname="w-40">
               <button
-                className="flex items-center rounded-sm px-3 py-1 text-sm bg-primary-200 hover:bg-primary-300 disabled:cursor-not-allowed disabled:opacity-50 gap-x-1.5 group relative"
+                className="bg-primary-200 hover:bg-primary-300 group relative flex items-center gap-x-1.5 rounded-sm px-3 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-50"
                 onClick={onPublish}
-                disabled={props.publishing}
-              >
+                disabled={props.publishing}>
                 <BookUpIcon
-                  className="w-4 h-4 rotate-12 group-hover:rotate-0 transition-transform duration-400"
+                  className="duration-400 h-4 w-4 rotate-12 transition-transform group-hover:rotate-0"
                   strokeWidth={1}
                 />
                 <span>预览</span>
-                {isDirty && props.document.publishedAt && (
-                  <PublishBlinkingSignal />
-                )}
+                {isDirty && props.document.publishedAt && <PublishBlinkingSignal />}
               </button>
             </Tooltip>
           </>
@@ -326,7 +262,7 @@ function PrivateDocumentPageInner(
 
   return (
     <Layout topBarContent={topBarContent}>
-      <div className="w-full relative flex">
+      <div className="relative flex w-full">
         <V2Editor
           document={props.document}
           dataSources={dataSources}
@@ -345,9 +281,7 @@ function PrivateDocumentPageInner(
           onOpenFiles={onToggleFiles}
           onSchemaExplorer={onToggleSchemaExplorerSQLBlock}
         />
-        {!isViewer && (
-          <RunAllV2 disabled={false} yDoc={yDoc} primary={props.isApp} />
-        )}
+        {!isViewer && <RunAllV2 disabled={false} yDoc={yDoc} primary={props.isApp} />}
 
         <Comments
           workspaceId={props.workspaceId}
@@ -361,17 +295,12 @@ function PrivateDocumentPageInner(
           visible={selectedSidebar?._tag === 'schemaExplorer'}
           onHide={onHideSidebar}
           dataSourceId={
-            selectedSidebar?._tag === 'schemaExplorer'
-              ? selectedSidebar.dataSourceId
-              : null
+            selectedSidebar?._tag === 'schemaExplorer' ? selectedSidebar.dataSourceId : null
           }
           canRetrySchema={!isViewer}
         />
 
-        <ShortcutsModal
-          visible={selectedSidebar?._tag === 'shortcuts'}
-          onHide={onHideSidebar}
-        />
+        <ShortcutsModal visible={selectedSidebar?._tag === 'shortcuts'} onHide={onHideSidebar} />
 
         {!isViewer && !isDeleted && (
           <>

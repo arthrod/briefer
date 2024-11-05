@@ -7,7 +7,7 @@ import Spin from '@/components/Spin'
 import Cookies from 'js-cookie'
 import useProperties from '@/hooks/useProperties'
 
-export default function SignIn() {
+export default function Login() {
   const properties = useProperties()
   const router = useRouter()
   const session = useSession()
@@ -19,12 +19,12 @@ export default function SignIn() {
     }
   }, [session])
 
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const onChangeEmail: ChangeEventHandler<HTMLInputElement> = useCallback(
     (e) => {
-      setEmail(e.target.value)
+      setUsername(e.target.value)
     },
-    [setEmail]
+    [setUsername]
   )
 
   const [password, setPassword] = useState('')
@@ -35,15 +35,15 @@ export default function SignIn() {
     [setPassword]
   )
 
-  const [auth, { loginWithEmail, loginWithPassword }] = useLogin()
+  const [auth, { loginWithPassword }] = useLogin()
 
   const onPasswordAuth: FormEventHandler<HTMLFormElement> = useCallback(
     (e) => {
       e.preventDefault()
 
-      loginWithPassword(email, password)
+      loginWithPassword(username, password)
     },
-    [email, password, loginWithEmail]
+    [username, password]
   )
 
   useEffect(() => {
@@ -76,7 +76,7 @@ export default function SignIn() {
       <div className="font-syne bg-ceramic-100/90 relative flex h-full items-center justify-center sm:justify-around">
         <div className="">
           <h1 className="font-trap text-hunter-950 text-7xl font-bold leading-[6rem] tracking-tight lg:text-[96px]">
-            mindflow
+            DataAgent
           </h1>
           <p className="text-hunter-900 pl-1 text-lg lg:text-2xl">
             The collaborative data platform.
@@ -108,17 +108,16 @@ export default function SignIn() {
             <form onSubmit={onPasswordAuth}>
               <div>
                 <div className="pb-4">
-                  <label htmlFor="email" className="block pb-2 text-sm leading-6 text-gray-500">
-                    邮箱地址
+                  <label htmlFor="username" className="block pb-2 text-sm leading-6 text-gray-500">
+                    用户名
                   </label>
                   <div>
                     <input
-                      name="email"
-                      type="email"
-                      autoComplete="email"
+                      name="username"
+                      type="text"
                       disabled={auth.data !== undefined || auth.loading}
                       required
-                      value={email}
+                      value={username}
                       onChange={onChangeEmail}
                       className="block w-full rounded-md border-0 py-2 text-sm leading-6 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-gray-600 disabled:cursor-not-allowed disabled:bg-gray-100"
                     />
@@ -126,7 +125,7 @@ export default function SignIn() {
                 </div>
 
                 <div className="pb-4">
-                  <label htmlFor="email" className="block pb-2 text-sm leading-6 text-gray-500">
+                  <label htmlFor="username" className="block pb-2 text-sm leading-6 text-gray-500">
                     密码
                   </label>
                   <div>

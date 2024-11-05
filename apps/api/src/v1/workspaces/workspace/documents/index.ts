@@ -1,10 +1,4 @@
-import {
-  prisma,
-  getDocument,
-  listDocuments,
-  ApiDocument,
-  toApiDocument,
-} from '@briefer/database'
+import { prisma, getDocument, listDocuments, ApiDocument, toApiDocument } from '@briefer/database'
 import { NextFunction, Router, Request, Response } from 'express'
 import { getParam } from '../../../../utils/express.js'
 import documentRouter from './document/index.js'
@@ -19,68 +13,64 @@ import { canUpdateWorkspace } from '../../../../auth/token.js'
 export default function documentsRouter(socketServer: IOServer) {
   const router = Router({ mergeParams: true })
 
-  router.post(
-    '/',
-    canUpdateWorkspace,
-    async (req, res: Response<ApiDocument>) => {
-      const payload = z
-        .object({
-          id: z.string().optional(),
-          parentId: uuidSchema.nullable().optional().default(null),
-          version: z.number().optional(),
-        })
-        .safeParse(req.body)
-      if (!payload.success) {
-        res.status(400).end()
+  router.post('/', canUpdateWorkspace, async (req: any, res: Response<ApiDocument>) => {
+    const payload = z
+      .object({
+        id: z.string().optional(),
+        parentId: uuidSchema.nullable().optional().default(null),
+        version: z.number().optional(),
+      })
+      .safeParse(req.body)
+    if (!payload.success) {
+      res.status(400).end()
+      return
+    }
+
+    const data = payload.data
+
+    const workspaceId = getParam(req, 'workspaceId')
+
+    let status = 500
+    try {
+      const document = await prisma().$transaction(
+        async (tx) => {
+          const result = await upsertDocument(
+            data.id ?? uuidv4(),
+            '',
+            workspaceId,
+            data.parentId,
+            -1,
+            data.version ?? 1,
+            tx
+          )
+
+          if (!result) {
+            throw new Error('Failed to create document')
+          }
+
+          if (result.created) {
+            res.status(201)
+          }
+
+          return result.document
+        },
+        {
+          maxWait: 11000,
+          timeout: 10000,
+        }
+      )
+
+      res.json(await toApiDocument(document))
+    } catch (err) {
+      if (status !== 500) {
+        res.status(status).end()
         return
       }
 
-      const data = payload.data
-
-      const workspaceId = getParam(req, 'workspaceId')
-
-      let status = 500
-      try {
-        const document = await prisma().$transaction(
-          async (tx) => {
-            const result = await upsertDocument(
-              data.id ?? uuidv4(),
-              '',
-              workspaceId,
-              data.parentId,
-              -1,
-              data.version ?? 1,
-              tx
-            )
-
-            if (!result) {
-              throw new Error('Failed to create document')
-            }
-
-            if (result.created) {
-              res.status(201)
-            }
-
-            return result.document
-          },
-          {
-            maxWait: 11000,
-            timeout: 10000,
-          }
-        )
-
-        res.json(await toApiDocument(document))
-      } catch (err) {
-        if (status !== 500) {
-          res.status(status).end()
-          return
-        }
-
-        req.log.error({ err, workspaceId }, 'Failed to create document')
-        res.status(500).end()
-      }
+      req.log.error({ err, workspaceId }, 'Failed to create document')
+      res.status(500).end()
     }
-  )
+  })
 
   router.get('/', async (req, res: Response<ApiDocument[]>) => {
     const workspaceId = getParam(req, 'workspaceId')
@@ -88,11 +78,7 @@ export default function documentsRouter(socketServer: IOServer) {
     res.json(docs)
   })
 
-  async function belongsToWorkspace(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ) {
+  async function belongsToWorkspace(req: Request, res: Response, next: NextFunction) {
     const workspaceId = getParam(req, 'workspaceId')
     const documentId = getParam(req, 'documentId')
 

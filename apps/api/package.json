@@ -7,7 +7,8 @@
     "start": "node ./dist/index.js",
     "dev": "nodemon",
     "build": "tsc",
-    "test": "jest"
+    "test": "jest",
+    "db": "POSTGRES_PRISMA_URL=postgresql://postgres:password@127.0.0.1:5432/briefer?schema=public prisma migrate deploy"
   },
   "dependencies": {
     "@briefer/database": "*",

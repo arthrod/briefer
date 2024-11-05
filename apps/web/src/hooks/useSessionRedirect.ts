@@ -6,10 +6,7 @@ import useProperties from './useProperties'
 
 const redirectToLogin = (router: NextRouter) => {
   const postRedirPath = router.asPath
-  const path =
-    postRedirPath === '/'
-      ? '/auth/signin'
-      : `/auth/signin?r=${encodeURIComponent(postRedirPath)}`
+  const path = postRedirPath === '/' ? '/login' : `/login?r=${encodeURIComponent(postRedirPath)}`
 
   router.replace(path)
 }
@@ -41,8 +38,8 @@ export const useSessionRedirect = (shouldRedirect = true) => {
     } else if (workspaces.data.length === 0) {
       signOut()
     } else {
-      // router.replace(`/home`)
-      router.replace(`/workspaces/${workspaces.data[0].id}/documents`)
+      router.replace(`/home`)
+      // router.replace(`/workspaces/${workspaces.data[0].id}/documents`)
     }
   }, [properties, workspaces, session, router, shouldRedirect, signOut])
 }

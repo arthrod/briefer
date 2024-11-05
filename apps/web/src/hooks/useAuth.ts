@@ -1,3 +1,4 @@
+import { AesTools } from '@/utils/AesTools'
 import { NEXT_PUBLIC_API_URL, NEXT_PUBLIC_PUBLIC_URL } from '@/utils/env'
 import fetcher from '@/utils/fetcher'
 import type { ApiUser, UserWorkspaceRole } from '@briefer/database'
@@ -60,8 +61,7 @@ export const useSignup = (): UseSignup => {
 }
 
 type LoginAPI = {
-  loginWithEmail: (email: string) => void
-  loginWithPassword: (email: string, password: string) => void
+  loginWithPassword: (username: string, password: string) => void
 }
 type UseLogin = [AuthState, LoginAPI]
 export const useLogin = (): UseLogin => {
@@ -71,45 +71,15 @@ export const useLogin = (): UseLogin => {
     error: undefined,
   })
 
-  const loginWithEmail = useCallback(
-    (email: string) => {
-      setState((s) => ({ ...s, loading: true }))
-      fetch(`${NEXT_PUBLIC_API_URL()}/auth/link/request`, {
-        credentials: 'include',
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email,
-          callback: NEXT_PUBLIC_PUBLIC_URL(),
-        }),
-      })
-        .then(async (res) => {
-          if (res.ok) {
-            setState({
-              loading: false,
-              data: await res.json(),
-              error: undefined,
-            })
-            return
-          }
-
-          throw new Error(`Unexpected status ${res.status}`)
-        })
-        .catch(() => {
-          setState((s) => ({ ...s, loading: false, error: 'unexpected' }))
-        })
-    },
-    [setState]
-  )
-
   const loginWithPassword = useCallback(
-    (email: string, password: string) => {
+    (username: string, password: string) => {
       setState((s) => ({ ...s, loading: true }))
+
       fetch(`${NEXT_PUBLIC_API_URL()}/auth/sign-in/password`, {
         credentials: 'include',
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: username, password }),
       })
         .then(async (res) => {
           if (res.ok) {
@@ -138,10 +108,7 @@ export const useLogin = (): UseLogin => {
     [setState]
   )
 
-  return useMemo(
-    () => [state, { loginWithEmail, loginWithPassword }],
-    [state, loginWithEmail]
-  )
+  return useMemo(() => [state, { loginWithPassword }], [state])
 }
 
 export type SessionUser = ApiUser & {
@@ -157,11 +124,7 @@ export const useSignout = () => {
   return useCallback(
     (callback?: string) => {
       const cb = callback ?? NEXT_PUBLIC_PUBLIC_URL()
-      router.push(
-        `${NEXT_PUBLIC_API_URL()}/auth/logout?callback=${encodeURIComponent(
-          cb
-        )}`
-      )
+      router.push(`${NEXT_PUBLIC_API_URL()}/auth/logout?callback=${encodeURIComponent(cb)}`)
     },
     [router]
   )

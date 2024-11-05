@@ -1,8 +1,9 @@
-import { HistoryChat, useChats } from '@/hooks/useChats'
-import React, { useEffect, useState } from 'react'
+import { HistoryChat, useChatList } from '@/hooks/useChatList'
+import React, { useEffect, useMemo, useState } from 'react'
 import { clsx } from 'clsx'
 import { useRouter } from 'next/router'
 import { useWorkspaces } from '@/hooks/useWorkspaces'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
 import styles from './index.module.scss'
 import { NoData } from '@/components/mf/NoData'
@@ -11,13 +12,51 @@ import ChatInput from '@/components/mf/ChatInput'
 import RagIcon from '../../icons/rag.svg'
 import ReportIcon from '../../icons/report.svg'
 
-export default function Home() {
+interface Item {
+  type: string
+  label: string
+}
+
+interface IMoreBtnProps {
+  items: Item[]
+  onItemClick?: (type: string) => void
+}
+
+const MoreBtn = (props: IMoreBtnProps) => {
+  const { items, onItemClick } = props
+  return (
+    <Popover>
+      <PopoverTrigger
+        className={styles.moreOpt}
+        onClick={(e) => {
+          e.stopPropagation()
+        }}>
+        <img src="/icons/more.svg" width={16} />
+      </PopoverTrigger>
+      <PopoverContent>
+        <div>
+          {items.map((item, index) => (
+            <div
+              key={index}
+              onClick={() => {
+                onItemClick && onItemClick(item.type)
+              }}>
+              {item.label}
+            </div>
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+export default function HomePage() {
   const [chatList, setChatList] = useState<HistoryChat[]>([])
   const [workspaces] = useWorkspaces()
 
   const router = useRouter()
 
-  const [{ getChatList }] = useChats()
+  const [{ getChatList }] = useChatList()
 
   useEffect(() => {
     getChatList().then((res) => {
@@ -34,7 +73,7 @@ export default function Home() {
           </div>
           <div className={styles.createBtn}>
             <img src="/icons/chat-new-line.svg" width={16} height={16}></img>
-            <span className="ml-[8px]">新建对话</span>
+            <span>新建对话</span>
           </div>
           <div className={styles.chatListWrapper}>
             {chatList.length ? (
@@ -44,20 +83,22 @@ export default function Home() {
                     key={item.id}
                     className={styles.chatItem}
                     onClick={() => {
-                      router.replace(`/workspaces/${workspaces.data[0].id}/documents`)
+                      if (item.type === 'report') {
+                        router.replace(`/workspaces/${workspaces.data[0].id}/documents`)
+                      } else {
+                        router.push(`/rag/${item.id}`)
+                      }
                     }}>
-                    <div
-                      className={clsx(
-                        'w-[85%] overflow-hidden text-ellipsis text-nowrap break-keep'
-                      )}>
-                      {item.name}
+                    <div className={'w-[85%] overflow-hidden text-ellipsis text-nowrap break-keep'}>
+                      {item.title}
                     </div>
-                    <img
-                      className={styles.moreOpt}
-                      src="/icons/more.svg"
-                      width={16}
-                      onClick={(e) => {
-                        e.stopPropagation()
+                    <MoreBtn
+                      items={[
+                        { type: 'edit', label: '编辑标题' },
+                        { type: 'del', label: '删除' },
+                      ]}
+                      onItemClick={(type) => {
+                        console.log(type)
                       }}
                     />
                   </div>

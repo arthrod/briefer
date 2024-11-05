@@ -1,13 +1,14 @@
-
 export function getChatList() {
-    return [
-        {
-        id: '1',
-        name: 'Chat 1',
-        },
-        {
-        id: '2',
-        name: 'Chat 2',
-        },
-    ];
+  return [
+    {
+      id: '1',
+      title: 'ChatChatChatChat',
+      type: 'rag',
+    },
+    {
+      id: '2',
+      title: 'ChatChatChatChatChat',
+      type: 'report',
+    },
+  ]
 }

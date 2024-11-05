@@ -20,7 +20,7 @@ export default function DocumentsPage() {
   useEffect(() => {
     const first = documents.first()
     if (!state.loading && first) {
-      router.replace(`/workspaces/${workspaceId}/documents/${first.id}`)
+      router.replace(`/workspaces/${workspaceId}/documents/${first.id}/notebook/edit`)
     }
   }, [documents, workspaceId])
 

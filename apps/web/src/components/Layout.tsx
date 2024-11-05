@@ -21,6 +21,7 @@ import styles from './Layout.module.scss'
 import useSideBar from '@/hooks/useSideBar'
 import ChatDetail from './mf/ChatDetail'
 import ChatInput from './mf/ChatInput'
+import ToggleIcon from '../icons/toggle.svg'
 
 const syne = Syne({ subsets: ['latin'] })
 
@@ -128,29 +129,29 @@ export default function Layout({ children, pagePath, topBarClassname, topBarCont
 
       <main
         className={clsx(
+          styles.main,
           `flex h-screen w-full flex-col ${syne.className} relative`,
           isSideBarOpen ? `md:max-w-[67%] lg:max-w-[75%]` : `md:max-w-[100%] lg:max-w-[100%]`
         )}>
+        <span
+          className={clsx(
+            !isSideBarOpen && 'hidden',
+            'bg-ceramic-50 hover:bg-ceramic-100 absolute left-0 top-[50%] z-20 flex h-7 w-7 -translate-x-1/2 items-center justify-center rounded-full border border-gray-200 px-0 text-gray-400 hover:cursor-pointer hover:text-gray-600'
+          )}
+          onClick={toggleSideBar(false)}>
+          <ToggleIcon className="h-4 w-4" />
+        </span>
         <div
           className={clsx(
             isSideBarOpen ? 'px-8' : 'pr-8',
-            'b-1 flex h-12 w-full shrink-0 justify-between border-b border-gray-200',
+            'b-1 flex h-12 w-full shrink-0 justify-between',
             topBarClassname
           )}>
-          <span
-            className={clsx(
-              !isSideBarOpen && 'hidden',
-              'bg-ceramic-50 hover:bg-ceramic-100 absolute left-0 z-20 flex h-6 w-6 -translate-x-1/2 translate-y-1/2 items-center justify-center rounded-full border border-gray-200 px-0 text-gray-400 hover:cursor-pointer hover:text-gray-600'
-            )}
-            onClick={toggleSideBar(false)}>
-            <ChevronDoubleLeftIcon className="h-3 w-3" />
-          </span>
-
           <div className="flex w-full">
             <div
               className={clsx(
                 isSideBarOpen ? 'hidden' : 'mr-8',
-                'bg-ceramic-50 hover:bg-ceramic-100 relative h-12 w-12 flex-shrink cursor-pointer border-b border-gray-200 text-gray-500'
+                'bg-ceramic-50 hover:bg-ceramic-100 relative h-12 w-12 flex-shrink cursor-pointer text-gray-500'
               )}
               onClick={toggleSideBar(true)}>
               <ChevronDoubleRightIcon className="absolute left-1/2 top-1/2 h-5 w-5 -translate-x-1/2 -translate-y-1/2" />

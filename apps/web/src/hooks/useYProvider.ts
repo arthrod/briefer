@@ -117,10 +117,7 @@ export function useProvider(
   const [provider, setProvider] = useState<Provider>(
     // must be a function to avoid creating a new provider on every render
     // which would cause the provider to leak
-    () =>
-      new Provider(
-        getWSProvider(yDoc, documentId, isDataApp, clock, userId, publishedAt)
-      )
+    () => new Provider(getWSProvider(yDoc, documentId, isDataApp, clock, userId, publishedAt))
   )
 
   const isFirst = useRef(true)
@@ -132,9 +129,7 @@ export function useProvider(
 
     provider.destroy()
     setProvider(
-      new Provider(
-        getWSProvider(yDoc, documentId, isDataApp, clock, userId, publishedAt)
-      )
+      new Provider(getWSProvider(yDoc, documentId, isDataApp, clock, userId, publishedAt))
     )
   }, [yDoc, documentId, isDataApp, clock, userId, publishedAt])
 
