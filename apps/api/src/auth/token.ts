@@ -110,6 +110,8 @@ export async function sessionFromCookies(
       email: true,
       name: true,
       picture: true,
+      phone: true,
+      nickname: true,
       createdAt: true,
       updatedAt: true,
       workspaces: true,
@@ -130,6 +132,8 @@ export async function sessionFromCookies(
       email: user.email,
       name: user.name,
       picture: user.picture,
+      phone: user.phone,
+      nickname: user.nickname,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     },
@@ -214,7 +218,7 @@ export async function canReadDocument(
 
     const result = await isAuthorizedForDocument(
       documentId,
-      req.session.user.id
+      req.session.user['id']
     )
     if (!result) {
       res.status(403).end()

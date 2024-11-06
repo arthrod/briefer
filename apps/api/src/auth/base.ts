@@ -135,7 +135,7 @@ export default function getRouter<H extends ApiUser>(
 
     const { email, password } = payload.data
 
-    const user = await prisma().user.findUnique({
+    const user = await prisma().user.findFirst({
       where: { email },
       select: { id: true, email: true, passwordDigest: true },
     })

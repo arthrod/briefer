@@ -15,7 +15,7 @@ export interface IWorkspaceCreator {
     input: WorkspaceCreateInput,
     socketServer: IOServer,
     tx?: PrismaTransaction
-  ): Promise<{ workspace: ApiWorkspace; invitedUsers: ApiUser[] }>
+  ): Promise<{ workspace: ApiWorkspace }>
 }
 
 export class WorkspaceCreator implements IWorkspaceCreator {
@@ -24,53 +24,24 @@ export class WorkspaceCreator implements IWorkspaceCreator {
     input: WorkspaceCreateInput,
     _socketServer: IOServer,
     tx?: PrismaTransaction
-  ): Promise<{ workspace: ApiWorkspace; invitedUsers: ApiUser[] }> {
+  ): Promise<{ workspace: ApiWorkspace }> {
     const run = async (tx: PrismaTransaction) => {
-      const workspace = await prismaCreateWorkspace(input, owner.id, tx)
+      const workspace = await prismaCreateWorkspace(input, owner['id'], tx)
 
       let userWorkspaceAssociations = [
         {
-          userId: owner.id,
+          userId: owner['id'],
           workspaceId: workspace.id,
           role: 'admin' as UserWorkspaceRole,
         },
       ]
 
-      // Find or create users and prepare userWorkspace associations
-      const guestUsers = await Promise.all(
-        (input.inviteEmails ?? [])
-          .map((e) => e.trim())
-          .map(async (email) => {
-            const user: ApiUser = await tx.user.upsert({
-              where: { email },
-              update: {},
-              create: { email, name: email },
-              select: {
-                id: true,
-                email: true,
-                name: true,
-                picture: true,
-                createdAt: true,
-                updatedAt: true,
-              },
-            })
-
-            userWorkspaceAssociations.push({
-              userId: user.id,
-              workspaceId: workspace.id,
-              role: 'editor',
-            })
-
-            return user
-          })
-      )
-
-      await tx.userWorkspace.createMany({
+      await tx["userWorkspace"].createMany({
         data: userWorkspaceAssociations,
         skipDuplicates: true,
       })
 
-      return { workspace, invitedUsers: guestUsers }
+      return { workspace }
     }
 
     const workspace = tx ? await run(tx) : await prisma().$transaction(run)
