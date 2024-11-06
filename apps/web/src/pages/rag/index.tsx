@@ -1,3 +1,7 @@
+import { useRouter } from 'next/router'
+
 export default function RagPage() {
-  return <div>ragpage</div>
+  const router = useRouter()
+  router.replace(`/home`)
+  return null
 }

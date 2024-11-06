@@ -56,9 +56,7 @@ function SetupForm() {
     reValidateMode: 'onSubmit',
   })
 
-  const [formValues, setFormValues] = useState<
-    WorkspaceStepFormValues & UserStepFormValues
-  >({
+  const [formValues, setFormValues] = useState<WorkspaceStepFormValues & UserStepFormValues>({
     workspaceName: '',
     firstName: '',
     lastName: '',
@@ -67,9 +65,7 @@ function SetupForm() {
     confirmPassword: '',
   })
 
-  const [currentStep, setCurrentStep] = useState<'workspace' | 'user'>(
-    'workspace'
-  )
+  const [currentStep, setCurrentStep] = useState<'workspace' | 'user'>('workspace')
 
   const onWorkspaceNameNext = useCallback((values: WorkspaceStepFormValues) => {
     setFormValues((prev) => ({ ...prev, ...values }))
@@ -82,21 +78,18 @@ function SetupForm() {
       const payload = { ...formValues, ...data }
 
       try {
-        const res = await fetch(
-          `${NEXT_PUBLIC_API_URL()}/auth/sign-up/password`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              workspaceName: payload.workspaceName,
-              name: `${payload.firstName} ${payload.lastName}`,
-              email: payload.email,
-              password: payload.password,
-            }),
-          }
-        )
+        const res = await fetch(`${NEXT_PUBLIC_API_URL()}/auth/sign-up/password`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            workspaceName: payload.workspaceName,
+            name: `${payload.firstName} ${payload.lastName}`,
+            email: payload.email,
+            password: payload.password,
+          }),
+        })
         if (res.status === 201) {
           const { loginLink }: { loginLink: string } = await res.json()
           router.push(loginLink)
@@ -165,7 +158,7 @@ function SetupForm() {
   })()
 
   return (
-    <div className="flex flex-col flex-1 bg-white">
+    <div className="flex flex-1 flex-col bg-white">
       <div className="flex justify-center">
         <Stepper
           steps={['Worskpace', 'User']}

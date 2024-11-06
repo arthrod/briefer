@@ -1,5 +1,14 @@
+import ChatDetail from '@/components/mf/ChatDetail'
+import ChatLayout from '@/components/mf/ChatLayout'
 
-
-export default function RagDetail() {
-  return <div>ragpage</div>
+function RagDetail() {
+  return (
+    <div>
+      <ChatDetail></ChatDetail>
+    </div>
+  )
 }
+
+RagDetail.layout = ChatLayout
+
+export default RagDetail

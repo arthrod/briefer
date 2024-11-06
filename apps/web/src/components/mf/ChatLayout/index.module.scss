@@ -1,0 +1,62 @@
+.chatLayout {
+  height: 100%;
+  display: flex;
+  font-size: 0.875rem;
+}
+
+.left {
+  width: 15rem;
+  background-color: #f4f7fe;
+  padding: 1rem;
+  height: 100%;
+  .createBtn {
+    margin-top: 1.25rem;
+    display: flex;
+    width: 13rem;
+    height: 2.5rem;
+    border-radius: 0.5rem;
+    align-items: center;
+    padding: 0.625rem 0.75rem;
+    gap: 0.5rem;
+    color: #2f69fe;
+    background: linear-gradient(0deg, rgba(47, 105, 254, 0.12), rgba(47, 105, 254, 0.12)), #ffffff;
+    border: 1px solid rgba(47, 105, 254, 0.12);
+    cursor: pointer;
+  }
+  .chatListWrapper {
+    margin-top: 1.25rem;
+    height: calc(100% - 1.25rem - 2rem - 2.5rem - 1.25rem);
+    .chatItem {
+      position: relative;
+      width: 13rem;
+      padding: 0.75rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      .moreOpt {
+        display: none;
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        right: 1.25rem;
+      }
+      &:hover {
+        color: #2f69fe;
+        background: #dce6fa;
+        .moreOpt {
+          display: block;
+        }
+      }
+    }
+    .empty {
+      margin-top: 5rem;
+    }
+  }
+}
+
+.main {
+  flex: 1;
+  background-image: url('/images/homeBg.png');
+  background-repeat: no-repeat;
+  background-position: right bottom;
+  background-size: 53rem auto;
+}
