@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { prisma, addUserByAPI } from '@briefer/database'
 import { hashPassword } from '../../password.js'
 import { logger } from '../../logger.js'
-import { sessionFromCookies } from '../../auth/token.js'
+import { sessionFromCookies, authenticationMiddleware } from '../../auth/token.js'
 
 const userRouter = Router({ mergeParams: true })
 
@@ -591,6 +591,78 @@ userRouter.post('/pwd/reset', async (req, res) => {
       code: 500,
       msg: '服务器内部错误',
       data: {}
+    })
+  }
+})
+
+// 获取用户信息
+userRouter.get('/profile', authenticationMiddleware, async (req, res) => {
+  try {
+    logger().info({ 
+      msg: 'Attempting to get user profile',
+      data: {
+        userId: req.session.user.id,
+        timestamp: new Date().toISOString()
+      }
+    })
+
+    const user = await prisma().user.findUnique({
+      where: { id: req.session.user.id }
+    })
+
+    if (!user) {
+      logger().warn({
+        msg: 'User not found when getting profile',
+        data: {
+          userId: req.session.user.id,
+          timestamp: new Date().toISOString()
+        }
+      })
+      return res.status(404).json({
+        code: 404,
+        msg: '用户不存在',
+        data: null
+      })
+    }
+
+    logger().info({
+      msg: 'User profile retrieved successfully',
+      data: {
+        userId: user.id,
+        username: user.name,
+        email: user.email,
+        timestamp: new Date().toISOString()
+      }
+    })
+
+    return res.json({
+      code: 0,
+      data: {
+        username: user.name,
+        role: '数据分析师',
+        nickname: user.nickname || '',
+        phone: user.phone || '',
+        email: user.email || ''
+      },
+      msg: '获取成功'
+    })
+
+  } catch (err) {
+    logger().error({
+      msg: 'Failed to get user profile',
+      data: {
+        error: err,
+        errorMessage: err instanceof Error ? err.message : '未知错误',
+        errorStack: err instanceof Error ? err.stack : undefined,
+        userId: req.session.user.id,
+        timestamp: new Date().toISOString()
+      }
+    })
+
+    return res.status(500).json({
+      code: 500,
+      msg: '服务器内部错误',
+      data: null
     })
   }
 })
