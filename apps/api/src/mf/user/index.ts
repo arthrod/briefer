@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { prisma, addUserByAPI } from '@briefer/database'
 import { hashPassword } from '../../password.js'
 import { logger } from '../../logger.js'
+import { sessionFromCookies } from '../../auth/token.js'
 
 const userRouter = Router({ mergeParams: true })
 
@@ -14,6 +15,7 @@ const userSchema = z.object({
   nickname: z.string().optional()
 })
 
+// 创建用户
 userRouter.post('/add', async (req, res) => {
   try {
     const result = userSchema.safeParse(req.body)
@@ -124,6 +126,7 @@ const userEditSchema = z.object({
   nickname: z.string().optional()
 })
 
+// 更新用户信息
 userRouter.post('/edit', async (req, res) => {
   try {
     // 验证请求参数
@@ -183,6 +186,118 @@ userRouter.post('/edit', async (req, res) => {
         errorMessage: err instanceof Error ? err.message : '未知错误',
         errorStack: err instanceof Error ? err.stack : undefined,
         requestBody: req.body
+      }
+    })
+
+    return res.status(500).json({
+      code: 500,
+      msg: '服务器内部错误',
+      data: {}
+    })
+  }
+})
+
+// 删除用户
+userRouter.post('/delete', async (req, res) => {
+  try {
+    const deleteSchema = z.object({
+      uid: z.string().min(1, "用户ID不能为空"),
+    })
+
+    const result = deleteSchema.safeParse(req.body)
+    if (!result.success) {
+      logger().error({
+        msg: 'Invalid delete user input',
+        data: {
+          errors: result.error.errors.map(err => ({
+            path: err.path.join('.'),
+            message: err.message
+          })),
+          requestBody: req.body,
+          timestamp: new Date().toISOString()
+        }
+      })
+      return res.status(400).json({
+        code: 400,
+        msg: '参数校验失败',
+        data: {}
+      })
+    }
+
+    const { uid } = result.data
+
+    logger().info({ msg: 'Attempting to delete user', data: { uid } })
+
+    const user = await prisma().user.findUnique({
+      where: { id: uid }
+    })
+
+    if (!user) {
+      logger().warn({
+        msg: 'User not found for deletion',
+        data: {
+          uid,
+          timestamp: new Date().toISOString()
+        }
+      })
+      return res.status(404).json({
+        code: 404,
+        msg: '用户不存在',
+        data: {}
+      })
+    }
+
+    // 检查用户是否已登录
+    // TODO： 需要根据用户登录流程做清理操作
+    const session = await sessionFromCookies(req.cookies)
+    const isLoggedInUser = session?.user.id === uid
+
+    // 更新用户名添加删除标记
+    const deletedUsername = `${user.name}_deleted*!~!*`
+
+    await prisma().$transaction(async (tx) => {
+      // 更新用户名
+      await tx.user.update({
+        where: { id: uid },
+        data: {
+          name: deletedUsername,
+          // 清除用户的密码，防止重新登录
+          passwordDigest: null
+        }
+      })
+    })
+
+    logger().info({
+      msg: 'User marked as deleted successfully',
+      data: {
+        userId: uid,
+        originalUsername: user.name,
+        deletedUsername,
+        wasLoggedIn: isLoggedInUser,
+        timestamp: new Date().toISOString()
+      }
+    })
+
+    // 如果是当前登录用户才清除当前请求的cookie
+    if (isLoggedInUser) {
+      res.clearCookie('token')
+    }
+
+    return res.json({
+      code: 0,
+      data: {},
+      msg: '删除成功'
+    })
+
+  } catch (err) {
+    logger().error({
+      msg: 'Failed to delete user',
+      data: {
+        error: err,
+        errorMessage: err instanceof Error ? err.message : '未知错误',
+        errorStack: err instanceof Error ? err.stack : undefined,
+        requestBody: req.body,
+        timestamp: new Date().toISOString()
       }
     })
 
