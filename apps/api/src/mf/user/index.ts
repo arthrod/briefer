@@ -408,4 +408,97 @@ userRouter.post('/disable', async (req, res) => {
   }
 })
 
+// 启用用户
+userRouter.post('/enable', async (req, res) => {
+  try {
+    const enableSchema = z.object({
+      uid: z.string().min(1, "用户ID不能为空"),
+    })
+
+    const result = enableSchema.safeParse(req.body)
+    if (!result.success) {
+      logger().error({
+        msg: 'Invalid enable user input',
+        data: {
+          errors: result.error.errors.map(err => ({
+            path: err.path.join('.'),
+            message: err.message
+          })),
+          requestBody: req.body,
+          timestamp: new Date().toISOString()
+        }
+      })
+      return res.status(400).json({
+        code: 400,
+        msg: '参数校验失败',
+        data: {}
+      })
+    }
+
+    const { uid } = result.data
+
+    logger().info({ msg: 'Attempting to enable user', data: { uid } })
+
+    const user = await prisma().user.findUnique({
+      where: { id: uid }
+    })
+
+    if (!user) {
+      logger().warn({
+        msg: 'User not found for enable',
+        data: {
+          uid,
+          timestamp: new Date().toISOString()
+        }
+      })
+      return res.status(404).json({
+        code: 404,
+        msg: '用户不存在',
+        data: {}
+      })
+    }
+
+    // 更新用户状态为启用
+    await prisma().user.update({
+      where: { id: uid },
+      data: {
+        status: 1
+      }
+    })
+
+    logger().info({
+      msg: 'User enabled successfully',
+      data: {
+        userId: uid,
+        username: user.name,
+        timestamp: new Date().toISOString()
+      }
+    })
+
+    return res.json({
+      code: 0,
+      data: {},
+      msg: '启用成功'
+    })
+
+  } catch (err) {
+    logger().error({
+      msg: 'Failed to enable user',
+      data: {
+        error: err,
+        errorMessage: err instanceof Error ? err.message : '未知错误',
+        errorStack: err instanceof Error ? err.stack : undefined,
+        requestBody: req.body,
+        timestamp: new Date().toISOString()
+      }
+    })
+
+    return res.status(500).json({
+      code: 500,
+      msg: '服务器内部错误',
+      data: {}
+    })
+  }
+})
+
 export default userRouter
