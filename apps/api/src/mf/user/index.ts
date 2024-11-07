@@ -501,4 +501,98 @@ userRouter.post('/enable', async (req, res) => {
   }
 })
 
+// 重置密码
+userRouter.post('/pwd/reset', async (req, res) => {
+  try {
+    const resetSchema = z.object({
+      uid: z.string().min(1, "用户ID不能为空"),
+      pwd: z.string().min(6, "密码长度至少6位"),
+    })
+
+    const result = resetSchema.safeParse(req.body)
+    if (!result.success) {
+      logger().error({
+        msg: 'Invalid password reset input',
+        data: {
+          errors: result.error.errors.map(err => ({
+            path: err.path.join('.'),
+            message: err.message
+          })),
+          requestBody: req.body,
+          timestamp: new Date().toISOString()
+        }
+      })
+      return res.status(400).json({
+        code: 400,
+        msg: '参数校验失败',
+        data: {}
+      })
+    }
+
+    const { uid, pwd } = result.data
+
+    logger().info({ msg: 'Attempting to reset user password', data: { uid } })
+
+    const user = await prisma().user.findUnique({
+      where: { id: uid }
+    })
+
+    if (!user) {
+      logger().warn({
+        msg: 'User not found for password reset',
+        data: {
+          uid,
+          timestamp: new Date().toISOString()
+        }
+      })
+      return res.status(404).json({
+        code: 404,
+        msg: '用户不存在',
+        data: {}
+      })
+    }
+
+    const passwordDigest = await hashPassword(pwd)
+
+    await prisma().user.update({
+      where: { id: uid },
+      data: {
+        passwordDigest
+      }
+    })
+
+    logger().info({
+      msg: 'User password reset successfully',
+      data: {
+        userId: uid,
+        timestamp: new Date().toISOString()
+      }
+    })
+
+    return res.json({
+      code: 0,
+      data: {},
+      msg: '密码重置成功'
+    })
+
+  } catch (err) {
+    logger().error({
+      msg: 'Failed to reset user password',
+      data: {
+        error: err,
+        errorMessage: err instanceof Error ? err.message : '未知错误',
+        errorStack: err instanceof Error ? err.stack : undefined,
+        requestBody: req.body,
+        timestamp: new Date().toISOString()
+      }
+    })
+
+    return res.status(500).json({
+      code: 500,
+      msg: '服务器内部错误',
+      data: {}
+    })
+  }
+})
+
 export default userRouter
