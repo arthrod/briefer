@@ -14,6 +14,7 @@ const userSelect = {
   name: true,
   phone: true,
   nickname: true,
+  status: true,
   picture: true,
   createdAt: true,
   updatedAt: true,
@@ -29,6 +30,7 @@ export async function createUser(
       name: name ?? email,
       email,
       passwordDigest,
+      status: 1,
     },
     select: userSelect,
   })
@@ -48,6 +50,7 @@ export async function addUserByAPI(
       passwordDigest,
       phone,
       nickname,
+      status: 1,
     },
     select: userSelect,
   })

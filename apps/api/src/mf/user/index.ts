@@ -309,4 +309,103 @@ userRouter.post('/delete', async (req, res) => {
   }
 })
 
+// 禁用用户
+userRouter.post('/disable', async (req, res) => {
+  try {
+    const disableSchema = z.object({
+      uid: z.string().min(1, "用户ID不能为空"),
+    })
+
+    const result = disableSchema.safeParse(req.body)
+    if (!result.success) {
+      logger().error({
+        msg: 'Invalid disable user input',
+        data: {
+          errors: result.error.errors.map(err => ({
+            path: err.path.join('.'),
+            message: err.message
+          })),
+          requestBody: req.body,
+          timestamp: new Date().toISOString()
+        }
+      })
+      return res.status(400).json({
+        code: 400,
+        msg: '参数校验失败',
+        data: {}
+      })
+    }
+
+    const { uid } = result.data
+
+    logger().info({ msg: 'Attempting to disable user', data: { uid } })
+
+    const user = await prisma().user.findUnique({
+      where: { id: uid }
+    })
+
+    if (!user) {
+      logger().warn({
+        msg: 'User not found for disable',
+        data: {
+          uid,
+          timestamp: new Date().toISOString()
+        }
+      })
+      return res.status(404).json({
+        code: 404,
+        msg: '用户不存在',
+        data: {}
+      })
+    }
+
+    // 更新用户状态为禁用
+    await prisma().user.update({
+      where: { id: uid },
+      data: {
+        status: 0
+      }
+    })
+
+    // 清除用户的会话信息
+    const session = await sessionFromCookies(req.cookies)
+    if (session?.user.id === uid) {
+      res.clearCookie('token')
+    }
+
+    logger().info({
+      msg: 'User disabled successfully',
+      data: {
+        userId: uid,
+        username: user.name,
+        timestamp: new Date().toISOString()
+      }
+    })
+
+    return res.json({
+      code: 0,
+      data: {},
+      msg: '禁用成功'
+    })
+
+  } catch (err) {
+    logger().error({
+      msg: 'Failed to disable user',
+      data: {
+        error: err,
+        errorMessage: err instanceof Error ? err.message : '未知错误',
+        errorStack: err instanceof Error ? err.stack : undefined,
+        requestBody: req.body,
+        timestamp: new Date().toISOString()
+      }
+    })
+
+    return res.status(500).json({
+      code: 500,
+      msg: '服务器内部错误',
+      data: {}
+    })
+  }
+})
+
 export default userRouter

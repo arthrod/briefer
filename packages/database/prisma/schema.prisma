@@ -303,6 +303,7 @@ model User {
   comments           Comment[]
   Favorite           Favorite[]
   UserYjsAppDocument UserYjsAppDocument[]
+  status             Int      @default(1)
 }
 
 model Comment {
