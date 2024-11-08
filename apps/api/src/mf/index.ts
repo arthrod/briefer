@@ -8,11 +8,7 @@ import uploadRouter from './upload/index.js'
 export default function mfRouter() {
   const router = Router({ mergeParams: true })
 
-  router.use(
-    '/chat',
-    authenticationMiddleware,
-    chatRouter()
-  )
+  router.use('/chat', chatRouter)
 
   router.use('/user', userRouter)
 

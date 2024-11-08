@@ -502,3 +502,32 @@ model UserFile {
 
   @@index([fileId])
 }
+
+model Chat {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String    
+  title        String
+  type         Int       @db.SmallInt // 1-找数, 2-报告
+  createdTime  DateTime  @default(now())
+  updateTime   DateTime? @updatedAt
+
+  @@map("Chat")
+}
+
+model ChatDocumentRelation {
+  id           BigInt    @id @default(autoincrement())
+  chatId       String    
+  documentId   String    
+  createdTime  DateTime  @default(now())
+
+  @@map("ChatDocumentRelation")
+}
+
+model ChatFileRelation {
+  id           BigInt    @id @default(autoincrement())
+  chatId       String    
+  fileId       String    
+  createdTime  DateTime  @default(now())
+
+  @@map("ChatFileRelation")
+}
