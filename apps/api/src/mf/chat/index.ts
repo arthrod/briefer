@@ -21,6 +21,18 @@ const createChatSchema = z.object({
   fileId: z.string()
 })
 
+// 添加时间格式化辅助函数
+function formatDate(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  const seconds = String(date.getSeconds()).padStart(2, '0')
+
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+}
+
 // 创建聊天
 router.post('/create', authenticationMiddleware, async (req, res) => {
   // router.post('/create', (req, res, next) => {
@@ -207,6 +219,105 @@ router.post('/create', authenticationMiddleware, async (req, res) => {
       code: 500,
       msg: '服务器内部错误',
       data: null
+    })
+  }
+})
+
+// 获取聊天列表
+router.get('/list', authenticationMiddleware, async (req, res) => {
+  // router.get('/list',  async (req, res) => {
+  // 添加测试用户数据
+  // req.session = {
+  //   user: {
+  //     id: 'test-user-id-123',
+  //     status: 1,
+  //     name: 'Test User',
+  //     email: 'test@example.com',
+  //     picture: '',
+  //     phone: '',
+  //     nickname: '',
+  //     createdAt: new Date(),
+  //     updatedAt: new Date(),
+  //   },
+  //   userWorkspaces: {
+  //     default: {
+  //       workspaceId: '71610da1-8c99-4274-b09f-711d70e2a247',
+  //       userId: 'test-user-id',
+  //       createdAt: new Date(),
+  //       updatedAt: new Date(),
+  //       inviterId: null,
+  //       role: UserWorkspaceRole.admin
+  //     }
+  //   }
+  // }
+
+  try {
+    logger().info({
+      msg: 'Attempting to fetch chat list',
+      data: {
+        userId: req.session.user.id
+      }
+    })
+
+    // 获取用户的所有对话，按创建时间倒序
+    const chats = await prisma().chat.findMany({
+      where: {
+        userId: req.session.user.id
+      },
+      orderBy: {
+        createdTime: 'desc'
+      },
+      include: {
+        documentRelations: {
+          select: {
+            documentId: true
+          }
+        }
+      }
+    })
+
+    // 转换数据格式
+    const chatList = chats.map(chat => ({
+      id: chat.id,
+      documentId: chat.documentRelations[0]?.documentId || null,
+      title: chat.title,
+      type: chat.type === 1 ? 'rag' : 'report',
+      createdTime: formatDate(chat.createdTime)
+    }))
+
+    logger().info({
+      msg: 'Chat list fetched successfully',
+      data: {
+        userId: req.session.user.id,
+        count: chatList.length
+      }
+    })
+
+    return res.json({
+      code: 0,
+      data: {
+        list: chatList
+      },
+      msg: '获取成功'
+    })
+
+  } catch (err) {
+    logger().error({
+      msg: 'Failed to fetch chat list',
+      data: {
+        error: err,
+        errorMessage: err instanceof Error ? err.message : '未知错误',
+        errorStack: err instanceof Error ? err.stack : undefined,
+        userId: req.session.user.id
+      }
+    })
+
+    return res.status(500).json({
+      code: 500,
+      msg: '服务器内部错误',
+      data: {
+        list: []
+      }
     })
   }
 })

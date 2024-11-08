@@ -511,23 +511,30 @@ model Chat {
   createdTime  DateTime  @default(now())
   updateTime   DateTime? @updatedAt
 
+  documentRelations ChatDocumentRelation[]
+  fileRelations    ChatFileRelation[]
+
   @@map("Chat")
 }
 
 model ChatDocumentRelation {
   id           BigInt    @id @default(autoincrement())
-  chatId       String    
+  chatId       String    @db.Uuid
   documentId   String    
   createdTime  DateTime  @default(now())
+
+  chat         Chat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
 
   @@map("ChatDocumentRelation")
 }
 
 model ChatFileRelation {
   id           BigInt    @id @default(autoincrement())
-  chatId       String    
+  chatId       String    @db.Uuid
   fileId       String    
   createdTime  DateTime  @default(now())
+
+  chat         Chat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
 
   @@map("ChatFileRelation")
 }
