@@ -489,3 +489,16 @@ model ReusableComponent {
 
   document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
 }
+
+model UserFile {
+  id            Int      @id @default(autoincrement())
+  fileId        String   
+  fileName      String
+  fileSize      BigInt
+  filePath      String
+  status        Int      @default(0) @db.SmallInt
+  createdUserId String
+  createdTime   DateTime @default(now())
+
+  @@index([fileId])
+}
