@@ -4,6 +4,7 @@ import { prisma } from '@briefer/database'
 import { v4 as uuidv4 } from 'uuid'
 import { logger } from '../../logger.js'
 import { authenticationMiddleware } from '../../auth/token.js'
+import { UserWorkspaceRole } from '@prisma/client'
 
 class BusinessError extends Error {
   constructor(message: string) {
@@ -702,6 +703,199 @@ router.post('/round/create', authenticationMiddleware, async (req, res) => {
   } catch (err) {
     logger().error({
       msg: 'Failed to create chat round',
+      data: {
+        error: err,
+        errorMessage: err instanceof Error ? err.message : '未知错误',
+        errorStack: err instanceof Error ? err.stack : undefined,
+        requestBody: req.body,
+        userId: req.session.user.id
+      }
+    })
+
+    return res.status(500).json({
+      code: 500,
+      msg: '服务器内部错误',
+      data: null
+    })
+  }
+})
+
+// 定义文件信息接口
+interface FileInfo {
+  id: string
+  name: string
+  type: string
+}
+
+// 定义响应数据接口
+interface ChatDetailResponse {
+  type: 'rag' | 'report'
+  messages: {
+    id: string
+    role: string
+    content: string
+  }[]
+  documentId: string | null
+  file: FileInfo | null
+}
+
+const getChatDetailSchema = z.object({
+  id: z.string().min(1, "聊天ID不能为空"),
+})
+
+// 获取聊天详情
+router.post('/detail', authenticationMiddleware, async (req, res) => {
+// router.post('/detail', async (req, res) => {
+//   // 模拟用户会话
+//   req.session = {
+//     user: {
+//       id: 'test-user-id-123',
+//       loginName: 'Test User',
+//       name: 'Test User',
+//       email: 'test@example.com',
+//       picture: '',
+//       phone: '',
+//       nickname: 'Test User',
+//       createdAt: new Date(),
+//       updatedAt: new Date(),
+//       status: 1
+//     },
+//     userWorkspaces: {}
+//   }
+  try {
+    // 验证请求参数
+    const result = getChatDetailSchema.safeParse(req.body)
+    if (!result.success) {
+      logger().error({
+        msg: 'Invalid get chat detail input',
+        data: {
+          errors: result.error.errors.map(err => ({
+            path: err.path.join('.'),
+            message: err.message
+          })),
+          requestBody: req.body
+        }
+      })
+      return res.status(400).json({
+        code: 400,
+        msg: '参数校验失败',
+        data: null
+      })
+    }
+
+    const { id } = result.data
+
+    logger().info({
+      msg: 'Attempting to get chat detail',
+      data: {
+        chatId: id,
+        userId: req.session.user.id
+      }
+    })
+
+    // 查询聊天记录及其关联信息
+    const chat = await prisma().chat.findFirst({
+      where: {
+        id,
+        userId: req.session.user.id
+      },
+      include: {
+        records: {
+          orderBy: {
+            createdTime: 'asc'
+          }
+        },
+        documentRelations: {
+          include: {
+            document: {
+              select: {
+                id: true,
+                title: true
+              }
+            }
+          }
+        },
+        fileRelations: {
+          include: {
+            userFile: {
+              select: {
+                fileId: true,
+                fileName: true
+              }
+            }
+          }
+        }
+      }
+    })
+
+    if (!chat) {
+      logger().warn({
+        msg: 'Chat not found or not owned by user',
+        data: {
+          chatId: id,
+          userId: req.session.user.id
+        }
+      })
+      return res.status(404).json({
+        code: 404,
+        msg: '聊天记录不���在或无权访问',
+        data: null
+      })
+    }
+
+    // 转换消息格式
+    const messages = chat.records.map(record => ({
+      id: record.id,
+      role: record.speakerType.toLowerCase(),
+      content: record.answer.toString()
+    }))
+
+    // 构造返回数据
+    const responseData: ChatDetailResponse = {
+      type: chat.type === 1 ? 'rag' : 'report',
+      messages,
+      documentId: null,
+      file: null
+    }
+
+    // 如果是report类型，添加文档和文件信息
+    if (chat.type === 2) {
+      const documentRelation = chat.documentRelations[0]
+      const fileRelation = chat.fileRelations[0]
+
+      if (documentRelation?.document) {
+        responseData.documentId = documentRelation.documentId
+      }
+
+      if (fileRelation?.userFile) {
+        responseData.file = {
+          id: fileRelation.userFile.fileId,
+          name: fileRelation.userFile.fileName,
+          type: fileRelation.userFile.fileName.split('.').pop() || ''
+        }
+      }
+    }
+
+    logger().info({
+      msg: 'Chat detail retrieved successfully',
+      data: {
+        chatId: id,
+        userId: req.session.user.id,
+        type: responseData.type,
+        hasDocument: !!responseData.documentId,
+        hasFile: !!responseData.file
+      }
+    })
+
+    return res.json({
+      code: 0,
+      data: responseData,
+      msg: '获取成功'
+    })
+
+  } catch (err) {
+    logger().error({
+      msg: 'Failed to get chat detail',
       data: {
         error: err,
         errorMessage: err instanceof Error ? err.message : '未知错误',

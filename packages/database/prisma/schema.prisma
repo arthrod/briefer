@@ -37,6 +37,8 @@ model Document {
   reusableComponents ReusableComponent[]
 
   runUnexecutedBlocks Boolean @default(true)
+
+  chatRelations ChatDocumentRelation[]
 }
 
 model YjsDocument {
@@ -493,13 +495,15 @@ model ReusableComponent {
 
 model UserFile {
   id            Int      @id @default(autoincrement())
-  fileId        String   
+  fileId        String   @unique
   fileName      String
   fileSize      BigInt
   filePath      String
   status        Int      @default(0) @db.SmallInt
   createdUserId String
   createdTime   DateTime @default(now())
+
+  fileRelations ChatFileRelation[]
 
   @@index([fileId])
 }
@@ -522,10 +526,11 @@ model Chat {
 model ChatDocumentRelation {
   id           BigInt    @id @default(autoincrement())
   chatId       String    @db.Uuid
-  documentId   String    
+  documentId   String    @db.Uuid
   createdTime  DateTime  @default(now())
 
   chat         Chat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  document     Document  @relation(fields: [documentId], references: [id])
 
   @@map("ChatDocumentRelation")
 }
@@ -537,6 +542,7 @@ model ChatFileRelation {
   createdTime  DateTime  @default(now())
 
   chat         Chat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  userFile     UserFile  @relation(fields: [fileId], references: [fileId])
 
   @@map("ChatFileRelation")
 }
