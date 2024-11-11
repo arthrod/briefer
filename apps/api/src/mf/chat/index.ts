@@ -21,6 +21,12 @@ const createChatSchema = z.object({
   fileId: z.string()
 })
 
+// 定义更新标题请求参数验证schema
+const updateChatSchema = z.object({
+  id: z.string().min(1, "对话ID不能为空"),
+  title: z.string().min(1, "标题不能为空"),
+})
+
 // 添加时间格式化辅助函数
 function formatDate(date: Date): string {
   const year = date.getFullYear()
@@ -318,6 +324,125 @@ router.get('/list', authenticationMiddleware, async (req, res) => {
       data: {
         list: []
       }
+    })
+  }
+})
+
+// 更新对话标题
+router.post('/update', authenticationMiddleware, async (req, res) => {
+// router.post('/update', async (req, res) => {
+  try {
+    // 模拟用户会话数据，仅用于测试
+    // req.session = {
+    //   user: {
+    //     id: 'test-user-id-123',
+    //     name: 'Test User',
+    //     email: 'test@example.com',
+    //     picture: '',
+    //     phone: '',
+    //     nickname: 'Test User',
+    //     createdAt: new Date(),
+    //     updatedAt: new Date(),
+    //     status: 1
+    //   },
+    //   userWorkspaces: {}
+    // }
+
+    // 验证请求参数
+    const result = updateChatSchema.safeParse(req.body)
+    if (!result.success) {
+      logger().error({
+        msg: 'Invalid update chat title input',
+        data: {
+          errors: result.error.errors.map(err => ({
+            path: err.path.join('.'),
+            message: err.message
+          })),
+          requestBody: req.body
+        }
+      })
+      return res.status(400).json({
+        code: 400,
+        msg: '参数校验失败',
+        data: {}
+      })
+    }
+
+    const { id, title } = result.data
+
+    logger().info({
+      msg: 'Attempting to update chat title',
+      data: {
+        chatId: id,
+        newTitle: title,
+        userId: req.session.user.id
+      }
+    })
+
+    // 查询对话是否存在且属于当前用户
+    const chat = await prisma().chat.findFirst({
+      where: {
+        id,
+        userId: req.session.user.id
+      }
+    })
+
+    if (!chat) {
+      logger().warn({
+        msg: 'Chat not found or not owned by user',
+        data: {
+          chatId: id,
+          userId: req.session.user.id
+        }
+      })
+      return res.status(404).json({
+        code: 404,
+        msg: '对话不存在或无权访问',
+        data: {}
+      })
+    }
+
+    // 更新对话标题
+    await prisma().chat.update({
+      where: {
+        id
+      },
+      data: {
+        title
+      }
+    })
+
+    logger().info({
+      msg: 'Chat title updated successfully',
+      data: {
+        chatId: id,
+        newTitle: title,
+        userId: req.session.user.id
+      }
+    })
+
+    return res.json({
+      code: 0,
+      data: {},
+      msg: '更新成功'
+    })
+
+  } catch (err) {
+    logger().error({
+      msg: 'Failed to update chat title',
+      data: {
+        error: err,
+        errorMessage: err instanceof Error ? err.message : '未知错误',
+        errorStack: err instanceof Error ? err.stack : undefined,
+        requestBody: req.body,
+        userId: req.session.user.id
+      }
+    })
+
+    return res.status(500).json({
+      code: 500,
+      msg: '服务器内部错误',
+      data: {}
     })
   }
 })
