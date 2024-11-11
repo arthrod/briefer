@@ -27,6 +27,11 @@ const updateChatSchema = z.object({
   title: z.string().min(1, "标题不能为空"),
 })
 
+// 定义删除对话请求参数验证schema
+const deleteChatSchema = z.object({
+  id: z.string().min(1, "对话ID不能为空"),
+})
+
 // 添加时间格式化辅助函数
 function formatDate(date: Date): string {
   const year = date.getFullYear()
@@ -330,7 +335,7 @@ router.get('/list', authenticationMiddleware, async (req, res) => {
 
 // 更新对话标题
 router.post('/update', authenticationMiddleware, async (req, res) => {
-// router.post('/update', async (req, res) => {
+  // router.post('/update', async (req, res) => {
   try {
     // 模拟用户会话数据，仅用于测试
     // req.session = {
@@ -430,6 +435,144 @@ router.post('/update', authenticationMiddleware, async (req, res) => {
   } catch (err) {
     logger().error({
       msg: 'Failed to update chat title',
+      data: {
+        error: err,
+        errorMessage: err instanceof Error ? err.message : '未知错误',
+        errorStack: err instanceof Error ? err.stack : undefined,
+        requestBody: req.body,
+        userId: req.session.user.id
+      }
+    })
+
+    return res.status(500).json({
+      code: 500,
+      msg: '服务器内部错误',
+      data: {}
+    })
+  }
+})
+
+// 删除对话
+router.post('/delete', authenticationMiddleware, async (req, res) => {
+  // router.post('/delete', async (req, res) => {
+  // 模拟用户会话
+  // req.session = {
+  //   user: {
+  //     id: 'test-user-id-123',
+  //     name: 'Test User',
+  //     email: 'test@example.com',
+  //     picture: '',
+  //     phone: '',
+  //     nickname: 'Test User',
+  //     createdAt: new Date(),
+  //     updatedAt: new Date(),
+  //     status: 1
+  //   },
+  //   userWorkspaces: {}
+  // }
+
+  try {
+    // 验证请求参数
+    const result = deleteChatSchema.safeParse(req.body)
+    if (!result.success) {
+      logger().error({
+        msg: 'Invalid delete chat input',
+        data: {
+          errors: result.error.errors.map(err => ({
+            path: err.path.join('.'),
+            message: err.message
+          })),
+          requestBody: req.body
+        }
+      })
+      return res.status(400).json({
+        code: 400,
+        msg: '参数校验失败',
+        data: {}
+      })
+    }
+
+    const { id } = result.data
+
+    logger().info({
+      msg: 'Attempting to delete chat',
+      data: {
+        chatId: id,
+        userId: req.session.user.id
+      }
+    })
+
+    // 查询对话是否存在且属于当前用户
+    const chat = await prisma().chat.findFirst({
+      where: {
+        id,
+        userId: req.session.user.id
+      },
+      include: {
+        documentRelations: true // 包含文档关联信息
+      }
+    })
+
+    if (!chat) {
+      logger().warn({
+        msg: 'Chat not found or not owned by user',
+        data: {
+          chatId: id,
+          userId: req.session.user.id
+        }
+      })
+      return res.status(404).json({
+        code: 404,
+        msg: '对话不存在或无权访问',
+        data: {}
+      })
+    }
+
+    // 使用事务删除对话及其关联数据
+    await prisma().$transaction(async (tx) => {
+      // 1. 删除关联的文档
+      if (chat.documentRelations && chat.documentRelations.length > 0) {
+        logger().info({
+          msg: 'Deleting associated documents',
+          data: {
+            chatId: id,
+            documentIds: chat.documentRelations.map(r => r.documentId)
+          }
+        })
+
+        await tx.document.deleteMany({
+          where: {
+            id: {
+              in: chat.documentRelations.map(r => r.documentId)
+            }
+          }
+        })
+      }
+
+      // 2. 删除对话(会自动级联删除 ChatDocumentRelation 和 ChatFileRelation)
+      await tx.chat.delete({
+        where: { id }
+      })
+    })
+
+    logger().info({
+      msg: 'Chat and associated data deleted successfully',
+      data: {
+        chatId: id,
+        userId: req.session.user.id,
+        documentCount: chat.documentRelations?.length || 0
+      }
+    })
+
+    return res.json({
+      code: 0,
+      data: {},
+      msg: '删除成功'
+    })
+
+  } catch (err) {
+    logger().error({
+      msg: 'Failed to delete chat',
       data: {
         error: err,
         errorMessage: err instanceof Error ? err.message : '未知错误',
