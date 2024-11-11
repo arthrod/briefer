@@ -1,4 +1,4 @@
-import { Router } from 'express'
+import { Router, Request, Response, NextFunction } from 'express'
 import { z } from 'zod'
 import { prisma } from '@briefer/database'
 import { v4 as uuidv4 } from 'uuid'
@@ -50,46 +50,47 @@ const createChatRoundSchema = z.object({
   chatId: z.string().min(1, "聊天ID不能为空"),
 })
 
-// 创建聊天
-router.post('/create', authenticationMiddleware, async (req, res) => {
-  // router.post('/create', (req, res, next) => {
-  //   // 验证请求参数
-  //   const result = createChatSchema.safeParse(req.body)
-  //   if (!result.success) {
-  //     return res.status(400).json({
-  //       code: 400,
-  //       msg: result.error.errors[0]?.message || '参数校验失败',
-  //       data: null
-  //     })
-  //   }
+// 在文件顶部添加一个测试模式开关
+const USE_TEST_AUTH = false; // 改为 false 时使用正常认证，true 时使用测试数据
 
-  //   // 添加测试用户数据
-  //   req.session = {
-  //     user: {
-  //       id: 'test-user-id-123',
-  //       status: 1,
-  //       name: 'Test User',
-  //       loginName: 'Test User',
-  //       email: 'test@example.com',
-  //       picture: '',
-  //       phone: '',
-  //       nickname: '',
-  //       createdAt: new Date(),
-  //       updatedAt: new Date(),
-  //     },
-  //     userWorkspaces: {
-  //       default: {
-  //         workspaceId: '71610da1-8c99-4274-b09f-711d70e2a247',
-  //         userId: 'test-user-id',
-  //         createdAt: new Date(),
-  //         updatedAt: new Date(),
-  //         inviterId: null,
-  //         role: UserWorkspaceRole.admin
-  //       }
-  //     }
-  //   }
-  //   next()
-  // }, async (req, res) => {
+// 创建通用的认证中间件
+const authMiddleware = USE_TEST_AUTH
+  ? ((req: Request, res: Response, next: NextFunction) => {
+    req.session = getMockSession();
+    next();
+  })
+  : authenticationMiddleware;
+
+// 添加测试用户数据辅助函数，请修改成数据库中的已有数据
+function getMockSession() {
+  return {
+    user: {
+      id: 'test-user-id-123',
+      status: 1,
+      name: 'Test User',
+      loginName: 'Test User',
+      email: 'test@example.com',
+      picture: '',
+      phone: '',
+      nickname: '',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    userWorkspaces: {
+      default: {
+        workspaceId: '54f713cb-ba98-41f2-a3a1-7779762e33ac',
+        userId: 'test-user-id',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        inviterId: null,
+        role: UserWorkspaceRole.admin
+      }
+    }
+  }
+}
+
+// 所有路由使用 authMiddleware
+router.post('/create', authMiddleware, async (req, res) => {
   try {
     // 验证请求参数
     const result = createChatSchema.safeParse(req.body)
@@ -242,34 +243,7 @@ router.post('/create', authenticationMiddleware, async (req, res) => {
 })
 
 // 获取聊天列表
-router.get('/list', authenticationMiddleware, async (req, res) => {
-  // router.get('/list',  async (req, res) => {
-  // 添加测试用户数据
-  // req.session = {
-  //   user: {
-  //     id: 'test-user-id-123',
-  //     status: 1,
-  //     name: 'Test User',
-  //     loginName: 'Test User',
-  //     email: 'test@example.com',
-  //     picture: '',
-  //     phone: '',
-  //     nickname: '',
-  //     createdAt: new Date(),
-  //     updatedAt: new Date(),
-  //   },
-  //   userWorkspaces: {
-  //     default: {
-  //       workspaceId: '71610da1-8c99-4274-b09f-711d70e2a247',
-  //       userId: 'test-user-id',
-  //       createdAt: new Date(),
-  //       updatedAt: new Date(),
-  //       inviterId: null,
-  //       role: UserWorkspaceRole.admin
-  //     }
-  //   }
-  // }
-
+router.get('/list', authMiddleware, async (req, res) => {
   try {
     logger().info({
       msg: 'Attempting to fetch chat list',
@@ -342,26 +316,8 @@ router.get('/list', authenticationMiddleware, async (req, res) => {
 })
 
 // 更新对话标题
-router.post('/update', authenticationMiddleware, async (req, res) => {
-  // router.post('/update', async (req, res) => {
+router.post('/update', authMiddleware, async (req, res) => {
   try {
-    // 模拟用户会话数据，仅用于测试
-    // req.session = {
-    //   user: {
-    //     id: 'test-user-id-123',
-    //     name: 'Test User',
-    //     loginName: 'Test User',
-    //     email: 'test@example.com',
-    //     picture: '',
-    //     phone: '',
-    //     nickname: 'Test User',
-    //     createdAt: new Date(),
-    //     updatedAt: new Date(),
-    //     status: 1
-    //   },
-    //   userWorkspaces: {}
-    // }
-
     // 验证请求参数
     const result = updateChatSchema.safeParse(req.body)
     if (!result.success) {
@@ -462,25 +418,7 @@ router.post('/update', authenticationMiddleware, async (req, res) => {
 })
 
 // 删除对话
-router.post('/delete', authenticationMiddleware, async (req, res) => {
-  // router.post('/delete', async (req, res) => {
-  // 模拟用户会话
-  // req.session = {
-  //   user: {
-  //     id: 'test-user-id-123',
-  //     name: 'Test User',
-  //     loginName: 'Test User',
-  //     email: 'test@example.com',
-  //     picture: '',
-  //     phone: '',
-  //     nickname: 'Test User',
-  //     createdAt: new Date(),
-  //     updatedAt: new Date(),
-  //     status: 1
-  //   },
-  //   userWorkspaces: {}
-  // }
-
+router.post('/delete', authMiddleware, async (req, res) => {
   try {
     // 验证请求参数
     const result = deleteChatSchema.safeParse(req.body)
@@ -601,24 +539,7 @@ router.post('/delete', authenticationMiddleware, async (req, res) => {
 })
 
 // 创建聊天记录
-router.post('/round/create', authenticationMiddleware, async (req, res) => {
-// router.post('/round/create', async (req, res) => {
-  // 模拟用户会话
-  // req.session = {
-  //   user: {
-  //     id: 'test-user-id-123',
-  //     loginName: 'Test User',
-  //     name: 'Test User',
-  //     email: 'test@example.com',
-  //     picture: '',
-  //     phone: '',
-  //     nickname: 'Test User',
-  //     createdAt: new Date(),
-  //     updatedAt: new Date(),
-  //     status: 1
-  //   },
-  //   userWorkspaces: {}
-  // }
+router.post('/round/create', authMiddleware, async (req, res) => {
   try {
     // 验证请求参数
     const result = createChatRoundSchema.safeParse(req.body)
@@ -744,24 +665,7 @@ const getChatDetailSchema = z.object({
 })
 
 // 获取聊天详情
-router.post('/detail', authenticationMiddleware, async (req, res) => {
-// router.post('/detail', async (req, res) => {
-//   // 模拟用户会话
-//   req.session = {
-//     user: {
-//       id: 'test-user-id-123',
-//       loginName: 'Test User',
-//       name: 'Test User',
-//       email: 'test@example.com',
-//       picture: '',
-//       phone: '',
-//       nickname: 'Test User',
-//       createdAt: new Date(),
-//       updatedAt: new Date(),
-//       status: 1
-//     },
-//     userWorkspaces: {}
-//   }
+router.post('/detail', authMiddleware, async (req, res) => {
   try {
     // 验证请求参数
     const result = getChatDetailSchema.safeParse(req.body)
@@ -838,7 +742,7 @@ router.post('/detail', authenticationMiddleware, async (req, res) => {
       })
       return res.status(404).json({
         code: 404,
-        msg: '聊天记录不���在或无权访问',
+        msg: '聊天记录不存在或无权访问',
         data: null
       })
     }
