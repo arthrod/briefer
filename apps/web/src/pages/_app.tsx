@@ -10,6 +10,7 @@ import { DocumentsProvider } from '@/hooks/useDocuments'
 import { EnvironmentStatusProvider } from '@/hooks/useEnvironmentStatus'
 import { WebsocketProvider } from '@/hooks/useWebsocket'
 import '@/styles/globals.css'
+import '@/styles/markdown.scss'
 import 'simplebar-react/dist/simplebar.min.css'
 
 import '../../scripts/wdyr'
@@ -31,10 +32,10 @@ type Props = AppProps & {
 
 function App({ Component, pageProps: { session, ...pageProps } }: Props) {
   const Layout = Component.layout ?? Fragment
+  console.log(Layout)
+
   const properties = useProperties()
-  const telemetryEnabled = !(
-    properties.data?.disabledAnonymousTelemetry ?? true
-  )
+  const telemetryEnabled = !(properties.data?.disabledAnonymousTelemetry ?? true)
 
   return (
     <PostHogProvider client={posthog}>

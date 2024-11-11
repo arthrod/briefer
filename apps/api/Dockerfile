@@ -1,12 +1,6 @@
 FROM node:18-slim AS base
 
 
-RUN echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bookworm main contrib non-free non-free-firmware" > /etc/apt/sources.list && \
-    echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bookworm-updates main contrib non-free non-free-firmware" >> /etc/apt/sources.list && \
-    echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bookworm-backports main contrib non-free non-free-firmware" >> /etc/apt/sources.list && \
-    echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian-security bookworm-security main contrib non-free non-free-firmware" >> /etc/apt/sources.list && \
-    rm -rf /etc/apt/sources.list.d/*
-
 ENV TURBO_TELEMETRY_DISABLED=1
 RUN apt-get update -y && apt-get install -y openssl curl tini && rm -rf /var/lib/apt/lists/*
 
@@ -35,7 +29,7 @@ COPY .gitignore .gitignore
 COPY --from=builder /app/out/json/ .
 COPY --from=builder /app/out/yarn.lock ./yarn.lock
 
-RUN yarn install
+RUN yarn config set registry https://registry.npmmirror.com/ && yarn install
 
 # Build the project and its dependencies
 COPY --from=builder /app/out/full/ .
