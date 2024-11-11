@@ -629,7 +629,7 @@ userRouter.get('/profile', authenticationMiddleware, async (req, res) => {
       msg: 'User profile retrieved successfully',
       data: {
         userId: user.id,
-        username: user.name,
+        username: user.loginName || user.name,
         email: user.email,
         timestamp: new Date().toISOString()
       }
@@ -638,7 +638,7 @@ userRouter.get('/profile', authenticationMiddleware, async (req, res) => {
     return res.json({
       code: 0,
       data: {
-        username: user.name,
+        username: user.loginName || user.name,
         role: '数据分析师',
         nickname: user.nickname || '',
         phone: user.phone || '',

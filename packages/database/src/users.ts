@@ -12,6 +12,7 @@ const userSelect = {
   id: true,
   email: true,
   name: true,
+  loginName: true,
   phone: true,
   nickname: true,
   status: true,
@@ -46,6 +47,7 @@ export async function addUserByAPI(
   return prisma().user.create({
     data: {
       name,
+      loginName: name,
       email,
       passwordDigest,
       phone,
