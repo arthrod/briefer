@@ -62,6 +62,7 @@ uploadRouter.post('/file', checkFileSize, authenticationMiddleware, upload.singl
     //   user: {
     //     id: 'test-user-id-123',
     //     name: 'Test User',
+    //     loginName: 'Test User',
     //     email: 'test@example.com',
     //     picture: '',
     //     phone: '',

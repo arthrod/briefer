@@ -514,6 +514,7 @@ model Chat {
 
   documentRelations ChatDocumentRelation[]
   fileRelations    ChatFileRelation[]
+  records          ChatRecord[]
 
   @@map("Chat")
 }
@@ -538,4 +539,17 @@ model ChatFileRelation {
   chat         Chat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
 
   @@map("ChatFileRelation")
+}
+
+model ChatRecord {
+  id          String    @id @default(uuid()) @db.Uuid
+  chatId      String    @db.Uuid
+  question    String
+  answer      Bytes
+  createdTime DateTime  @default(now())
+  updateTime  DateTime? @updatedAt
+
+  chat        Chat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@map("ChatRecord")
 }

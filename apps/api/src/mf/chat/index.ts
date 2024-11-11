@@ -44,6 +44,12 @@ function formatDate(date: Date): string {
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
 }
 
+// 定义请求参数验证schema
+const createChatRoundSchema = z.object({
+  question: z.string().min(1, "问题不能为空"),
+  chatId: z.string().min(1, "聊天ID不能为空"),
+})
+
 // 创建聊天
 router.post('/create', authenticationMiddleware, async (req, res) => {
   // router.post('/create', (req, res, next) => {
@@ -63,6 +69,7 @@ router.post('/create', authenticationMiddleware, async (req, res) => {
   //       id: 'test-user-id-123',
   //       status: 1,
   //       name: 'Test User',
+  //       loginName: 'Test User',
   //       email: 'test@example.com',
   //       picture: '',
   //       phone: '',
@@ -243,6 +250,7 @@ router.get('/list', authenticationMiddleware, async (req, res) => {
   //     id: 'test-user-id-123',
   //     status: 1,
   //     name: 'Test User',
+  //     loginName: 'Test User',
   //     email: 'test@example.com',
   //     picture: '',
   //     phone: '',
@@ -342,6 +350,7 @@ router.post('/update', authenticationMiddleware, async (req, res) => {
     //   user: {
     //     id: 'test-user-id-123',
     //     name: 'Test User',
+    //     loginName: 'Test User',
     //     email: 'test@example.com',
     //     picture: '',
     //     phone: '',
@@ -460,6 +469,7 @@ router.post('/delete', authenticationMiddleware, async (req, res) => {
   //   user: {
   //     id: 'test-user-id-123',
   //     name: 'Test User',
+  //     loginName: 'Test User',
   //     email: 'test@example.com',
   //     picture: '',
   //     phone: '',
@@ -586,6 +596,125 @@ router.post('/delete', authenticationMiddleware, async (req, res) => {
       code: 500,
       msg: '服务器内部错误',
       data: {}
+    })
+  }
+})
+
+// 创建聊天记录
+router.post('/round/create', authenticationMiddleware, async (req, res) => {
+// router.post('/round/create', async (req, res) => {
+  // 模拟用户会话
+  // req.session = {
+  //   user: {
+  //     id: 'test-user-id-123',
+  //     loginName: 'Test User',
+  //     name: 'Test User',
+  //     email: 'test@example.com',
+  //     picture: '',
+  //     phone: '',
+  //     nickname: 'Test User',
+  //     createdAt: new Date(),
+  //     updatedAt: new Date(),
+  //     status: 1
+  //   },
+  //   userWorkspaces: {}
+  // }
+  try {
+    // 验证请求参数
+    const result = createChatRoundSchema.safeParse(req.body)
+    if (!result.success) {
+      logger().error({
+        msg: 'Invalid create chat round input',
+        data: {
+          errors: result.error.errors.map(err => ({
+            path: err.path.join('.'),
+            message: err.message
+          })),
+          requestBody: req.body
+        }
+      })
+      return res.status(400).json({
+        code: 400,
+        msg: '参数校验失败',
+        data: null
+      })
+    }
+
+    const { chatId, question } = result.data
+
+    logger().info({
+      msg: 'Attempting to create chat round',
+      data: {
+        chatId,
+        userId: req.session.user.id
+      }
+    })
+
+    // 检查聊天是否存在且属于当前用户
+    const chat = await prisma().chat.findFirst({
+      where: {
+        id: chatId,
+        userId: req.session.user.id
+      }
+    })
+
+    if (!chat) {
+      logger().warn({
+        msg: 'Chat not found or not owned by user',
+        data: {
+          chatId,
+          userId: req.session.user.id
+        }
+      })
+      return res.status(404).json({
+        code: 404,
+        msg: '对话不存在或无权访问',
+        data: null
+      })
+    }
+
+    // 创建聊天记录
+    const chatRecord = await prisma().chatRecord.create({
+      data: {
+        chatId,
+        question,
+        answer: Buffer.from('') // 初始化为空buffer
+      }
+    })
+
+    logger().info({
+      msg: 'Chat round created successfully',
+      data: {
+        recordId: chatRecord.id,
+        chatId,
+        userId: req.session.user.id
+      }
+    })
+
+    return res.json({
+      code: 0,
+      data: {
+        id: chatRecord.id
+      },
+      msg: '创建成功'
+    })
+
+  } catch (err) {
+    logger().error({
+      msg: 'Failed to create chat round',
+      data: {
+        error: err,
+        errorMessage: err instanceof Error ? err.message : '未知错误',
+        errorStack: err instanceof Error ? err.stack : undefined,
+        requestBody: req.body,
+        userId: req.session.user.id
+      }
+    })
+
+    return res.status(500).json({
+      code: 500,
+      msg: '服务器内部错误',
+      data: null
     })
   }
 })
