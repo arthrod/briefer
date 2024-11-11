@@ -4,7 +4,6 @@ import { prisma } from '@briefer/database'
 import { v4 as uuidv4 } from 'uuid'
 import { logger } from '../../logger.js'
 import { authenticationMiddleware } from '../../auth/token.js'
-import { UserWorkspaceRole } from '@prisma/client'
 
 class BusinessError extends Error {
   constructor(message: string) {
@@ -678,7 +677,8 @@ router.post('/round/create', authenticationMiddleware, async (req, res) => {
       data: {
         chatId,
         question,
-        answer: Buffer.from('') // 初始化为空buffer
+        answer: Buffer.from(''), // 初始化为空buffer
+        speakerType: 'user'  // 添加说话者类型
       }
     })
 

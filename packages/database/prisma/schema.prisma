@@ -541,15 +541,22 @@ model ChatFileRelation {
   @@map("ChatFileRelation")
 }
 
+enum ChatSpeakerType {
+  system
+  user
+  assistant
+}
+
 model ChatRecord {
-  id          String    @id @default(uuid()) @db.Uuid
-  chatId      String    @db.Uuid
+  id          String          @id @default(uuid()) @db.Uuid
+  chatId      String          @db.Uuid
   question    String
   answer      Bytes
-  createdTime DateTime  @default(now())
-  updateTime  DateTime? @updatedAt
+  speakerType ChatSpeakerType @default(user)
+  createdTime DateTime        @default(now())
+  updateTime  DateTime?       @updatedAt
 
-  chat        Chat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  chat        Chat            @relation(fields: [chatId], references: [id], onDelete: Cascade)
 
   @@map("ChatRecord")
 }
