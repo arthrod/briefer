@@ -1,4 +1,4 @@
-import { Router } from 'express'
+import { Router, Request, Response, NextFunction } from 'express'
 import multer from 'multer'
 import { v4 as uuidv4 } from 'uuid'
 import path from 'path'
@@ -8,6 +8,36 @@ import { logger } from '../../logger.js'
 import { authenticationMiddleware } from '../../auth/token.js'
 
 const uploadRouter = Router()
+
+// 添加测试模式开关
+const USE_TEST_AUTH = false;  // 改为 false 时使用正常认证，true 时使用测试数据
+
+// 添加测试用户数据辅助函数
+function getMockSession() {
+  return {
+    user: {
+      id: 'test-user-id-123',
+      status: 1,
+      name: 'Test User',
+      loginName: 'Test User',
+      email: 'test@example.com',
+      picture: '',
+      phone: '',
+      nickname: '',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    userWorkspaces: {}
+  }
+}
+
+// 创建通用的认证中间件
+const authMiddleware = USE_TEST_AUTH
+  ? ((req: Request, res: Response, next: NextFunction) => {
+    req.session = getMockSession();
+    next();
+  })
+  : authenticationMiddleware;
 
 // 创建日期格式化函数
 function formatDate(date: Date): string {
@@ -54,26 +84,8 @@ const checkFileSize = (req: any, res: any, next: any) => {
 };
 
 // 文件上传接口
-uploadRouter.post('/file', checkFileSize, authenticationMiddleware, upload.single('file'), async (req, res) => {
-// uploadRouter.post('/file', checkFileSize, upload.single('file'), async (req, res) => {
+uploadRouter.post('/file', checkFileSize, authMiddleware, upload.single('file'), async (req, res) => {
   try {
-    // 模拟用户ID
-    // req.session = {
-    //   user: {
-    //     id: 'test-user-id-123',
-    //     name: 'Test User',
-    //     loginName: 'Test User',
-    //     email: 'test@example.com',
-    //     picture: '',
-    //     phone: '',
-    //     nickname: 'Test User',
-    //     createdAt: new Date(),
-    //     updatedAt: new Date(),
-    //     status: 1
-    //   },
-    //   userWorkspaces: {}
-    // }
-
     if (!req.file) {
       logger().error('No file uploaded')
       return res.status(400).json({
