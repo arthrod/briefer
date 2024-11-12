@@ -158,6 +158,40 @@ export default function getRouter<H extends ApiUser>(
     res.json({ email: obscureEmail(user.email), loginLink })
   })
 
+  router.post('/sign-in/username', async (req, res) => {
+    const payload = z
+      .object({ loginName: z.string().trim(), password: z.string() })
+      .safeParse(req.body)
+    if (!payload.success) {
+      res.status(400).end()
+      return
+    }
+
+    const { loginName, password } = payload.data
+
+    const user = await prisma().user.findUnique({
+      where: { loginName },
+      select: { id: true, email: true, passwordDigest: true },
+    })
+    if (!user || !user.passwordDigest) {
+      res.status(400).end()
+      return
+    }
+
+    const validPassword = await comparePassword({
+      encrypted: user.passwordDigest,
+      password,
+    })
+    if (!validPassword) {
+      res.status(400).end()
+      return
+    }
+
+    const loginLink = createLoginLink(user.id, config.FRONTEND_URL)
+
+    res.json({ email: obscureEmail(user.email), loginLink })
+  })
+
   router.get('/session', authenticationMiddleware, async (req, res) => {
     const userWorkspaces = await prisma().userWorkspace.findMany({
       where: { userId: req.session.user.id },
