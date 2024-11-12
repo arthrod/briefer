@@ -8,6 +8,19 @@ export type WorkspaceUser = ApiUser & {
   role: UserWorkspaceRole
 }
 
+const userSelect = {
+  id: true,
+  email: true,
+  name: true,
+  loginName: true,
+  phone: true,
+  nickname: true,
+  status: true,
+  picture: true,
+  createdAt: true,
+  updatedAt: true,
+}
+
 export async function createUser(
   email: string,
   name: string | null,
@@ -18,15 +31,30 @@ export async function createUser(
       name: name ?? email,
       email,
       passwordDigest,
+      status: 1,
     },
-    select: {
-      id: true,
-      email: true,
-      name: true,
-      picture: true,
-      createdAt: true,
-      updatedAt: true,
+    select: userSelect,
+  })
+}
+
+export async function addUserByAPI(
+  name: string,
+  passwordDigest: string,
+  phone: string | null = null,    // 改为 null 作为默认值
+  nickname: string | null = null,  // 改为 null 作为默认值
+  email: string,                  // 移除可选标记，使其成为必需参数
+): Promise<ApiUser> {
+  return prisma().user.create({
+    data: {
+      name,
+      loginName: name,
+      email,
+      passwordDigest,
+      phone,
+      nickname,
+      status: 1,
     },
+    select: userSelect,
   })
 }
 
@@ -35,32 +63,18 @@ export async function getUserById(id: string): Promise<ApiUser | null> {
     where: {
       id,
     },
-    select: {
-      id: true,
-      email: true,
-      name: true,
-      picture: true,
-      createdAt: true,
-      updatedAt: true,
-    },
+    select: userSelect,
   })
 
   return user
 }
 
 export async function getUserByEmail(email: string): Promise<ApiUser | null> {
-  const user = await prisma().user.findUnique({
+  const user = await prisma().user.findFirst({
     where: {
       email,
     },
-    select: {
-      id: true,
-      email: true,
-      name: true,
-      picture: true,
-      createdAt: true,
-      updatedAt: true,
-    },
+    select: userSelect,
   })
 
   return user
@@ -73,20 +87,13 @@ export async function listWorkspaceUsers(
     where: { workspaceId },
     select: {
       user: {
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          picture: true,
-          createdAt: true,
-          updatedAt: true,
-        },
+        select: userSelect,
       },
       role: true,
     },
   })
 
-  return users.map((userWorkspace) => ({
+  return users.map((userWorkspace: { user: ApiUser; role: UserWorkspaceRole }) => ({
     ...userWorkspace.user,
     role: userWorkspace.role,
     workspaceId,
@@ -106,14 +113,7 @@ export async function addUserToWorkspace(
     },
     select: {
       user: {
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          picture: true,
-          createdAt: true,
-          updatedAt: true,
-        },
+        select: userSelect,
       },
     },
   })
@@ -138,14 +138,7 @@ export async function deleteUserFromWorkspace(
     },
     select: {
       user: {
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          picture: true,
-          createdAt: true,
-          updatedAt: true,
-        },
+        select: userSelect,
       },
       role: true,
     },
@@ -165,16 +158,9 @@ export async function confirmUser(userId: string): Promise<ApiUser | null> {
       data: {
         confirmedAt: new Date(),
       },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        picture: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      select: userSelect,
     })
-  )
+  ) as ApiUser | null
 
   return user
 }

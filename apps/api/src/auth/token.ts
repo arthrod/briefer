@@ -109,10 +109,14 @@ export async function sessionFromCookies(
       id: true,
       email: true,
       name: true,
+      loginName: true,
       picture: true,
+      phone: true,
+      nickname: true,
       createdAt: true,
       updatedAt: true,
       workspaces: true,
+      status: true,
     },
   })
   if (!user) {
@@ -129,7 +133,11 @@ export async function sessionFromCookies(
       id: user.id,
       email: user.email,
       name: user.name,
+      loginName: user.loginName,
       picture: user.picture,
+      phone: user.phone,
+      nickname: user.nickname,
+      status: user.status,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     },
@@ -146,6 +154,21 @@ export async function authenticationMiddleware(
     const session = await sessionFromCookies(req.cookies)
     if (!session) {
       res.status(401).end()
+      return
+    }
+
+    // 检查用户状态
+    const user = await prisma().user.findUnique({
+      where: { id: session.user.id }
+    })
+
+    if (!user || user.status === 0) {
+      res.clearCookie('token')
+      res.status(403).json({
+        code: 403,
+        msg: '用户不存在或已被禁用',
+        data: {}
+      })
       return
     }
 
@@ -214,7 +237,7 @@ export async function canReadDocument(
 
     const result = await isAuthorizedForDocument(
       documentId,
-      req.session.user.id
+      req.session.user['id']
     )
     if (!result) {
       res.status(403).end()

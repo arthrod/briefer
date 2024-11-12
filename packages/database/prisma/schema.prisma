@@ -37,6 +37,8 @@ model Document {
   reusableComponents ReusableComponent[]
 
   runUnexecutedBlocks Boolean @default(true)
+
+  chatRelations ChatDocumentRelation[]
 }
 
 model YjsDocument {
@@ -286,10 +288,13 @@ model TrinoDataSource {
 
 model User {
   id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name           String   @default("")
-  email          String   @unique
+  name           String   @unique
+  loginName      String   @unique @default("")
+  email          String   @default("")
   picture        String?
   passwordDigest String?
+  phone          String?
+  nickname       String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @default(now()) @updatedAt
 
@@ -301,6 +306,7 @@ model User {
   comments           Comment[]
   Favorite           Favorite[]
   UserYjsAppDocument UserYjsAppDocument[]
+  status             Int      @default(1)
 }
 
 model Comment {
@@ -485,4 +491,78 @@ model ReusableComponent {
   updatedAt  DateTime              @default(now()) @updatedAt
 
   document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+}
+
+model UserFile {
+  id            Int      @id @default(autoincrement())
+  fileId        String   @unique
+  fileName      String
+  fileSize      BigInt
+  filePath      String
+  status        Int      @default(0) @db.SmallInt
+  createdUserId String
+  createdTime   DateTime @default(now())
+
+  fileRelations ChatFileRelation[]
+
+  @@index([fileId])
+}
+
+model Chat {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String    
+  title        String
+  type         Int       @db.SmallInt // 1-找数, 2-报告
+  createdTime  DateTime  @default(now())
+  updateTime   DateTime? @updatedAt
+
+  documentRelations ChatDocumentRelation[]
+  fileRelations    ChatFileRelation[]
+  records          ChatRecord[]
+
+  @@map("Chat")
+}
+
+model ChatDocumentRelation {
+  id           BigInt    @id @default(autoincrement())
+  chatId       String    @db.Uuid
+  documentId   String    @db.Uuid
+  createdTime  DateTime  @default(now())
+
+  chat         Chat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  document     Document  @relation(fields: [documentId], references: [id])
+
+  @@map("ChatDocumentRelation")
+}
+
+model ChatFileRelation {
+  id           BigInt    @id @default(autoincrement())
+  chatId       String    @db.Uuid
+  fileId       String    
+  createdTime  DateTime  @default(now())
+
+  chat         Chat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  userFile     UserFile  @relation(fields: [fileId], references: [fileId])
+
+  @@map("ChatFileRelation")
+}
+
+enum ChatSpeakerType {
+  system
+  user
+  assistant
+}
+
+model ChatRecord {
+  id          String          @id @default(uuid()) @db.Uuid
+  chatId      String          @db.Uuid
+  question    String
+  answer      Bytes
+  speakerType ChatSpeakerType @default(user)
+  createdTime DateTime        @default(now())
+  updateTime  DateTime?       @updatedAt
+
+  chat        Chat            @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@map("ChatRecord")
 }
