@@ -51,7 +51,7 @@ const createChatRoundSchema = z.object({
 })
 
 // 在文件顶部添加一个测试模式开关
-const USE_TEST_AUTH = false; // 改为 false 时使用正常认证，true 时使用测试数据
+const USE_TEST_AUTH = true; // 改为 false 时使用正常认证，true 时使用测试数据
 
 // 创建通用的认证中间件
 const authMiddleware = USE_TEST_AUTH
@@ -131,7 +131,7 @@ router.post('/create', authMiddleware, async (req, res) => {
         data: {
           id: chatId,
           userId: req.session.user.id,
-          title: type === 'rag' ? '新的对话' : '新的报告',
+          title: type === 'rag' ? 'Untitled' : '新的报告',
           type: type === 'rag' ? 1 : 2
         }
       })
@@ -814,6 +814,247 @@ router.post('/detail', authMiddleware, async (req, res) => {
       msg: '服务器内部错误',
       data: null
     })
+  }
+})
+
+// 定义请求参数验证schema
+const chatCompletionsSchema = z.object({
+  chatId: z.string().min(1, "对话ID不能为空"),
+  roundId: z.string().min(1, "对话轮次ID不能为空"),
+})
+
+// 定义消息类型
+interface Message {
+  id: string
+  role: string
+  content: string
+}
+
+// 定义关联性检查响应类型
+interface RelationCheckResponse {
+  code: number
+  msg: string
+  data: {
+    related: boolean
+  }
+}
+
+// 添加SSE对话接口
+router.get('/completions', authMiddleware, async (req, res) => {
+  try {
+    // 验证请求参数
+    const result = chatCompletionsSchema.safeParse(req.query)
+    if (!result.success) {
+      logger().error({
+        msg: 'Invalid chat completions input',
+        data: {
+          errors: result.error.errors.map(err => ({
+            path: err.path.join('.'),
+            message: err.message
+          })),
+          requestQuery: req.query
+        }
+      })
+      return res.status(400).json({
+        code: 400,
+        msg: '参数校验失败',
+        data: null
+      })
+    }
+
+    const { chatId, roundId } = result.data
+
+    // 检查聊天记录是否存在且属于当前用户
+    const chatRecord = await prisma().chatRecord.findFirst({
+      where: {
+        id: roundId,
+        chatId: chatId,  // 添加chatId条件
+        chat: {
+          userId: req.session.user.id
+        }
+      },
+      include: {
+        chat: true  // 只包含chat基本信息，不再包含所有records
+      }
+    })
+
+    if (!chatRecord) {
+      logger().warn({
+        msg: 'Chat record not found or not owned by user',
+        data: {
+          chatId,
+          roundId,
+          userId: req.session.user.id
+        }
+      })
+      return res.status(404).json({
+        code: 404,
+        msg: '对话记录不存在或无权访问',
+        data: null
+      })
+    }
+
+    // 添加 AI Agent URL 检查
+    const aiAgentUrl = process.env["AI_AGENT_URL"]
+    if (!aiAgentUrl) {
+      throw new Error('AI_AGENT_URL environment variable is not set')
+    }
+
+    // 构造关联性检查的消息
+    const messages: Message[] = [{
+      id: chatRecord.id,
+      role: chatRecord.speakerType,
+      content: chatRecord.question
+    }]
+
+    const relationCheckUrl = `${aiAgentUrl}/v1/ai/chat/relation`
+    const relationCheckBody = { messages }
+
+    logger().info({
+      msg: 'Calling relation check API',
+      data: {
+        url: relationCheckUrl,
+        body: relationCheckBody,
+        chatId,
+        roundId
+      }
+    })
+
+    // 设置SSE响应头
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive'
+    })
+
+    // 添加 timeout 和错误处理
+    const fetchWithTimeout = async (url: string, options: RequestInit, timeout = 10000) => {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), timeout)
+
+      try {
+        const response = await fetch(url, {
+          ...options,
+          signal: controller.signal
+        })
+        clearTimeout(timeoutId)
+        return response
+      } catch (error) {
+        clearTimeout(timeoutId)
+        throw error
+      }
+    }
+
+    // 调用关联性检查接口
+    try {
+      const relationCheckResponse = await fetchWithTimeout(
+        `${aiAgentUrl}/v1/ai/chat/relation`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ messages })
+        }
+      )
+
+      if (!relationCheckResponse.ok) {
+        throw new Error(`关联性检查请求失败: ${relationCheckResponse.status}`)
+      }
+
+      const relationResult = await relationCheckResponse.json() as RelationCheckResponse
+
+      if (relationResult.code !== 0 || !relationResult.data.related) {
+        res.write(`data: [ERROR] 暂时无法回答非相关内容\n\n`)
+        res.write(`data: [DONE]\n\n`)
+        res.end()
+        return
+      }
+    } catch (error) {
+      logger().error({
+        msg: 'Failed to check relation',
+        data: { error }
+      })
+      res.write(`data: [ERROR] 关联性检查服务暂时不可用\n\n`)
+      res.write(`data: [DONE]\n\n`)
+      res.end()
+      return
+    }
+
+    // 调用 AI Agent 对话接口
+    try {
+      const response = await fetchWithTimeout(
+        `${aiAgentUrl}/v1/ai/chat/data/completions`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            user_input: chatRecord.question
+          })
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error(`AI 对话请求失败: ${response.status}`)
+      }
+
+      // 处理SSE响应
+      const reader = response.body?.getReader()
+      if (!reader) {
+        throw new Error('Failed to get response reader')
+      }
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        const chunk = new TextDecoder().decode(value)
+        res.write(`data: ${chunk}\n\n`)
+
+        // 如果收到结束标识，结束响应
+        if (chunk.includes('[DONE]')) {
+          res.end()
+          break
+        }
+      }
+
+      logger().info({
+        msg: 'Chat completion completed successfully',
+        data: {
+          chatId,
+          roundId,
+          userId: req.session.user.id
+        }
+      })
+
+    } catch (error) {
+      logger().error({
+        msg: 'Failed to get AI completion',
+        data: { error }
+      })
+      res.write(`data: [ERROR] AI 服务暂时不可用，请稍后重试\n\n`)
+      res.write(`data: [DONE]\n\n`)
+      res.end()
+      return
+    }
+
+  } catch (err) {
+    logger().error({
+      msg: 'Failed to process chat completion',
+      data: {
+        error: err,
+        errorMessage: err instanceof Error ? err.message : '未知错误',
+        errorStack: err instanceof Error ? err.stack : undefined,
+        requestQuery: req.query,
+        userId: req.session.user.id
+      }
+    })
+
+    res.write(`data: [ERROR] 服务器内部错误\n\n`)
+    res.write(`data: [DONE]\n\n`)
+    res.end()
   }
 })
 
