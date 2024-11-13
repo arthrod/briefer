@@ -241,20 +241,14 @@ async function handleStreamResponse(
     throw new Error('Response body is empty')
   }
 
-  const reader = (response.body as unknown as ReadableStream).getReader()
-  if (!reader) {
-    throw new Error('Failed to get response reader')
-  }
-
-  let buffer = ''
+  // 将 node-fetch 的响应体转换为可读流
+  const stream = response.body
   const textDecoder = new TextDecoder()
+  let buffer = ''
 
   try {
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-
-      buffer += textDecoder.decode(value, { stream: true })
+    for await (const chunk of stream) {
+      buffer += textDecoder.decode(chunk as Buffer, { stream: true })
       const lines = buffer.split('\n')
       buffer = lines.pop() || ''
 
@@ -268,6 +262,7 @@ async function handleStreamResponse(
           if (data.includes('[DONE]')) {
             res.write(`data: [DONE]\n\n`)
             res.end()
+            return
           }
 
           res.write(`data: ${data}\n\n`)
@@ -275,6 +270,7 @@ async function handleStreamResponse(
       }
     }
 
+    // 处理剩余的缓冲区
     if (buffer.trim()) {
       const data = buffer.trim()
       if (data.startsWith('data:')) {
@@ -284,8 +280,8 @@ async function handleStreamResponse(
         }
       }
     }
-  } finally {
-    reader.releaseLock()
+  } catch (error) {
+    throw new Error(`处理流式响应时发生错误: ${error}`)
   }
 }
 
