@@ -251,9 +251,17 @@ function setupSSEConnection(res: Response) {
   res.write(`data: {"status": "success", "message": "SSE连接已建立"}\n\n`)
 }
 
+// 定义更新类型
+type UpdateTarget = {
+  type: 'chat_record' | 'chat_title';
+  chatId: string;
+  roundId?: string;
+}
+
 async function handleStreamResponse(
   response: FetchResponse,
-  res: Response
+  res: Response,
+  updateTarget: UpdateTarget
 ): Promise<void> {
   if (!response.body) {
     throw new Error('Response body is empty')
@@ -285,6 +293,69 @@ async function handleStreamResponse(
           const data = trimmedLine.slice(5).trim()
 
           if (data.includes('[DONE]')) {
+            // 根据不同类型更新不同的目标
+            try {
+              const now = new Date()
+              
+              if (updateTarget.type === 'chat_record' && updateTarget.roundId) {
+                await prisma().$transaction([
+                  // 更新 ChatRecord
+                  prisma().chatRecord.update({
+                    where: { id: updateTarget.roundId },
+                    data: { 
+                      answer: Buffer.from(completeMessage),
+                      speakerType: 'assistant',
+                      updateTime: now
+                    }
+                  }),
+                  // 同时更新对应的 Chat
+                  prisma().chat.update({
+                    where: { 
+                      id: updateTarget.chatId // 确保 chatId 也传入了
+                    },
+                    data: {
+                      updateTime: now
+                    }
+                  })
+                ])
+
+                logger().info({
+                  msg: 'Chat record and chat updated successfully',
+                  data: {
+                    roundId: updateTarget.roundId,
+                    chatId: updateTarget.chatId,
+                    messageLength: completeMessage.length,
+                    updateTime: now
+                  }
+                })
+              } else if (updateTarget.type === 'chat_title' && updateTarget.chatId) {
+                await prisma().chat.update({
+                  where: { id: updateTarget.chatId },
+                  data: { 
+                    title: completeMessage.trim(),
+                    updateTime: now
+                  }
+                })
+
+                logger().info({
+                  msg: 'Chat title updated successfully',
+                  data: {
+                    chatId: updateTarget.chatId,
+                    newTitle: completeMessage.trim(),
+                    updateTime: now
+                  }
+                })
+              }
+            } catch (dbError) {
+              logger().error({
+                msg: 'Failed to update database',
+                data: {
+                  updateTarget,
+                  error: dbError instanceof Error ? dbError.message : 'Unknown error'
+                }
+              })
+            }
+
             await fs.writeFile(logFilePath, completeMessage, 'utf-8')
             res.write(`data: [DONE]\n\n`)
             res.end()
@@ -346,23 +417,53 @@ async function handleStreamResponse(
       data: {
         error: error instanceof Error ? error.message : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined,
+        updateTarget,
         filePath: logFilePath
       }
     })
-
+    
+    // 错误情况下也尝试保存
     try {
-      await fs.writeFile(
-        logFilePath,
-        `Error occurred.\nPartial message:\n${completeMessage}`,
-        'utf-8'
-      )
-    } catch (writeError) {
+      const now = new Date()
+      
+      if (updateTarget.type === 'chat_record' && updateTarget.roundId) {
+        await prisma().$transaction([
+          prisma().chatRecord.update({
+            where: { id: updateTarget.roundId },
+            data: { 
+              answer: Buffer.from(completeMessage),
+              speakerType: 'assistant',
+              updateTime: now
+            }
+          }),
+          prisma().chat.update({
+            where: { 
+              id: updateTarget.chatId 
+            },
+            data: {
+              updateTime: now
+            }
+          })
+        ])
+      } else if (updateTarget.type === 'chat_title' && updateTarget.chatId) {
+        await prisma().chat.update({
+          where: { id: updateTarget.chatId },
+          data: { 
+            title: completeMessage.trim(),
+            updateTime: now
+          }
+        })
+      }
+    } catch (dbError) {
       logger().error({
-        msg: 'Failed to write error message to file',
-        data: { writeError }
+        msg: 'Failed to update database after error',
+        data: {
+          updateTarget,
+          error: dbError instanceof Error ? dbError.message : 'Unknown error'
+        }
       })
     }
-
+    
     throw new Error(`处理流式响应时发生错误: ${error}`)
   }
 }
@@ -1018,7 +1119,11 @@ router.get('/completions',
           throw new Error(`AI 对话请求失败: ${response.status}`)
         }
 
-        await handleStreamResponse(response, res)
+        await handleStreamResponse(response, res, {
+          type: 'chat_record',
+          chatId: chatId,
+          roundId: roundId
+        })
 
       } catch (error) {
         logger().error({
@@ -1112,7 +1217,10 @@ router.get('/summarize',
           throw new Error(`AI 总结请求失败: ${response.status}`)
         }
 
-        await handleStreamResponse(response, res)
+        await handleStreamResponse(response, res, {
+          type: 'chat_title',
+          chatId: chatId
+        })
 
       } catch (error) {
         logger().error({
