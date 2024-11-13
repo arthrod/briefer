@@ -9,6 +9,8 @@ import rateLimit from 'express-rate-limit'
 import cache from 'memory-cache'
 import fetch, { Response as FetchResponse } from 'node-fetch'
 import { Send } from 'express-serve-static-core'
+import fs from 'fs/promises'
+import path from 'path'
 
 // 1. 配置常量
 const USE_TEST_AUTH = true // 测试模式开关
@@ -260,8 +262,16 @@ async function handleStreamResponse(
   const stream = response.body
   const textDecoder = new TextDecoder()
   let buffer = ''
+  let completeMessage = ''
+
+  // 生成唯一的文件名
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+  const logFileName = `sse-message-${timestamp}.log`
+  const logFilePath = path.join(process.cwd(), 'logs', logFileName)
 
   try {
+    await fs.mkdir(path.join(process.cwd(), 'logs'), { recursive: true })
+
     for await (const chunk of stream) {
       buffer += textDecoder.decode(chunk as Buffer, { stream: true })
       const lines = buffer.split('\n')
@@ -274,72 +284,85 @@ async function handleStreamResponse(
         if (trimmedLine.startsWith('data:')) {
           const data = trimmedLine.slice(5).trim()
 
-          logger().info({
-            msg: 'SSE message received',
-            data: {
-              content: data,
-              timestamp: new Date().toISOString()
-            }
-          })
-
           if (data.includes('[DONE]')) {
+            await fs.writeFile(logFilePath, completeMessage, 'utf-8')
             res.write(`data: [DONE]\n\n`)
-            logger().info({
-              msg: 'SSE connection closed',
-              data: {
-                reason: '[DONE] received',
-                timestamp: new Date().toISOString()
-              }
-            })
             res.end()
             return
           }
 
-          if (data.includes('"status": "success"') && data.includes('"message": "SSE连接已建立"')) {
-            logger().info({
-              msg: 'SSE connection established',
-              timestamp: new Date().toISOString()
+          try {
+            // 解析JSON获取实际内容
+            const jsonData = JSON.parse(data)
+            const content = jsonData.choices?.[0]?.delta?.content || ''
+
+            if (content && typeof content === 'string' && content.trim().length > 0) {
+              completeMessage += content
+              // 使用标准SSE格式发送内容
+              res.write(`data: ${content}\n\n`)
+            }
+          } catch (parseError) {
+            logger().error({
+              msg: 'Failed to parse SSE JSON data',
+              data: {
+                rawData: data,
+                error: parseError instanceof Error ? parseError.message : 'Unknown error'
+              }
             })
             continue
           }
-
-          res.write(`data: ${data}\n\n`)
-          logger().info({
-            msg: 'SSE message sent to client',
-            data: {
-              content: data,
-              timestamp: new Date().toISOString()
-            }
-          })
         }
       }
     }
 
+    // 处理最后的缓冲区
     if (buffer.trim()) {
       const data = buffer.trim()
       if (data.startsWith('data:')) {
-        const content = data.slice(5).trim()
-        if (content && !(content.includes('"status": "success"') && content.includes('"message": "SSE连接已建立"'))) {
-          res.write(`data: ${content}\n\n`)
-          logger().info({
-            msg: 'SSE buffer message sent',
+        try {
+          const jsonData = JSON.parse(data.slice(5).trim())
+          const content = jsonData.choices?.[0]?.delta?.content || ''
+          if (content && typeof content === 'string' && content.trim().length > 0) {
+            completeMessage += content
+            res.write(`data: ${content}\n\n`)
+          }
+        } catch (parseError) {
+          logger().error({
+            msg: 'Failed to parse final buffer JSON data',
             data: {
-              content,
-              timestamp: new Date().toISOString()
+              rawData: data,
+              error: parseError instanceof Error ? parseError.message : 'Unknown error'
             }
           })
         }
       }
     }
+
+    await fs.writeFile(logFilePath, completeMessage, 'utf-8')
+
   } catch (error) {
     logger().error({
       msg: 'SSE stream error',
       data: {
         error: error instanceof Error ? error.message : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined,
-        timestamp: new Date().toISOString()
+        filePath: logFilePath
       }
     })
+
+    try {
+      await fs.writeFile(
+        logFilePath,
+        `Error occurred.\nPartial message:\n${completeMessage}`,
+        'utf-8'
+      )
+    } catch (writeError) {
+      logger().error({
+        msg: 'Failed to write error message to file',
+        data: { writeError }
+      })
+    }
+
     throw new Error(`处理流式响应时发生错误: ${error}`)
   }
 }
@@ -961,7 +984,7 @@ router.get('/completions',
         }
 
         const relationResult = (await relationCheckResponse.json()) as RelationCheckResponse
-        
+
         // 打印响应结果日志
         logger().info({
           msg: 'Relation check response',
