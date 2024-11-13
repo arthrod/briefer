@@ -7,6 +7,9 @@ import { authenticationMiddleware } from '../../auth/token.js'
 import { UserWorkspaceRole } from '@prisma/client'
 import rateLimit from 'express-rate-limit'
 import cache from 'memory-cache'
+import fetch, { Response as FetchResponse } from 'node-fetch'
+import { Send } from 'express-serve-static-core'
+import { ReadableStream } from 'stream/web'
 
 // 错误类型定义
 class ValidationError extends Error {
@@ -179,6 +182,41 @@ interface CachedResponse {
   msg: string
 }
 
+interface ExtendedResponse extends Response {
+  sendResponse: Send<any, Response>
+}
+
+declare global {
+  namespace NodeJS {
+    interface ProcessEnv {
+      AI_AGENT_URL: string
+    }
+  }
+}
+
+// 工具函数
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit & { body?: string | URLSearchParams | Buffer },
+  timeout: number
+): Promise<FetchResponse> {
+  const controller = new AbortController()
+  const id = setTimeout(() => controller.abort(), timeout)
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    })
+    clearTimeout(id)
+    return response
+  } catch (error) {
+    clearTimeout(id)
+    throw error
+  }
+}
+
+// 缓存中间件
 const cacheMiddleware = (duration: number) => {
   return (req: Request, res: Response, next: NextFunction) => {
     const key = `__express__${req.originalUrl || req.url}`
@@ -187,14 +225,75 @@ const cacheMiddleware = (duration: number) => {
     if (cachedBody) {
       return res.json(cachedBody)
     } else {
-      res.sendResponse = res.json
+      const extendedRes = res as ExtendedResponse
+      extendedRes.sendResponse = res.json.bind(res)
       res.json = (body: CachedResponse) => {
         cache.put(key, body, duration * 1000)
-        res.sendResponse(body)
+        extendedRes.sendResponse(body)
         return res
       }
       next()
     }
+  }
+}
+
+// 环境变量
+const AI_AGENT_URL = process.env['AI_AGENT_URL']
+
+// 处理流式响应
+async function handleStreamResponse(
+  response: FetchResponse,
+  res: Response
+): Promise<void> {
+  if (!response.body) {
+    throw new Error('Response body is empty')
+  }
+
+  const reader = (response.body as unknown as ReadableStream).getReader()
+  if (!reader) {
+    throw new Error('Failed to get response reader')
+  }
+
+  let buffer = ''
+  const textDecoder = new TextDecoder()
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += textDecoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+
+      for (const line of lines) {
+        const trimmedLine = line.trim()
+        if (!trimmedLine) continue
+
+        if (trimmedLine.startsWith('data:')) {
+          const data = trimmedLine.slice(5).trim()
+
+          if (data.includes('[DONE]')) {
+            res.write(`data: [DONE]\n\n`)
+            res.end()
+          }
+
+          res.write(`data: ${data}\n\n`)
+        }
+      }
+    }
+
+    if (buffer.trim()) {
+      const data = buffer.trim()
+      if (data.startsWith('data:')) {
+        const content = data.slice(5).trim()
+        if (content) {
+          res.write(`data: ${content}\n\n`)
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock()
   }
 }
 
@@ -233,7 +332,7 @@ const createChatLimiter = rateLimit({
   max: 20 // 限制每个IP 20个请求
 })
 
-router.post('/create', authMiddleware, createChatLimiter, async (req, res) => {
+router.post('/create', authMiddleware, createChatLimiter, async (req: Request, res: Response) => {
   try {
     const validatedData = validateSchema(createChatSchema, req.body, 'create chat')
     if (!validatedData) {
@@ -264,9 +363,9 @@ router.post('/create', authMiddleware, createChatLimiter, async (req, res) => {
       }
     }
 
-    // 获取用户工作区
+    // 获取用户工作区并确保存在
     const workspace = Object.values(req.session.userWorkspaces ?? {})[0]
-    if (type === 'report' && !workspace?.workspaceId) {
+    if (!workspace?.workspaceId) {
       throw new ValidationError('未找到有效的工作区')
     }
 
@@ -866,7 +965,7 @@ router.get('/completions',
       try {
         // 关联性检查
         const relationCheckResponse = await fetchWithTimeout(
-          `${process.env.AI_AGENT_URL}/v1/ai/chat/relation`,
+          `${AI_AGENT_URL}/v1/ai/chat/relation`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -879,7 +978,7 @@ router.get('/completions',
           throw new Error(`关联性检查请求失败: ${relationCheckResponse.status}`)
         }
 
-        const relationResult = await relationCheckResponse.json() as RelationCheckResponse
+        const relationResult = (await relationCheckResponse.json()) as RelationCheckResponse
         if (relationResult.code !== 0 || !relationResult.data.related) {
           res.write(`data: [ERROR] 暂时无法回答非相关内容\n\n`)
           res.write(`data: [DONE]\n\n`)
@@ -888,7 +987,7 @@ router.get('/completions',
 
         // AI 对话请求
         const response = await fetchWithTimeout(
-          `${process.env.AI_AGENT_URL}/v1/ai/chat/data/completions`,
+          `${AI_AGENT_URL}/v1/ai/chat/data/completions`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -897,7 +996,7 @@ router.get('/completions',
             })
           },
           30000 // 30秒超时
-        )
+        ) as FetchResponse
 
         if (!response.ok) {
           throw new Error(`AI 对话请求失败: ${response.status}`)
@@ -940,55 +1039,6 @@ router.get('/completions',
     }
   })
 
-// 处理流式响应的辅助函数
-async function handleStreamResponse(response: Response, res: Response) {
-  const reader = response.body?.getReader()
-  if (!reader) {
-    throw new Error('Failed to get response reader')
-  }
-
-  let buffer = ''
-  const textDecoder = new TextDecoder()
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-
-      buffer += textDecoder.decode(value, { stream: true })
-      const lines = buffer.split('\n')
-      buffer = lines.pop() || ''
-
-      for (const line of lines) {
-        const trimmedLine = line.trim()
-        if (!trimmedLine) continue
-
-        if (trimmedLine.startsWith('data:')) {
-          const data = trimmedLine.slice(5).trim()
-
-          if (data.includes('[DONE]')) {
-            res.write(`data: [DONE]\n\n`)
-            return res.end()
-          }
-
-          res.write(`data: ${data}\n\n`)
-        }
-      }
-    }
-
-    if (buffer.trim()) {
-      const data = buffer.trim()
-      if (data.startsWith('data:')) {
-        const content = data.slice(5).trim()
-        if (content) {
-          res.write(`data: ${content}\n\n`)
-        }
-      }
-    }
-  } finally {
-    reader.releaseLock()
-  }
-}
 
 const summarizeChatSchema = z.object({
   chatId: z.string().min(1, "对话ID不能为空"),
@@ -1048,7 +1098,7 @@ router.get('/summarize',
 
       try {
         const response = await fetchWithTimeout(
-          `${process.env.AI_AGENT_URL}/v1/ai/chat/summarize`,
+          `${AI_AGENT_URL}/v1/ai/chat/summarize`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1062,7 +1112,7 @@ router.get('/summarize',
             })
           },
           10000 // 10秒超时
-        )
+        ) as FetchResponse
 
         if (!response.ok) {
           throw new Error(`AI 总结请求失败: ${response.status}`)
