@@ -1206,6 +1206,7 @@ router.get('/summarize',
         select: {
           id: true,
           question: true,
+          answer: true,
           speakerType: true
         }
       })
@@ -1217,17 +1218,41 @@ router.get('/summarize',
       setupSSEConnection(res)
 
       try {
+        const messages = [
+          {
+            id: chatRecord.id,
+            role: 'user',
+            content: sanitizeInput(chatRecord.question)
+          },
+          {
+            id: chatRecord.id,
+            role: 'assistant',
+            content: chatRecord.answer.toString()
+          }
+        ]
+
+        // 添加请求参数日志
+        logger().info({
+          msg: 'Summarize request parameters',
+          data: {
+            url: `${AI_AGENT_URL}/v1/ai/chat/summarize`,
+            requestBody: {
+              messages,
+              temperature: 0
+            },
+            chatId,
+            roundId,
+            userId: req.session.user.id
+          }
+        })
+
         const response = await fetchWithTimeout(
           `${AI_AGENT_URL}/v1/ai/chat/summarize`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              messages: [{
-                id: chatRecord.id,
-                role: chatRecord.speakerType,
-                content: sanitizeInput(chatRecord.question)
-              }],
+              messages,
               temperature: 0
             })
           },
@@ -1237,6 +1262,18 @@ router.get('/summarize',
         if (!response.ok) {
           throw new Error(`AI 总结请求失败: ${response.status}`)
         }
+
+        // 添加响应状态日志
+        logger().info({
+          msg: 'Summarize response status',
+          data: {
+            status: response.status,
+            statusText: response.statusText,
+            chatId,
+            roundId,
+            userId: req.session.user.id
+          }
+        })
 
         await handleStreamResponse(response, res, {
           type: 'chat_title',
