@@ -186,14 +186,6 @@ interface ExtendedResponse extends Response {
   sendResponse: Send<any, Response>
 }
 
-declare global {
-  namespace NodeJS {
-    interface ProcessEnv {
-      AI_AGENT_URL: string
-    }
-  }
-}
-
 // 工具函数
 async function fetchWithTimeout(
   url: string,
@@ -295,35 +287,6 @@ async function handleStreamResponse(
   } finally {
     reader.releaseLock()
   }
-}
-
-// 2. 优化数据库查询
-const getChatWithRelations = async (chatId: string, userId: string) => {
-  return await prisma().chat.findFirst({
-    where: {
-      id: chatId,
-      userId
-    },
-    select: {
-      id: true,
-      type: true,
-      documentRelations: {
-        select: {
-          documentId: true
-        }
-      },
-      fileRelations: {
-        select: {
-          userFile: {
-            select: {
-              fileId: true,
-              fileName: true
-            }
-          }
-        }
-      }
-    }
-  })
 }
 
 // 创建聊天的速率限制器
