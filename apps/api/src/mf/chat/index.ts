@@ -526,6 +526,7 @@ router.post('/create', authMiddleware, createChatLimiter, async (req: Request, r
     const { type, fileId } = validatedData
     const chatId = uuidv4()
     const userId = req.session.user.id
+    const title = sanitizeInput(type === 'rag' ? 'Untitled' : '新的报告')
 
     logger().info({
       msg: 'Attempting to create chat',
@@ -556,7 +557,7 @@ router.post('/create', authMiddleware, createChatLimiter, async (req: Request, r
         data: {
           id: chatId,
           userId,
-          title: sanitizeInput(type === 'rag' ? 'Untitled' : '新的报告'),
+          title,
           type: type === 'rag' ? 1 : 2
         }
       })
@@ -590,7 +591,13 @@ router.post('/create', authMiddleware, createChatLimiter, async (req: Request, r
         ])
       }
 
-      return { chatId: chat.id, documentId }
+      return { 
+        chatId: chat.id, 
+        documentId,
+        title: chat.title,
+        type: type,
+        createdTime: formatDate(chat.createdTime)
+      }
     }, {
       timeout: 5000
     })
@@ -600,7 +607,9 @@ router.post('/create', authMiddleware, createChatLimiter, async (req: Request, r
       data: {
         chatId: response.chatId,
         documentId: response.documentId,
-        type,
+        title: response.title,
+        type: response.type,
+        createdTime: response.createdTime,
         userId
       }
     })
@@ -609,7 +618,10 @@ router.post('/create', authMiddleware, createChatLimiter, async (req: Request, r
       code: 0,
       data: {
         id: response.chatId,
-        documentId: response.documentId
+        documentId: response.documentId,
+        title: response.title,
+        type: response.type,
+        createdTime: response.createdTime
       },
       msg: '创建成功'
     })
@@ -1214,7 +1226,7 @@ router.get('/summarize',
         ) as FetchResponse
 
         if (!response.ok) {
-          throw new Error(`AI 总结请求失败: ${response.status}`)
+          throw new Error(`AI 总��请求失败: ${response.status}`)
         }
 
         await handleStreamResponse(response, res, {
