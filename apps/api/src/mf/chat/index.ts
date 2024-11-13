@@ -927,6 +927,10 @@ router.get('/completions', authMiddleware, async (req, res) => {
       'Connection': 'keep-alive'
     })
 
+    // 发送连接成功消息
+    res.write('event: connected\n');
+    res.write('data: {"status": "success", "message": "SSE连接已建立"}\n\n');
+
     // 添加 timeout 和错误处理
     const fetchWithTimeout = async (url: string, options: RequestInit, timeout = 10000) => {
       const controller = new AbortController()
@@ -1011,12 +1015,17 @@ router.get('/completions', authMiddleware, async (req, res) => {
         if (done) break
 
         const chunk = new TextDecoder().decode(value)
-        res.write(`data: ${chunk}\n\n`)
 
-        // 如果收到结束标识，结束响应
-        if (chunk.includes('[DONE]')) {
-          res.end()
-          break
+        // 添加非空检查，只发送非空消息
+        const trimmedChunk = chunk.trim()
+        if (trimmedChunk) {
+          res.write(`data: ${trimmedChunk}\n\n`)
+
+          // 如果收到结束标识，结束响应
+          if (trimmedChunk.includes('[DONE]')) {
+            res.end()
+            break
+          }
         }
       }
 
