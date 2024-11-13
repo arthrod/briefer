@@ -296,13 +296,13 @@ async function handleStreamResponse(
             // 根据不同类型更新不同的目标
             try {
               const now = new Date()
-              
+
               if (updateTarget.type === 'chat_record' && updateTarget.roundId) {
                 await prisma().$transaction([
                   // 更新 ChatRecord
                   prisma().chatRecord.update({
                     where: { id: updateTarget.roundId },
-                    data: { 
+                    data: {
                       answer: Buffer.from(completeMessage),
                       speakerType: 'assistant',
                       updateTime: now
@@ -310,7 +310,7 @@ async function handleStreamResponse(
                   }),
                   // 同时更新对应的 Chat
                   prisma().chat.update({
-                    where: { 
+                    where: {
                       id: updateTarget.chatId // 确保 chatId 也传入了
                     },
                     data: {
@@ -331,7 +331,7 @@ async function handleStreamResponse(
               } else if (updateTarget.type === 'chat_title' && updateTarget.chatId) {
                 await prisma().chat.update({
                   where: { id: updateTarget.chatId },
-                  data: { 
+                  data: {
                     title: completeMessage.trim(),
                     updateTime: now
                   }
@@ -421,24 +421,24 @@ async function handleStreamResponse(
         filePath: logFilePath
       }
     })
-    
+
     // 错误情况下也尝试保存
     try {
       const now = new Date()
-      
+
       if (updateTarget.type === 'chat_record' && updateTarget.roundId) {
         await prisma().$transaction([
           prisma().chatRecord.update({
             where: { id: updateTarget.roundId },
-            data: { 
+            data: {
               answer: Buffer.from(completeMessage),
               speakerType: 'assistant',
               updateTime: now
             }
           }),
           prisma().chat.update({
-            where: { 
-              id: updateTarget.chatId 
+            where: {
+              id: updateTarget.chatId
             },
             data: {
               updateTime: now
@@ -448,7 +448,7 @@ async function handleStreamResponse(
       } else if (updateTarget.type === 'chat_title' && updateTarget.chatId) {
         await prisma().chat.update({
           where: { id: updateTarget.chatId },
-          data: { 
+          data: {
             title: completeMessage.trim(),
             updateTime: now
           }
@@ -463,7 +463,7 @@ async function handleStreamResponse(
         }
       })
     }
-    
+
     throw new Error(`处理流式响应时发生错误: ${error}`)
   }
 }
@@ -591,8 +591,8 @@ router.post('/create', authMiddleware, createChatLimiter, async (req: Request, r
         ])
       }
 
-      return { 
-        chatId: chat.id, 
+      return {
+        chatId: chat.id,
         documentId,
         title: chat.title,
         type: type,
@@ -639,7 +639,7 @@ router.post('/create', authMiddleware, createChatLimiter, async (req: Request, r
 
 // Chat 列表路由
 // router.get('/list', authMiddleware, cacheMiddleware(60), async (req, res) => {
-  router.get('/list', authMiddleware, async (req, res) => {
+router.get('/list', authMiddleware, async (req, res) => {
   try {
     logger().info({
       msg: 'Attempting to fetch chat list',
@@ -973,7 +973,7 @@ router.post('/detail',
       const messages = chat.records.flatMap(record => [
         {
           id: record.id,
-          role: 'user', 
+          role: 'user',
           content: sanitizeInput(record.question)
         },
         {
