@@ -5,15 +5,59 @@ import { v4 as uuidv4 } from 'uuid'
 import { logger } from '../../logger.js'
 import { authenticationMiddleware } from '../../auth/token.js'
 import { UserWorkspaceRole } from '@prisma/client'
+import rateLimit from 'express-rate-limit'
+import cache from 'memory-cache'
 
-class BusinessError extends Error {
+// 错误类型定义
+class ValidationError extends Error {
   constructor(message: string) {
-    super(message);
-    this.name = 'BusinessError';
+    super(message)
+    this.name = 'ValidationError'
+  }
+}
+
+class AuthorizationError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'AuthorizationError'
   }
 }
 
 const router = Router({ mergeParams: true })
+
+// 1. 添加请求速率限制
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15分钟
+  max: 100 // 限制每个IP 100个请求
+})
+
+router.use(apiLimiter)
+
+// 2. 添加输入数据清理
+const sanitizeInput = (input: string): string => {
+  if (!input) return ''
+  
+  // 移除 HTML 标签
+  input = input.replace(/<[^>]*>/g, '')
+  
+  // 移除特殊字符
+  input = input.replace(/[<>'"]/g, '')
+  
+  // 移除控制字符
+  input = input.replace(/[\x00-\x1F\x7F]/g, '')
+  
+  // 修剪空白字符
+  return input.trim()
+}
+
+// 3. 环境变量验证
+const validateEnvVars = () => {
+  const requiredEnvVars = ['AI_AGENT_URL']
+  const missingVars = requiredEnvVars.filter(varName => !process.env[varName])
+  if (missingVars.length > 0) {
+    throw new Error(`Missing required environment variables: ${missingVars.join(', ')}`)
+  }
+}
 
 // 定义请求参数验证schema
 const createChatSchema = z.object({
@@ -89,82 +133,163 @@ function getMockSession() {
   }
 }
 
-// 所有路由使用 authMiddleware
-router.post('/create', authMiddleware, async (req, res) => {
-  try {
-    // 验证请求参数
-    const result = createChatSchema.safeParse(req.body)
-    if (!result.success) {
-      logger().error({
-        msg: 'Invalid create chat input',
-        data: {
-          errors: result.error.errors.map(err => ({
-            path: err.path.join('.'),
-            message: err.message
-          })),
-          requestBody: req.body
+// 1. 提取共用的错误处理逻辑
+const handleError = (err: unknown, req: Request, res: Response, operation: string) => {
+  logger().error({
+    msg: `Failed to ${operation}`,
+    data: {
+      error: err,
+      errorMessage: err instanceof Error ? err.message : '未知错误',
+      errorStack: err instanceof Error ? err.stack : undefined,
+      requestData: req.body || req.query,
+      userId: req.session?.user?.id
+    }
+  })
+
+  return res.status(500).json({
+    code: 500,
+    msg: '服务器内部错误',
+    data: null
+  })
+}
+
+// 2. 提取共用的参数证逻辑
+const validateSchema = <T>(schema: z.ZodSchema<T>, data: unknown, operation: string) => {
+  const result = schema.safeParse(data)
+  if (!result.success) {
+    logger().error({
+      msg: `Invalid ${operation} input`,
+      data: {
+        errors: result.error.errors.map(err => ({
+          path: err.path.join('.'),
+          message: err.message
+        })),
+        requestData: data
+      }
+    })
+    return null
+  }
+  return result.data
+}
+
+// 1. 添加缓存中间件
+interface CachedResponse {
+  code: number
+  data: unknown
+  msg: string
+}
+
+const cacheMiddleware = (duration: number) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const key = `__express__${req.originalUrl || req.url}`
+    const cachedBody = cache.get(key) as CachedResponse | undefined
+    
+    if (cachedBody) {
+      return res.json(cachedBody)
+    } else {
+      res.sendResponse = res.json
+      res.json = (body: CachedResponse) => {
+        cache.put(key, body, duration * 1000)
+        res.sendResponse(body)
+        return res
+      }
+      next()
+    }
+  }
+}
+
+// 2. 优化数据库查询
+const getChatWithRelations = async (chatId: string, userId: string) => {
+  return await prisma().chat.findFirst({
+    where: {
+      id: chatId,
+      userId
+    },
+    select: {
+      id: true,
+      type: true,
+      documentRelations: {
+        select: {
+          documentId: true
         }
-      })
-      return res.status(400).json({
-        code: 400,
-        msg: '参数校验失败',
-        data: null
-      })
+      },
+      fileRelations: {
+        select: {
+          userFile: {
+            select: {
+              fileId: true,
+              fileName: true
+            }
+          }
+        }
+      }
+    }
+  })
+}
+
+// 创建聊天的速率限制器
+const createChatLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1分钟
+  max: 20 // 限制每个IP 20个请求
+})
+
+router.post('/create', authMiddleware, createChatLimiter, async (req, res) => {
+  try {
+    const validatedData = validateSchema(createChatSchema, req.body, 'create chat')
+    if (!validatedData) {
+      return res.status(400).json(createErrorResponse(400, '参数校验失败'))
     }
 
-    const { type, fileId } = result.data
+    const { type, fileId } = validatedData
     const chatId = uuidv4()
+    const userId = req.session.user.id
 
     logger().info({
       msg: 'Attempting to create chat',
-      data: {
-        type,
-        fileId,
-        userId: req.session.user.id
-      }
+      data: { type, fileId, userId }
     })
 
+    // 开启事务前检查文件权限
+    if (type === 'report' && fileId) {
+      const userFile = await prisma().userFile.findFirst({
+        where: {
+          fileId,
+          createdUserId: userId
+        },
+        select: { fileId: true }
+      })
+
+      if (!userFile) {
+        throw new AuthorizationError('文件不存在或无权访问')
+      }
+    }
+
+    // 获取用户工作区
+    const workspace = Object.values(req.session.userWorkspaces ?? {})[0]
+    if (type === 'report' && !workspace?.workspaceId) {
+      throw new ValidationError('未找到有效的工作区')
+    }
+
     // 开启事务
-    const response = await prisma().$transaction<{ chatId: string; documentId: string | null }>(async (tx) => {
+    const response = await prisma().$transaction(async (tx) => {
       // 创建聊天记录
       const chat = await tx.chat.create({
         data: {
           id: chatId,
-          userId: req.session.user.id,
-          title: type === 'rag' ? 'Untitled' : '新的报告',
+          userId,
+          title: sanitizeInput(type === 'rag' ? 'Untitled' : '新的报告'),
           type: type === 'rag' ? 1 : 2
         }
       })
 
-      // 如果是report类型，需要创建文档
+      // 如果是report类型，创建相关资源
       let documentId = null
       if (type === 'report') {
-        if (!fileId) {
-          throw new BusinessError('当生成报告时，文件ID不能为空');
-        }
-
-        // 检查文件是否存在且属于当前用户
-        const userFile = await tx.userFile.findFirst({
-          where: {
-            fileId: fileId,
-            createdUserId: req.session.user.id
-          }
-        });
-
-        if (!userFile) {
-          throw new BusinessError('文件不存在或无权访问');
-        }
-
         // 创建文档
-        const workspace = Object.values(req.session.userWorkspaces ?? {})[0];
-        if (!workspace?.workspaceId) {
-          throw new Error('No workspace found for user');
-        }
-
         const doc = await tx.document.create({
           data: {
             id: uuidv4(),
-            title: '新的报告',
+            title: sanitizeInput('新的报告'),
             workspaceId: workspace.workspaceId,
             icon: 'DocumentIcon',
             orderIndex: -1
@@ -172,27 +297,26 @@ router.post('/create', authMiddleware, async (req, res) => {
         })
         documentId = doc.id
 
-        // 创建对话和文档的关联
-        await tx.chatDocumentRelation.create({
-          data: {
-            chatId: chat.id,
-            documentId: doc.id
-          }
-        })
-
-        // 创建对话和文件的关联
-        await tx.chatFileRelation.create({
-          data: {
-            chatId: chat.id,
-            fileId
-          }
-        })
+        // 创建关联关系
+        await Promise.all([
+          tx.chatDocumentRelation.create({
+            data: {
+              chatId: chat.id,
+              documentId: doc.id
+            }
+          }),
+          tx.chatFileRelation.create({
+            data: {
+              chatId: chat.id,
+              fileId
+            }
+          })
+        ])
       }
 
-      return {
-        chatId: chat.id,
-        documentId
-      }
+      return { chatId: chat.id, documentId }
+    }, {
+      timeout: 5000 // 设置事务超时时间
     })
 
     logger().info({
@@ -201,7 +325,7 @@ router.post('/create', authMiddleware, async (req, res) => {
         chatId: response.chatId,
         documentId: response.documentId,
         type,
-        userId: req.session.user.id
+        userId
       }
     })
 
@@ -215,35 +339,18 @@ router.post('/create', authMiddleware, async (req, res) => {
     })
 
   } catch (err) {
-    if (err instanceof BusinessError) {
-      return res.status(400).json({
-        code: 400,
-        msg: err.message,
-        data: null
-      });
+    if (err instanceof AuthorizationError) {
+      return res.status(403).json(createErrorResponse(403, err.message))
     }
-
-    logger().error({
-      msg: 'Failed to create chat',
-      data: {
-        error: err,
-        errorMessage: err instanceof Error ? err.message : '未知错误',
-        errorStack: err instanceof Error ? err.stack : undefined,
-        requestBody: req.body,
-        userId: req.session.user.id
-      }
-    })
-
-    return res.status(500).json({
-      code: 500,
-      msg: '服务器内部错误',
-      data: null
-    })
+    if (err instanceof ValidationError) {
+      return res.status(400).json(createErrorResponse(400, err.message))
+    }
+    return handleError(err, req, res, 'create chat')
   }
 })
 
 // 获取聊天列表
-router.get('/list', authMiddleware, async (req, res) => {
+router.get('/list', authMiddleware, cacheMiddleware(60), async (req, res) => {
   try {
     logger().info({
       msg: 'Attempting to fetch chat list',
@@ -252,28 +359,31 @@ router.get('/list', authMiddleware, async (req, res) => {
       }
     })
 
-    // 获取用户的所有对话，按创建时间倒序
+    // 优化查询,只获取必要字段
     const chats = await prisma().chat.findMany({
       where: {
         userId: req.session.user.id
       },
-      orderBy: {
-        createdTime: 'desc'
-      },
-      include: {
+      select: {
+        id: true,
+        title: true,
+        type: true,
+        createdTime: true,
         documentRelations: {
           select: {
             documentId: true
           }
         }
+      },
+      orderBy: {
+        createdTime: 'desc'
       }
     })
 
-    // 转换数据格式
     const chatList = chats.map(chat => ({
       id: chat.id,
       documentId: chat.documentRelations[0]?.documentId || null,
-      title: chat.title,
+      title: sanitizeInput(chat.title),
       type: chat.type === 1 ? 'rag' : 'report',
       createdTime: formatDate(chat.createdTime)
     }))
@@ -295,50 +405,19 @@ router.get('/list', authMiddleware, async (req, res) => {
     })
 
   } catch (err) {
-    logger().error({
-      msg: 'Failed to fetch chat list',
-      data: {
-        error: err,
-        errorMessage: err instanceof Error ? err.message : '未知错误',
-        errorStack: err instanceof Error ? err.stack : undefined,
-        userId: req.session.user.id
-      }
-    })
-
-    return res.status(500).json({
-      code: 500,
-      msg: '服务器内部错误',
-      data: {
-        list: []
-      }
-    })
+    return handleError(err, req, res, 'fetch chat list')
   }
 })
 
 // 更新对话标题
 router.post('/update', authMiddleware, async (req, res) => {
   try {
-    // 验证请求参数
-    const result = updateChatSchema.safeParse(req.body)
-    if (!result.success) {
-      logger().error({
-        msg: 'Invalid update chat title input',
-        data: {
-          errors: result.error.errors.map(err => ({
-            path: err.path.join('.'),
-            message: err.message
-          })),
-          requestBody: req.body
-        }
-      })
-      return res.status(400).json({
-        code: 400,
-        msg: '参数校验失败',
-        data: {}
-      })
+    const validatedData = validateSchema(updateChatSchema, req.body, 'update chat title')
+    if (!validatedData) {
+      return res.status(400).json(createErrorResponse(400, '参数校验失败'))
     }
 
-    const { id, title } = result.data
+    const { id, title } = validatedData
 
     logger().info({
       msg: 'Attempting to update chat title',
@@ -349,7 +428,7 @@ router.post('/update', authMiddleware, async (req, res) => {
       }
     })
 
-    // 查询对话是否存在且属于当前用户
+    // 查询话是否存在且属于当前用户
     const chat = await prisma().chat.findFirst({
       where: {
         id,
@@ -358,35 +437,23 @@ router.post('/update', authMiddleware, async (req, res) => {
     })
 
     if (!chat) {
-      logger().warn({
-        msg: 'Chat not found or not owned by user',
-        data: {
-          chatId: id,
-          userId: req.session.user.id
-        }
-      })
-      return res.status(404).json({
-        code: 404,
-        msg: '对话不存在或无权访问',
-        data: {}
-      })
+      throw new AuthorizationError('对话不存在或无权访问')
     }
+
+    // 清理输入数据
+    const sanitizedTitle = sanitizeInput(title)
 
     // 更新对话标题
     await prisma().chat.update({
-      where: {
-        id
-      },
-      data: {
-        title
-      }
+      where: { id },
+      data: { title: sanitizedTitle }
     })
 
     logger().info({
       msg: 'Chat title updated successfully',
       data: {
         chatId: id,
-        newTitle: title,
+        newTitle: sanitizedTitle,
         userId: req.session.user.id
       }
     })
@@ -398,49 +465,26 @@ router.post('/update', authMiddleware, async (req, res) => {
     })
 
   } catch (err) {
-    logger().error({
-      msg: 'Failed to update chat title',
-      data: {
-        error: err,
-        errorMessage: err instanceof Error ? err.message : '未知错误',
-        errorStack: err instanceof Error ? err.stack : undefined,
-        requestBody: req.body,
-        userId: req.session.user.id
-      }
-    })
-
-    return res.status(500).json({
-      code: 500,
-      msg: '服务器内部错误',
-      data: {}
-    })
+    if (err instanceof AuthorizationError) {
+      return res.status(403).json(createErrorResponse(403, err.message))
+    }
+    if (err instanceof ValidationError) {
+      return res.status(400).json(createErrorResponse(400, err.message))
+    }
+    
+    return handleError(err, req, res, 'update chat title')
   }
 })
 
 // 删除对话
 router.post('/delete', authMiddleware, async (req, res) => {
   try {
-    // 验证请求参数
-    const result = deleteChatSchema.safeParse(req.body)
-    if (!result.success) {
-      logger().error({
-        msg: 'Invalid delete chat input',
-        data: {
-          errors: result.error.errors.map(err => ({
-            path: err.path.join('.'),
-            message: err.message
-          })),
-          requestBody: req.body
-        }
-      })
-      return res.status(400).json({
-        code: 400,
-        msg: '参数校验失败',
-        data: {}
-      })
+    const validatedData = validateSchema(deleteChatSchema, req.body, 'delete chat')
+    if (!validatedData) {
+      return res.status(400).json(createErrorResponse(400, '参数校验失败'))
     }
 
-    const { id } = result.data
+    const { id } = validatedData
 
     logger().info({
       msg: 'Attempting to delete chat',
@@ -450,44 +494,29 @@ router.post('/delete', authMiddleware, async (req, res) => {
       }
     })
 
-    // 查询对话是否存在且属于当前用户
+    // 使用优化后的查询,只获取必要字段
     const chat = await prisma().chat.findFirst({
       where: {
         id,
         userId: req.session.user.id
       },
-      include: {
-        documentRelations: true // 包含文档关联信息
+      select: {
+        id: true,
+        documentRelations: {
+          select: {
+            documentId: true
+          }
+        }
       }
     })
 
     if (!chat) {
-      logger().warn({
-        msg: 'Chat not found or not owned by user',
-        data: {
-          chatId: id,
-          userId: req.session.user.id
-        }
-      })
-      return res.status(404).json({
-        code: 404,
-        msg: '对话不存在或无权访问',
-        data: {}
-      })
+      throw new AuthorizationError('对话不存在或无权访问')
     }
 
     // 使用事务删除对话及其关联数据
     await prisma().$transaction(async (tx) => {
-      // 1. 删除关联的文档
-      if (chat.documentRelations && chat.documentRelations.length > 0) {
-        logger().info({
-          msg: 'Deleting associated documents',
-          data: {
-            chatId: id,
-            documentIds: chat.documentRelations.map(r => r.documentId)
-          }
-        })
-
+      if (chat.documentRelations?.length > 0) {
         await tx.document.deleteMany({
           where: {
             id: {
@@ -497,7 +526,6 @@ router.post('/delete', authMiddleware, async (req, res) => {
         })
       }
 
-      // 2. 删除对话(会自动级联删除 ChatDocumentRelation 和 ChatFileRelation)
       await tx.chat.delete({
         where: { id }
       })
@@ -519,49 +547,23 @@ router.post('/delete', authMiddleware, async (req, res) => {
     })
 
   } catch (err) {
-    logger().error({
-      msg: 'Failed to delete chat',
-      data: {
-        error: err,
-        errorMessage: err instanceof Error ? err.message : '未知错误',
-        errorStack: err instanceof Error ? err.stack : undefined,
-        requestBody: req.body,
-        userId: req.session.user.id
-      }
-    })
-
-    return res.status(500).json({
-      code: 500,
-      msg: '服务器内部错误',
-      data: {}
-    })
+    if (err instanceof AuthorizationError) {
+      return res.status(403).json(createErrorResponse(403, err.message))
+    }
+    return handleError(err, req, res, 'delete chat')
   }
 })
 
 // 创建聊天记录
 router.post('/round/create', authMiddleware, async (req, res) => {
   try {
-    // 验证请求参数
-    const result = createChatRoundSchema.safeParse(req.body)
-    if (!result.success) {
-      logger().error({
-        msg: 'Invalid create chat round input',
-        data: {
-          errors: result.error.errors.map(err => ({
-            path: err.path.join('.'),
-            message: err.message
-          })),
-          requestBody: req.body
-        }
-      })
-      return res.status(400).json({
-        code: 400,
-        msg: '参数校验失败',
-        data: null
-      })
+    // 使用提取的验证逻辑
+    const validatedData = validateSchema(createChatRoundSchema, req.body, 'create chat round')
+    if (!validatedData) {
+      return res.status(400).json(createErrorResponse(400, '参数校验失败'))
     }
 
-    const { chatId, question } = result.data
+    const { chatId, question } = validatedData
 
     logger().info({
       msg: 'Attempting to create chat round',
@@ -580,27 +582,19 @@ router.post('/round/create', authMiddleware, async (req, res) => {
     })
 
     if (!chat) {
-      logger().warn({
-        msg: 'Chat not found or not owned by user',
-        data: {
-          chatId,
-          userId: req.session.user.id
-        }
-      })
-      return res.status(404).json({
-        code: 404,
-        msg: '对话不存在或无权访问',
-        data: null
-      })
+      throw new AuthorizationError('对话不存在或无权访问')
     }
+
+    // 清理输入数据
+    const sanitizedQuestion = sanitizeInput(question)
 
     // 创建聊天记录
     const chatRecord = await prisma().chatRecord.create({
       data: {
         chatId,
-        question,
-        answer: Buffer.from(''), // 初始化为空buffer
-        speakerType: 'user'  // 添加说话者类型
+        question: sanitizedQuestion,
+        answer: Buffer.from(''),
+        speakerType: 'user'
       }
     })
 
@@ -622,22 +616,15 @@ router.post('/round/create', authMiddleware, async (req, res) => {
     })
 
   } catch (err) {
-    logger().error({
-      msg: 'Failed to create chat round',
-      data: {
-        error: err,
-        errorMessage: err instanceof Error ? err.message : '未知错误',
-        errorStack: err instanceof Error ? err.stack : undefined,
-        requestBody: req.body,
-        userId: req.session.user.id
-      }
-    })
-
-    return res.status(500).json({
-      code: 500,
-      msg: '服务器内部错误',
-      data: null
-    })
+    if (err instanceof AuthorizationError) {
+      return res.status(403).json(createErrorResponse(403, err.message))
+    }
+    if (err instanceof ValidationError) {
+      return res.status(400).json(createErrorResponse(400, err.message)) 
+    }
+    
+    // 使用通用错误处理
+    return handleError(err, req, res, 'create chat round')
   }
 })
 
@@ -664,53 +651,49 @@ const getChatDetailSchema = z.object({
   id: z.string().min(1, "聊天ID不能为空"),
 })
 
-// 获取聊天详情
-router.post('/detail', authMiddleware, async (req, res) => {
+// 获取聊天详情的缓存时间(秒)
+const CHAT_DETAIL_CACHE_DURATION = 60
+
+router.post('/detail', 
+  authMiddleware, 
+  cacheMiddleware(CHAT_DETAIL_CACHE_DURATION), 
+  async (req, res) => {
   try {
-    // 验证请求参数
-    const result = getChatDetailSchema.safeParse(req.body)
-    if (!result.success) {
-      logger().error({
-        msg: 'Invalid get chat detail input',
-        data: {
-          errors: result.error.errors.map(err => ({
-            path: err.path.join('.'),
-            message: err.message
-          })),
-          requestBody: req.body
-        }
-      })
-      return res.status(400).json({
-        code: 400,
-        msg: '参数校验失败',
-        data: null
-      })
+    const validatedData = validateSchema(getChatDetailSchema, req.body, 'get chat detail')
+    if (!validatedData) {
+      return res.status(400).json(createErrorResponse(400, '参数校验失败'))
     }
 
-    const { id } = result.data
+    const { id } = validatedData
+    const userId = req.session.user.id
 
     logger().info({
       msg: 'Attempting to get chat detail',
-      data: {
-        chatId: id,
-        userId: req.session.user.id
-      }
+      data: { chatId: id, userId }
     })
 
-    // 查询聊天记录及其关联信息
+    // 优化查询,只获取必要字段
     const chat = await prisma().chat.findFirst({
       where: {
         id,
-        userId: req.session.user.id
+        userId
       },
-      include: {
+      select: {
+        id: true,
+        type: true,
         records: {
           orderBy: {
             createdTime: 'asc'
+          },
+          select: {
+            id: true,
+            speakerType: true,
+            answer: true,
+            createdTime: true
           }
         },
         documentRelations: {
-          include: {
+          select: {
             document: {
               select: {
                 id: true,
@@ -720,7 +703,7 @@ router.post('/detail', authMiddleware, async (req, res) => {
           }
         },
         fileRelations: {
-          include: {
+          select: {
             userFile: {
               select: {
                 fileId: true,
@@ -733,18 +716,7 @@ router.post('/detail', authMiddleware, async (req, res) => {
     })
 
     if (!chat) {
-      logger().warn({
-        msg: 'Chat not found or not owned by user',
-        data: {
-          chatId: id,
-          userId: req.session.user.id
-        }
-      })
-      return res.status(404).json({
-        code: 404,
-        msg: '聊天记录不存在或无权访问',
-        data: null
-      })
+      throw new AuthorizationError('聊天记录不存在或无权访问')
     }
 
     // 转换消息格式
@@ -762,19 +734,19 @@ router.post('/detail', authMiddleware, async (req, res) => {
       file: null
     }
 
-    // 如果是report类型，添加文档和文件信息
+    // 处理report类型的额外数据
     if (chat.type === 2) {
       const documentRelation = chat.documentRelations[0]
       const fileRelation = chat.fileRelations[0]
 
       if (documentRelation?.document) {
-        responseData.documentId = documentRelation.documentId
+        responseData.documentId = documentRelation.document.id
       }
 
       if (fileRelation?.userFile) {
         responseData.file = {
           id: fileRelation.userFile.fileId,
-          name: fileRelation.userFile.fileName,
+          name: sanitizeInput(fileRelation.userFile.fileName),
           type: fileRelation.userFile.fileName.split('.').pop() || ''
         }
       }
@@ -784,10 +756,9 @@ router.post('/detail', authMiddleware, async (req, res) => {
       msg: 'Chat detail retrieved successfully',
       data: {
         chatId: id,
-        userId: req.session.user.id,
+        userId,
         type: responseData.type,
-        hasDocument: !!responseData.documentId,
-        hasFile: !!responseData.file
+        messageCount: messages.length
       }
     })
 
@@ -798,22 +769,10 @@ router.post('/detail', authMiddleware, async (req, res) => {
     })
 
   } catch (err) {
-    logger().error({
-      msg: 'Failed to get chat detail',
-      data: {
-        error: err,
-        errorMessage: err instanceof Error ? err.message : '未知错误',
-        errorStack: err instanceof Error ? err.stack : undefined,
-        requestBody: req.body,
-        userId: req.session.user.id
-      }
-    })
-
-    return res.status(500).json({
-      code: 500,
-      msg: '服务器内部错误',
-      data: null
-    })
+    if (err instanceof AuthorizationError) {
+      return res.status(403).json(createErrorResponse(403, err.message))
+    }
+    return handleError(err, req, res, 'get chat detail')
   }
 })
 
@@ -839,86 +798,52 @@ interface RelationCheckResponse {
   }
 }
 
+// 创建对话补全的速率限制器
+const completionsLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1分钟
+  max: 10 // 限制每个IP 10个请求
+})
+
 // 添加SSE对话接口
-router.get('/completions', authMiddleware, async (req, res) => {
+router.get('/completions', 
+  authMiddleware, 
+  completionsLimiter,
+  async (req, res) => {
   try {
-    // 验证请求参数
-    const result = chatCompletionsSchema.safeParse(req.query)
-    if (!result.success) {
-      logger().error({
-        msg: 'Invalid chat completions input',
-        data: {
-          errors: result.error.errors.map(err => ({
-            path: err.path.join('.'),
-            message: err.message
-          })),
-          requestQuery: req.query
-        }
-      })
-      return res.status(400).json({
-        code: 400,
-        msg: '参数校验失败',
-        data: null
-      })
+    const validatedData = validateSchema(chatCompletionsSchema, req.query, 'chat completions')
+    if (!validatedData) {
+      return res.status(400).json(createErrorResponse(400, '参数校验失败'))
     }
 
-    const { chatId, roundId } = result.data
+    const { chatId, roundId } = validatedData
 
-    // 检查聊天记录是否存在且属于当前用户
+    // 验证环变量
+    validateEnvVars()
+
+    // 优化查询
     const chatRecord = await prisma().chatRecord.findFirst({
       where: {
         id: roundId,
-        chatId: chatId,  // 添加chatId条件
+        chatId: chatId,
         chat: {
           userId: req.session.user.id
         }
       },
-      include: {
-        chat: true  // 只包含chat基本信息，不再包含所有records
+      select: {
+        id: true,
+        question: true,
+        speakerType: true,
+        chat: {
+          select: {
+            id: true
+          }
+        }
       }
     })
 
     if (!chatRecord) {
-      logger().warn({
-        msg: 'Chat record not found or not owned by user',
-        data: {
-          chatId,
-          roundId,
-          userId: req.session.user.id
-        }
-      })
-      return res.status(404).json({
-        code: 404,
-        msg: '对话记录不存在或无权访问',
-        data: null
-      })
+      throw new AuthorizationError('对话记录不存在或无权访问')
     }
-
-    // 添加 AI Agent URL 检查
-    const aiAgentUrl = process.env["AI_AGENT_URL"]
-    if (!aiAgentUrl) {
-      throw new Error('AI_AGENT_URL environment variable is not set')
-    }
-
-    // 构造关联性检查的消息
-    const messages: Message[] = [{
-      id: chatRecord.id,
-      role: chatRecord.speakerType,
-      content: chatRecord.question
-    }]
-
-    const relationCheckUrl = `${aiAgentUrl}/v1/ai/chat/relation`
-    const relationCheckBody = { messages }
-
-    logger().info({
-      msg: 'Calling relation check API',
-      data: {
-        url: relationCheckUrl,
-        body: relationCheckBody,
-        chatId,
-        roundId
-      }
-    })
 
     // 设置SSE响应头
     res.writeHead(200, {
@@ -928,38 +853,26 @@ router.get('/completions', authMiddleware, async (req, res) => {
     })
 
     // 发送连接成功消息
-    res.write('event: connected\n');
-    res.write('data: {"status": "success", "message": "SSE连接已建立"}\n\n');
+    res.write('event: connected\n')
+    res.write('data: {"status": "success", "message": "SSE连接已建立"}\n\n')
 
-    // 添加 timeout 和错误处理
-    const fetchWithTimeout = async (url: string, options: RequestInit, timeout = 10000) => {
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), timeout)
+    // 构造消息
+    const messages: Message[] = [{
+      id: chatRecord.id,
+      role: chatRecord.speakerType,
+      content: sanitizeInput(chatRecord.question)
+    }]
 
-      try {
-        const response = await fetch(url, {
-          ...options,
-          signal: controller.signal
-        })
-        clearTimeout(timeoutId)
-        return response
-      } catch (error) {
-        clearTimeout(timeoutId)
-        throw error
-      }
-    }
-
-    // 调用关联性检查接口
     try {
+      // 关联性检查
       const relationCheckResponse = await fetchWithTimeout(
-        `${aiAgentUrl}/v1/ai/chat/relation`,
+        `${process.env.AI_AGENT_URL}/v1/ai/chat/relation`,
         {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ messages })
-        }
+        },
+        5000 // 5秒超时
       )
 
       if (!relationCheckResponse.ok) {
@@ -967,89 +880,49 @@ router.get('/completions', authMiddleware, async (req, res) => {
       }
 
       const relationResult = await relationCheckResponse.json() as RelationCheckResponse
-
       if (relationResult.code !== 0 || !relationResult.data.related) {
         res.write(`data: [ERROR] 暂时无法回答非相关内容\n\n`)
         res.write(`data: [DONE]\n\n`)
-        res.end()
-        return
+        return res.end()
       }
-    } catch (error) {
-      logger().error({
-        msg: 'Failed to check relation',
-        data: { error }
-      })
-      res.write(`data: [ERROR] 关联性检查服务暂时不可用\n\n`)
-      res.write(`data: [DONE]\n\n`)
-      res.end()
-      return
-    }
 
-    // 调用 AI Agent 对话接口
-    try {
+      // AI 对话请求
       const response = await fetchWithTimeout(
-        `${aiAgentUrl}/v1/ai/chat/data/completions`,
+        `${process.env.AI_AGENT_URL}/v1/ai/chat/data/completions`,
         {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             user_input: chatRecord.question
           })
-        }
+        },
+        30000 // 30秒超时
       )
 
       if (!response.ok) {
         throw new Error(`AI 对话请求失败: ${response.status}`)
       }
 
-      // 处理SSE响应
-      const reader = response.body?.getReader()
-      if (!reader) {
-        throw new Error('Failed to get response reader')
-      }
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        const chunk = new TextDecoder().decode(value)
-
-        // 添加非空检查，只发送非空消息
-        const trimmedChunk = chunk.trim()
-        if (trimmedChunk) {
-          res.write(`data: ${trimmedChunk}\n\n`)
-
-          // 如果收到结束标识，结束响应
-          if (trimmedChunk.includes('[DONE]')) {
-            res.end()
-            break
-          }
-        }
-      }
-
-      logger().info({
-        msg: 'Chat completion completed successfully',
-        data: {
-          chatId,
-          roundId,
-          userId: req.session.user.id
-        }
-      })
+      // 处理流式响应
+      await handleStreamResponse(response, res)
 
     } catch (error) {
       logger().error({
-        msg: 'Failed to get AI completion',
+        msg: 'AI service error',
         data: { error }
       })
-      res.write(`data: [ERROR] AI 服务暂时不可用，请稍后重试\n\n`)
+      res.write(`data: [ERROR] ${error instanceof Error ? error.message : 'AI 服务暂时不可用'}\n\n`)
       res.write(`data: [DONE]\n\n`)
       res.end()
-      return
     }
 
   } catch (err) {
+    if (err instanceof AuthorizationError) {
+      res.write(`data: [ERROR] ${err.message}\n\n`)
+      res.write(`data: [DONE]\n\n`)
+      return res.end()
+    }
+    
     logger().error({
       msg: 'Failed to process chat completion',
       data: {
@@ -1057,7 +930,7 @@ router.get('/completions', authMiddleware, async (req, res) => {
         errorMessage: err instanceof Error ? err.message : '未知错误',
         errorStack: err instanceof Error ? err.stack : undefined,
         requestQuery: req.query,
-        userId: req.session.user.id
+        userId: req.session?.user?.id
       }
     })
 
@@ -1067,100 +940,101 @@ router.get('/completions', authMiddleware, async (req, res) => {
   }
 })
 
+// 处理流式响应的辅助函数
+async function handleStreamResponse(response: Response, res: Response) {
+  const reader = response.body?.getReader()
+  if (!reader) {
+    throw new Error('Failed to get response reader')
+  }
+
+  let buffer = ''
+  const textDecoder = new TextDecoder()
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += textDecoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+
+      for (const line of lines) {
+        const trimmedLine = line.trim()
+        if (!trimmedLine) continue
+
+        if (trimmedLine.startsWith('data:')) {
+          const data = trimmedLine.slice(5).trim()
+          
+          if (data.includes('[DONE]')) {
+            res.write(`data: [DONE]\n\n`)
+            return res.end()
+          }
+
+          res.write(`data: ${data}\n\n`)
+        }
+      }
+    }
+
+    if (buffer.trim()) {
+      const data = buffer.trim()
+      if (data.startsWith('data:')) {
+        const content = data.slice(5).trim()
+        if (content) {
+          res.write(`data: ${content}\n\n`)
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock()
+  }
+}
+
 const summarizeChatSchema = z.object({
   chatId: z.string().min(1, "对话ID不能为空"),
   roundId: z.string().min(1, "对话轮次ID不能为空"),
 })
 
-// 总结对话标题
-router.get('/summarize', authMiddleware, async (req, res) => {
+// 总结对话的速率限制器
+const summarizeLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1分钟
+  max: 10 // 限制每个IP 10个请求
+})
+
+router.get('/summarize', 
+  authMiddleware, 
+  summarizeLimiter,
+  async (req, res) => {
   try {
-    // 验证请求参数
-    const result = summarizeChatSchema.safeParse(req.query)
-    if (!result.success) {
-      logger().error({
-        msg: 'Invalid summarize chat input',
-        data: {
-          errors: result.error.errors.map(err => ({
-            path: err.path.join('.'),
-            message: err.message
-          })),
-          requestQuery: req.query
-        }
-      })
-      return res.status(400).json({
-        code: 400,
-        msg: '参数校验失败',
-        data: null
-      })
+    const validatedData = validateSchema(summarizeChatSchema, req.query, 'summarize chat')
+    if (!validatedData) {
+      return res.status(400).json(createErrorResponse(400, '参数校验失败'))
     }
 
-    const { chatId, roundId } = result.data
+    const { chatId, roundId } = validatedData
 
-    logger().info({
-      msg: 'Attempting to summarize chat',
-      data: {
-        chatId,
-        roundId,
-        userId: req.session.user.id
-      }
-    })
+    // 验证环境变量
+    validateEnvVars()
 
-    // 检查聊天记录是否存在且属于当前用户
+    // 优化查询
     const chatRecord = await prisma().chatRecord.findFirst({
       where: {
         id: roundId,
-        chatId: chatId,  // 添加chatId条件
+        chatId,
         chat: {
           userId: req.session.user.id
         }
       },
-      include: {
-        chat: true  // 只包含chat基本信息，不再包含所有records
+      select: {
+        id: true,
+        question: true,
+        speakerType: true
       }
     })
 
     if (!chatRecord) {
-      logger().warn({
-        msg: 'Chat record not found or not owned by user',
-        data: {
-          chatId,
-          roundId,
-          userId: req.session.user.id
-        }
-      })
-      return res.status(404).json({
-        code: 404,
-        msg: '对话记录不存在或无权访问',
-        data: null
-      })
+      throw new AuthorizationError('对话记录不存在或无权访问')
     }
-
-    // 添加 AI Agent URL 检查
-    const aiAgentUrl = process.env["AI_AGENT_URL"]
-    if (!aiAgentUrl) {
-      throw new Error('AI_AGENT_URL environment variable is not set')
-    }
-
-    // 构造总结对话标题的消息
-    const messages: Message[] = [{
-      id: chatRecord.id,
-      role: chatRecord.speakerType,
-      content: chatRecord.question
-    }]
-
-    const summarizeUrl = `${aiAgentUrl}/v1/ai/chat/summarize`
-    const summarizeBody = { messages }
-
-    logger().info({
-      msg: 'Calling summarize API',
-      data: {
-        url: summarizeUrl,
-        body: summarizeBody,
-        chatId,
-        roundId
-      }
-    })
 
     // 设置SSE响应头
     res.writeHead(200, {
@@ -1169,126 +1043,58 @@ router.get('/summarize', authMiddleware, async (req, res) => {
       'Connection': 'keep-alive'
     })
 
-    // 发送连接成功消息
-    res.write('event: connected\n');
-    res.write('data: {"status": "success", "message": "SSE连接已建立"}\n\n');
+    res.write('event: connected\n')
+    res.write('data: {"status": "success", "message": "SSE连接已建立"}\n\n')
 
-    // 添加 timeout 和错误处理
-    const fetchWithTimeout = async (url: string, options: RequestInit, timeout = 10000) => {
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), timeout)
-
-      try {
-        const response = await fetch(url, {
-          ...options,
-          signal: controller.signal
-        })
-        clearTimeout(timeoutId)
-        return response
-      } catch (error) {
-        clearTimeout(timeoutId)
-        throw error
-      }
-    }
-
-    // 调用 AI Agent 总结接口
     try {
-      const response = await fetch(`${aiAgentUrl}/v1/ai/chat/summarize`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
+      const response = await fetchWithTimeout(
+        `${process.env.AI_AGENT_URL}/v1/ai/chat/summarize`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: [{
+              id: chatRecord.id,
+              role: chatRecord.speakerType,
+              content: sanitizeInput(chatRecord.question)
+            }],
+            temperature: 0
+          })
         },
-        body: JSON.stringify({
-          messages,
-          temperature: 0
-        })
-      })
+        10000 // 10秒超时
+      )
 
       if (!response.ok) {
         throw new Error(`AI 总结请求失败: ${response.status}`)
       }
 
-      // 处理SSE响应
-      const reader = response.body?.getReader()
-      if (!reader) {
-        throw new Error('Failed to get response reader')
-      }
-
-      let buffer = ''
-      const textDecoder = new TextDecoder()
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        // 将新的数据添加到buffer
-        buffer += textDecoder.decode(value, { stream: true })
-
-        // 处理buffer中的完整行
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || '' // 保存不完整的最后一行
-
-        for (const line of lines) {
-          const trimmedLine = line.trim()
-          if (!trimmedLine) continue // 跳过空行
-
-          // 处理data:前缀的行
-          if (trimmedLine.startsWith('data:')) {
-            const data = trimmedLine.slice(5).trim()
-            
-            // 检查是否为结束标识
-            if (data.includes('[DONE]')) {
-              res.write(`data: [DONE]\n\n`)
-              res.end()
-              return
-            }
-
-            // 转发AI返回的数据
-            res.write(`data: ${data}\n\n`)
-          }
-        }
-      }
-
-      // 处理最后可能剩余的数据
-      if (buffer.trim()) {
-        const data = buffer.trim()
-        if (data.startsWith('data:')) {
-          const content = data.slice(5).trim()
-          if (content) {
-            res.write(`data: ${content}\n\n`)
-          }
-        }
-      }
-
-      logger().info({
-        msg: 'Chat title summarization completed successfully',
-        data: {
-          chatId,
-          roundId,
-          userId: req.session.user.id
-        }
-      })
+      await handleStreamResponse(response, res)
 
     } catch (error) {
       logger().error({
-        msg: 'Failed to get AI summarization',
+        msg: 'AI summarization error',
         data: { error }
       })
-      res.write(`data: [ERROR] AI 服务暂时不可用，请稍后重试\n\n`)
+      res.write(`data: [ERROR] ${error instanceof Error ? error.message : 'AI 服务暂时不可用'}\n\n`)
       res.write(`data: [DONE]\n\n`)
       res.end()
-      return
     }
 
   } catch (err) {
+    if (err instanceof AuthorizationError) {
+      res.write(`data: [ERROR] ${err.message}\n\n`)
+      res.write(`data: [DONE]\n\n`)
+      return res.end()
+    }
+    
     logger().error({
-      msg: 'Failed to process summarize chat',
+      msg: 'Failed to process chat summarization',
       data: {
         error: err,
         errorMessage: err instanceof Error ? err.message : '未知错误',
         errorStack: err instanceof Error ? err.stack : undefined,
         requestQuery: req.query,
-        userId: req.session.user.id
+        userId: req.session?.user?.id
       }
     })
 
@@ -1297,5 +1103,21 @@ router.get('/summarize', authMiddleware, async (req, res) => {
     res.end()
   }
 })
+
+// 2. 统一错误响应格式
+interface ErrorResponse {
+  code: number
+  msg: string
+  data: null
+}
+
+const createErrorResponse = (code: number, message: string): ErrorResponse => ({
+  code,
+  msg: message,
+  data: null
+})
+
+// 在应用初始化时调用
+validateEnvVars()
 
 export default router
