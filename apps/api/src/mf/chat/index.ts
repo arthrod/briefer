@@ -893,6 +893,18 @@ router.get('/completions',
       }]
 
       try {
+        // 先打印请求参数日志
+        logger().info({
+          msg: 'Relation check request',
+          data: {
+            url: `${AI_AGENT_URL}/v1/ai/chat/relation`,
+            requestBody: { messages },
+            chatId,
+            roundId,
+            userId: req.session.user.id
+          }
+        })
+
         const relationCheckResponse = await fetchWithTimeout(
           `${AI_AGENT_URL}/v1/ai/chat/relation`,
           {
@@ -908,6 +920,18 @@ router.get('/completions',
         }
 
         const relationResult = (await relationCheckResponse.json()) as RelationCheckResponse
+        
+        // 打印响应结果日志
+        logger().info({
+          msg: 'Relation check response',
+          data: {
+            response: relationResult,
+            chatId,
+            roundId,
+            userId: req.session.user.id
+          }
+        })
+
         if (relationResult.code !== 0 || !relationResult.data.related) {
           res.write(`data: [ERROR] 暂时无法回答非相关内容\n\n`)
           res.write(`data: [DONE]\n\n`)
