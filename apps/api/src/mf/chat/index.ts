@@ -292,6 +292,16 @@ async function handleStreamResponse(
         if (trimmedLine.startsWith('data:')) {
           const data = trimmedLine.slice(5).trim()
 
+          // 打印每条 SSE 数据
+          logger().info({
+            msg: 'SSE data received',
+            data: {
+              rawData: data,
+              updateTarget,
+              timestamp: new Date().toISOString()
+            }
+          })
+
           if (data.includes('[DONE]')) {
             // 根据不同类型更新不同的目标
             try {
@@ -369,7 +379,18 @@ async function handleStreamResponse(
 
             if (content && typeof content === 'string' && content.trim().length > 0) {
               completeMessage += content
-              // 使用标准SSE格式发送内容
+              
+              // 打印每个内容片段
+              logger().info({
+                msg: 'SSE content chunk',
+                data: {
+                  content,
+                  currentLength: completeMessage.length,
+                  updateTarget,
+                  timestamp: new Date().toISOString()
+                }
+              })
+
               res.write(`data: ${content}\n\n`)
             }
           } catch (parseError) {
@@ -388,6 +409,16 @@ async function handleStreamResponse(
 
     // 处理最后的缓冲区
     if (buffer.trim()) {
+      // 打印最后的缓冲区内容
+      logger().info({
+        msg: 'Processing final buffer',
+        data: {
+          buffer: buffer.trim(),
+          updateTarget,
+          timestamp: new Date().toISOString()
+        }
+      })
+
       const data = buffer.trim()
       if (data.startsWith('data:')) {
         try {
@@ -408,6 +439,17 @@ async function handleStreamResponse(
         }
       }
     }
+
+    // 打印完整的消息内容
+    logger().info({
+      msg: 'Complete SSE message',
+      data: {
+        completeMessage,
+        messageLength: completeMessage.length,
+        updateTarget,
+        timestamp: new Date().toISOString()
+      }
+    })
 
     await fs.writeFile(logFilePath, completeMessage, 'utf-8')
 
