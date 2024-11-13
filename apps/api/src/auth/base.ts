@@ -15,6 +15,7 @@ import {
 } from './token.js'
 import { createWorkspace } from '../workspace/index.js'
 import { isWorkspaceNameValid } from '../utils/validation.js'
+import { AesTools } from '../utils/AesTools.js'
 
 type BaseAuthConfig = {
   FRONTEND_URL: string
@@ -126,41 +127,10 @@ export default function getRouter<H extends ApiUser>(
 
   router.post('/sign-in/password', async (req, res) => {
     const payload = z
-      .object({ email: z.string().trim().email(), password: z.string() })
-      .safeParse(req.body)
-    if (!payload.success) {
-      res.status(400).end()
-      return
-    }
-
-    const { email, password } = payload.data
-
-    const user = await prisma().user.findFirst({
-      where: { email },
-      select: { id: true, email: true, passwordDigest: true },
-    })
-    if (!user || !user.passwordDigest) {
-      res.status(400).end()
-      return
-    }
-
-    const validPassword = await comparePassword({
-      encrypted: user.passwordDigest,
-      password,
-    })
-    if (!validPassword) {
-      res.status(400).end()
-      return
-    }
-
-    const loginLink = createLoginLink(user.id, config.FRONTEND_URL)
-
-    res.json({ email: obscureEmail(user.email), loginLink })
-  })
-
-  router.post('/sign-in/username', async (req, res) => {
-    const payload = z
-      .object({ loginName: z.string().trim(), password: z.string() })
+      .object({ 
+        loginName: z.string().trim(), 
+        password: z.string()
+      })
       .safeParse(req.body)
     if (!payload.success) {
       res.status(400).end()
@@ -168,8 +138,10 @@ export default function getRouter<H extends ApiUser>(
     }
 
     const { loginName, password } = payload.data
+    
+    const decryptedPassword = AesTools.decrypt(password)
 
-    const user = await prisma().user.findUnique({
+    const user = await prisma().user.findFirst({
       where: { loginName },
       select: { id: true, email: true, passwordDigest: true },
     })
@@ -180,7 +152,7 @@ export default function getRouter<H extends ApiUser>(
 
     const validPassword = await comparePassword({
       encrypted: user.passwordDigest,
-      password,
+      password: decryptedPassword,
     })
     if (!validPassword) {
       res.status(400).end()
