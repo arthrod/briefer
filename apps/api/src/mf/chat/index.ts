@@ -9,7 +9,6 @@ import rateLimit from 'express-rate-limit'
 import cache from 'memory-cache'
 import fetch, { Response as FetchResponse } from 'node-fetch'
 import { Send } from 'express-serve-static-core'
-import { ReadableStream } from 'stream/web'
 
 // 错误类型定义
 class ValidationError extends Error {
@@ -232,7 +231,19 @@ const cacheMiddleware = (duration: number) => {
 // 环境变量
 const AI_AGENT_URL = process.env['AI_AGENT_URL']
 
-// 处理流式响应
+// 添加 SSE 响应处理工具函数
+function setupSSEConnection(res: Response) {
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive'
+  })
+  
+  // 发送单个统一格式的连接成功消息
+  res.write(`data: {"status": "success", "message": "SSE连接已建立"}\n\n`)
+}
+
+// 修改 handleStreamResponse 函数，移除重复的连接消息
 async function handleStreamResponse(
   response: FetchResponse,
   res: Response
@@ -241,7 +252,6 @@ async function handleStreamResponse(
     throw new Error('Response body is empty')
   }
 
-  // 将 node-fetch 的响应体转换为可读流
   const stream = response.body
   const textDecoder = new TextDecoder()
   let buffer = ''
@@ -265,6 +275,11 @@ async function handleStreamResponse(
             return
           }
 
+          // 检查是否是连接成功消息，如果是则跳过
+          if (data.includes('"status": "success"') && data.includes('"message": "SSE连接已建立"')) {
+            continue
+          }
+
           res.write(`data: ${data}\n\n`)
         }
       }
@@ -276,7 +291,10 @@ async function handleStreamResponse(
       if (data.startsWith('data:')) {
         const content = data.slice(5).trim()
         if (content) {
-          res.write(`data: ${content}\n\n`)
+          // 检查是否是连接成功消息，如果是则跳过
+          if (!(content.includes('"status": "success"') && content.includes('"message": "SSE连接已建立"'))) {
+            res.write(`data: ${content}\n\n`)
+          }
         }
       }
     }
@@ -903,16 +921,8 @@ router.get('/completions',
         throw new AuthorizationError('对话记录不存在或无权访问')
       }
 
-      // 设置SSE响应头
-      res.writeHead(200, {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive'
-      })
-
-      // 发送连接成功消息
-      res.write('event: connected\n')
-      res.write('data: {"status": "success", "message": "SSE连接已建立"}\n\n')
+      // 使用统一的 SSE 设置函数
+      setupSSEConnection(res)
 
       // 构造消息
       const messages: Message[] = [{
@@ -1045,15 +1055,8 @@ router.get('/summarize',
         throw new AuthorizationError('对话记录不存在或无权访问')
       }
 
-      // 设置SSE响应头
-      res.writeHead(200, {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive'
-      })
-
-      res.write('event: connected\n')
-      res.write('data: {"status": "success", "message": "SSE连接已建立"}\n\n')
+      // 使用统一的 SSE 设置函数
+      setupSSEConnection(res)
 
       try {
         const response = await fetchWithTimeout(
