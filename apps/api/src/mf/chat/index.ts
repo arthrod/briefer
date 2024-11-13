@@ -36,16 +36,16 @@ router.use(apiLimiter)
 // 2. 添加输入数据清理
 const sanitizeInput = (input: string): string => {
   if (!input) return ''
-  
+
   // 移除 HTML 标签
   input = input.replace(/<[^>]*>/g, '')
-  
+
   // 移除特殊字符
   input = input.replace(/[<>'"]/g, '')
-  
+
   // 移除控制字符
   input = input.replace(/[\x00-\x1F\x7F]/g, '')
-  
+
   // 修剪空白字符
   return input.trim()
 }
@@ -183,7 +183,7 @@ const cacheMiddleware = (duration: number) => {
   return (req: Request, res: Response, next: NextFunction) => {
     const key = `__express__${req.originalUrl || req.url}`
     const cachedBody = cache.get(key) as CachedResponse | undefined
-    
+
     if (cachedBody) {
       return res.json(cachedBody)
     } else {
@@ -471,7 +471,7 @@ router.post('/update', authMiddleware, async (req, res) => {
     if (err instanceof ValidationError) {
       return res.status(400).json(createErrorResponse(400, err.message))
     }
-    
+
     return handleError(err, req, res, 'update chat title')
   }
 })
@@ -620,9 +620,9 @@ router.post('/round/create', authMiddleware, async (req, res) => {
       return res.status(403).json(createErrorResponse(403, err.message))
     }
     if (err instanceof ValidationError) {
-      return res.status(400).json(createErrorResponse(400, err.message)) 
+      return res.status(400).json(createErrorResponse(400, err.message))
     }
-    
+
     // 使用通用错误处理
     return handleError(err, req, res, 'create chat round')
   }
@@ -654,127 +654,127 @@ const getChatDetailSchema = z.object({
 // 获取聊天详情的缓存时间(秒)
 const CHAT_DETAIL_CACHE_DURATION = 60
 
-router.post('/detail', 
-  authMiddleware, 
-  cacheMiddleware(CHAT_DETAIL_CACHE_DURATION), 
+router.post('/detail',
+  authMiddleware,
+  cacheMiddleware(CHAT_DETAIL_CACHE_DURATION),
   async (req, res) => {
-  try {
-    const validatedData = validateSchema(getChatDetailSchema, req.body, 'get chat detail')
-    if (!validatedData) {
-      return res.status(400).json(createErrorResponse(400, '参数校验失败'))
-    }
+    try {
+      const validatedData = validateSchema(getChatDetailSchema, req.body, 'get chat detail')
+      if (!validatedData) {
+        return res.status(400).json(createErrorResponse(400, '参数校验失败'))
+      }
 
-    const { id } = validatedData
-    const userId = req.session.user.id
+      const { id } = validatedData
+      const userId = req.session.user.id
 
-    logger().info({
-      msg: 'Attempting to get chat detail',
-      data: { chatId: id, userId }
-    })
+      logger().info({
+        msg: 'Attempting to get chat detail',
+        data: { chatId: id, userId }
+      })
 
-    // 优化查询,只获取必要字段
-    const chat = await prisma().chat.findFirst({
-      where: {
-        id,
-        userId
-      },
-      select: {
-        id: true,
-        type: true,
-        records: {
-          orderBy: {
-            createdTime: 'asc'
+      // 优化查询,只获取必要字段
+      const chat = await prisma().chat.findFirst({
+        where: {
+          id,
+          userId
+        },
+        select: {
+          id: true,
+          type: true,
+          records: {
+            orderBy: {
+              createdTime: 'asc'
+            },
+            select: {
+              id: true,
+              speakerType: true,
+              answer: true,
+              createdTime: true
+            }
           },
-          select: {
-            id: true,
-            speakerType: true,
-            answer: true,
-            createdTime: true
-          }
-        },
-        documentRelations: {
-          select: {
-            document: {
-              select: {
-                id: true,
-                title: true
+          documentRelations: {
+            select: {
+              document: {
+                select: {
+                  id: true,
+                  title: true
+                }
               }
             }
-          }
-        },
-        fileRelations: {
-          select: {
-            userFile: {
-              select: {
-                fileId: true,
-                fileName: true
+          },
+          fileRelations: {
+            select: {
+              userFile: {
+                select: {
+                  fileId: true,
+                  fileName: true
+                }
               }
             }
           }
         }
-      }
-    })
+      })
 
-    if (!chat) {
-      throw new AuthorizationError('聊天记录不存在或无权访问')
-    }
-
-    // 转换消息格式
-    const messages = chat.records.map(record => ({
-      id: record.id,
-      role: record.speakerType.toLowerCase(),
-      content: record.answer.toString()
-    }))
-
-    // 构造返回数据
-    const responseData: ChatDetailResponse = {
-      type: chat.type === 1 ? 'rag' : 'report',
-      messages,
-      documentId: null,
-      file: null
-    }
-
-    // 处理report类型的额外数据
-    if (chat.type === 2) {
-      const documentRelation = chat.documentRelations[0]
-      const fileRelation = chat.fileRelations[0]
-
-      if (documentRelation?.document) {
-        responseData.documentId = documentRelation.document.id
+      if (!chat) {
+        throw new AuthorizationError('聊天记录不存在或无权访问')
       }
 
-      if (fileRelation?.userFile) {
-        responseData.file = {
-          id: fileRelation.userFile.fileId,
-          name: sanitizeInput(fileRelation.userFile.fileName),
-          type: fileRelation.userFile.fileName.split('.').pop() || ''
+      // 转换消息格式
+      const messages = chat.records.map(record => ({
+        id: record.id,
+        role: record.speakerType.toLowerCase(),
+        content: record.answer.toString()
+      }))
+
+      // 构造返回数据
+      const responseData: ChatDetailResponse = {
+        type: chat.type === 1 ? 'rag' : 'report',
+        messages,
+        documentId: null,
+        file: null
+      }
+
+      // 处理report类型的额外数据
+      if (chat.type === 2) {
+        const documentRelation = chat.documentRelations[0]
+        const fileRelation = chat.fileRelations[0]
+
+        if (documentRelation?.document) {
+          responseData.documentId = documentRelation.document.id
+        }
+
+        if (fileRelation?.userFile) {
+          responseData.file = {
+            id: fileRelation.userFile.fileId,
+            name: sanitizeInput(fileRelation.userFile.fileName),
+            type: fileRelation.userFile.fileName.split('.').pop() || ''
+          }
         }
       }
-    }
 
-    logger().info({
-      msg: 'Chat detail retrieved successfully',
-      data: {
-        chatId: id,
-        userId,
-        type: responseData.type,
-        messageCount: messages.length
+      logger().info({
+        msg: 'Chat detail retrieved successfully',
+        data: {
+          chatId: id,
+          userId,
+          type: responseData.type,
+          messageCount: messages.length
+        }
+      })
+
+      return res.json({
+        code: 0,
+        data: responseData,
+        msg: '获取成功'
+      })
+
+    } catch (err) {
+      if (err instanceof AuthorizationError) {
+        return res.status(403).json(createErrorResponse(403, err.message))
       }
-    })
-
-    return res.json({
-      code: 0,
-      data: responseData,
-      msg: '获取成功'
-    })
-
-  } catch (err) {
-    if (err instanceof AuthorizationError) {
-      return res.status(403).json(createErrorResponse(403, err.message))
+      return handleError(err, req, res, 'get chat detail')
     }
-    return handleError(err, req, res, 'get chat detail')
-  }
-})
+  })
 
 // 定义请求参数验证schema
 const chatCompletionsSchema = z.object({
@@ -805,140 +805,140 @@ const completionsLimiter = rateLimit({
 })
 
 // 添加SSE对话接口
-router.get('/completions', 
-  authMiddleware, 
+router.get('/completions',
+  authMiddleware,
   completionsLimiter,
   async (req, res) => {
-  try {
-    const validatedData = validateSchema(chatCompletionsSchema, req.query, 'chat completions')
-    if (!validatedData) {
-      return res.status(400).json(createErrorResponse(400, '参数校验失败'))
-    }
+    try {
+      const validatedData = validateSchema(chatCompletionsSchema, req.query, 'chat completions')
+      if (!validatedData) {
+        return res.status(400).json(createErrorResponse(400, '参数校验失败'))
+      }
 
-    const { chatId, roundId } = validatedData
+      const { chatId, roundId } = validatedData
 
-    // 验证环变量
-    validateEnvVars()
+      // 验证环变量
+      validateEnvVars()
 
-    // 优化查询
-    const chatRecord = await prisma().chatRecord.findFirst({
-      where: {
-        id: roundId,
-        chatId: chatId,
-        chat: {
-          userId: req.session.user.id
-        }
-      },
-      select: {
-        id: true,
-        question: true,
-        speakerType: true,
-        chat: {
-          select: {
-            id: true
+      // 优化查询
+      const chatRecord = await prisma().chatRecord.findFirst({
+        where: {
+          id: roundId,
+          chatId: chatId,
+          chat: {
+            userId: req.session.user.id
+          }
+        },
+        select: {
+          id: true,
+          question: true,
+          speakerType: true,
+          chat: {
+            select: {
+              id: true
+            }
           }
         }
-      }
-    })
+      })
 
-    if (!chatRecord) {
-      throw new AuthorizationError('对话记录不存在或无权访问')
-    }
-
-    // 设置SSE响应头
-    res.writeHead(200, {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive'
-    })
-
-    // 发送连接成功消息
-    res.write('event: connected\n')
-    res.write('data: {"status": "success", "message": "SSE连接已建立"}\n\n')
-
-    // 构造消息
-    const messages: Message[] = [{
-      id: chatRecord.id,
-      role: chatRecord.speakerType,
-      content: sanitizeInput(chatRecord.question)
-    }]
-
-    try {
-      // 关联性检查
-      const relationCheckResponse = await fetchWithTimeout(
-        `${process.env.AI_AGENT_URL}/v1/ai/chat/relation`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages })
-        },
-        5000 // 5秒超时
-      )
-
-      if (!relationCheckResponse.ok) {
-        throw new Error(`关联性检查请求失败: ${relationCheckResponse.status}`)
+      if (!chatRecord) {
+        throw new AuthorizationError('对话记录不存在或无权访问')
       }
 
-      const relationResult = await relationCheckResponse.json() as RelationCheckResponse
-      if (relationResult.code !== 0 || !relationResult.data.related) {
-        res.write(`data: [ERROR] 暂时无法回答非相关内容\n\n`)
+      // 设置SSE响应头
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive'
+      })
+
+      // 发送连接成功消息
+      res.write('event: connected\n')
+      res.write('data: {"status": "success", "message": "SSE连接已建立"}\n\n')
+
+      // 构造消息
+      const messages: Message[] = [{
+        id: chatRecord.id,
+        role: chatRecord.speakerType,
+        content: sanitizeInput(chatRecord.question)
+      }]
+
+      try {
+        // 关联性检查
+        const relationCheckResponse = await fetchWithTimeout(
+          `${process.env.AI_AGENT_URL}/v1/ai/chat/relation`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ messages })
+          },
+          5000 // 5秒超时
+        )
+
+        if (!relationCheckResponse.ok) {
+          throw new Error(`关联性检查请求失败: ${relationCheckResponse.status}`)
+        }
+
+        const relationResult = await relationCheckResponse.json() as RelationCheckResponse
+        if (relationResult.code !== 0 || !relationResult.data.related) {
+          res.write(`data: [ERROR] 暂时无法回答非相关内容\n\n`)
+          res.write(`data: [DONE]\n\n`)
+          return res.end()
+        }
+
+        // AI 对话请求
+        const response = await fetchWithTimeout(
+          `${process.env.AI_AGENT_URL}/v1/ai/chat/data/completions`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              user_input: chatRecord.question
+            })
+          },
+          30000 // 30秒超时
+        )
+
+        if (!response.ok) {
+          throw new Error(`AI 对话请求失败: ${response.status}`)
+        }
+
+        // 处理流式响应
+        await handleStreamResponse(response, res)
+
+      } catch (error) {
+        logger().error({
+          msg: 'AI service error',
+          data: { error }
+        })
+        res.write(`data: [ERROR] ${error instanceof Error ? error.message : 'AI 服务暂时不可用'}\n\n`)
+        res.write(`data: [DONE]\n\n`)
+        res.end()
+      }
+
+    } catch (err) {
+      if (err instanceof AuthorizationError) {
+        res.write(`data: [ERROR] ${err.message}\n\n`)
         res.write(`data: [DONE]\n\n`)
         return res.end()
       }
 
-      // AI 对话请求
-      const response = await fetchWithTimeout(
-        `${process.env.AI_AGENT_URL}/v1/ai/chat/data/completions`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            user_input: chatRecord.question
-          })
-        },
-        30000 // 30秒超时
-      )
-
-      if (!response.ok) {
-        throw new Error(`AI 对话请求失败: ${response.status}`)
-      }
-
-      // 处理流式响应
-      await handleStreamResponse(response, res)
-
-    } catch (error) {
       logger().error({
-        msg: 'AI service error',
-        data: { error }
+        msg: 'Failed to process chat completion',
+        data: {
+          error: err,
+          errorMessage: err instanceof Error ? err.message : '未知错误',
+          errorStack: err instanceof Error ? err.stack : undefined,
+          requestQuery: req.query,
+          userId: req.session?.user?.id
+        }
       })
-      res.write(`data: [ERROR] ${error instanceof Error ? error.message : 'AI 服务暂时不可用'}\n\n`)
+
+      res.write(`data: [ERROR] 服务器内部错误\n\n`)
       res.write(`data: [DONE]\n\n`)
       res.end()
     }
-
-  } catch (err) {
-    if (err instanceof AuthorizationError) {
-      res.write(`data: [ERROR] ${err.message}\n\n`)
-      res.write(`data: [DONE]\n\n`)
-      return res.end()
-    }
-    
-    logger().error({
-      msg: 'Failed to process chat completion',
-      data: {
-        error: err,
-        errorMessage: err instanceof Error ? err.message : '未知错误',
-        errorStack: err instanceof Error ? err.stack : undefined,
-        requestQuery: req.query,
-        userId: req.session?.user?.id
-      }
-    })
-
-    res.write(`data: [ERROR] 服务器内部错误\n\n`)
-    res.write(`data: [DONE]\n\n`)
-    res.end()
-  }
-})
+  })
 
 // 处理流式响应的辅助函数
 async function handleStreamResponse(response: Response, res: Response) {
@@ -965,7 +965,7 @@ async function handleStreamResponse(response: Response, res: Response) {
 
         if (trimmedLine.startsWith('data:')) {
           const data = trimmedLine.slice(5).trim()
-          
+
           if (data.includes('[DONE]')) {
             res.write(`data: [DONE]\n\n`)
             return res.end()
@@ -1001,108 +1001,108 @@ const summarizeLimiter = rateLimit({
   max: 10 // 限制每个IP 10个请求
 })
 
-router.get('/summarize', 
-  authMiddleware, 
+router.get('/summarize',
+  authMiddleware,
   summarizeLimiter,
   async (req, res) => {
-  try {
-    const validatedData = validateSchema(summarizeChatSchema, req.query, 'summarize chat')
-    if (!validatedData) {
-      return res.status(400).json(createErrorResponse(400, '参数校验失败'))
-    }
-
-    const { chatId, roundId } = validatedData
-
-    // 验证环境变量
-    validateEnvVars()
-
-    // 优化查询
-    const chatRecord = await prisma().chatRecord.findFirst({
-      where: {
-        id: roundId,
-        chatId,
-        chat: {
-          userId: req.session.user.id
-        }
-      },
-      select: {
-        id: true,
-        question: true,
-        speakerType: true
-      }
-    })
-
-    if (!chatRecord) {
-      throw new AuthorizationError('对话记录不存在或无权访问')
-    }
-
-    // 设置SSE响应头
-    res.writeHead(200, {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive'
-    })
-
-    res.write('event: connected\n')
-    res.write('data: {"status": "success", "message": "SSE连接已建立"}\n\n')
-
     try {
-      const response = await fetchWithTimeout(
-        `${process.env.AI_AGENT_URL}/v1/ai/chat/summarize`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            messages: [{
-              id: chatRecord.id,
-              role: chatRecord.speakerType,
-              content: sanitizeInput(chatRecord.question)
-            }],
-            temperature: 0
-          })
-        },
-        10000 // 10秒超时
-      )
-
-      if (!response.ok) {
-        throw new Error(`AI 总结请求失败: ${response.status}`)
+      const validatedData = validateSchema(summarizeChatSchema, req.query, 'summarize chat')
+      if (!validatedData) {
+        return res.status(400).json(createErrorResponse(400, '参数校验失败'))
       }
 
-      await handleStreamResponse(response, res)
+      const { chatId, roundId } = validatedData
 
-    } catch (error) {
-      logger().error({
-        msg: 'AI summarization error',
-        data: { error }
+      // 验证环境变量
+      validateEnvVars()
+
+      // 优化查询
+      const chatRecord = await prisma().chatRecord.findFirst({
+        where: {
+          id: roundId,
+          chatId,
+          chat: {
+            userId: req.session.user.id
+          }
+        },
+        select: {
+          id: true,
+          question: true,
+          speakerType: true
+        }
       })
-      res.write(`data: [ERROR] ${error instanceof Error ? error.message : 'AI 服务暂时不可用'}\n\n`)
+
+      if (!chatRecord) {
+        throw new AuthorizationError('对话记录不存在或无权访问')
+      }
+
+      // 设置SSE响应头
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive'
+      })
+
+      res.write('event: connected\n')
+      res.write('data: {"status": "success", "message": "SSE连接已建立"}\n\n')
+
+      try {
+        const response = await fetchWithTimeout(
+          `${process.env.AI_AGENT_URL}/v1/ai/chat/summarize`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              messages: [{
+                id: chatRecord.id,
+                role: chatRecord.speakerType,
+                content: sanitizeInput(chatRecord.question)
+              }],
+              temperature: 0
+            })
+          },
+          10000 // 10秒超时
+        )
+
+        if (!response.ok) {
+          throw new Error(`AI 总结请求失败: ${response.status}`)
+        }
+
+        await handleStreamResponse(response, res)
+
+      } catch (error) {
+        logger().error({
+          msg: 'AI summarization error',
+          data: { error }
+        })
+        res.write(`data: [ERROR] ${error instanceof Error ? error.message : 'AI 服务暂时不可用'}\n\n`)
+        res.write(`data: [DONE]\n\n`)
+        res.end()
+      }
+
+    } catch (err) {
+      if (err instanceof AuthorizationError) {
+        res.write(`data: [ERROR] ${err.message}\n\n`)
+        res.write(`data: [DONE]\n\n`)
+        return res.end()
+      }
+
+      logger().error({
+        msg: 'Failed to process chat summarization',
+        data: {
+          error: err,
+          errorMessage: err instanceof Error ? err.message : '未知错误',
+          errorStack: err instanceof Error ? err.stack : undefined,
+          requestQuery: req.query,
+          userId: req.session?.user?.id
+        }
+      })
+
+      res.write(`data: [ERROR] 服务器内部错误\n\n`)
       res.write(`data: [DONE]\n\n`)
       res.end()
     }
-
-  } catch (err) {
-    if (err instanceof AuthorizationError) {
-      res.write(`data: [ERROR] ${err.message}\n\n`)
-      res.write(`data: [DONE]\n\n`)
-      return res.end()
-    }
-    
-    logger().error({
-      msg: 'Failed to process chat summarization',
-      data: {
-        error: err,
-        errorMessage: err instanceof Error ? err.message : '未知错误',
-        errorStack: err instanceof Error ? err.stack : undefined,
-        requestQuery: req.query,
-        userId: req.session?.user?.id
-      }
-    })
-
-    res.write(`data: [ERROR] 服务器内部错误\n\n`)
-    res.write(`data: [DONE]\n\n`)
-    res.end()
-  }
-})
+  })
 
 // 2. 统一错误响应格式
 interface ErrorResponse {
