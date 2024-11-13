@@ -638,7 +638,8 @@ router.post('/create', authMiddleware, createChatLimiter, async (req: Request, r
 })
 
 // Chat 列表路由
-router.get('/list', authMiddleware, cacheMiddleware(60), async (req, res) => {
+// router.get('/list', authMiddleware, cacheMiddleware(60), async (req, res) => {
+  router.get('/list', authMiddleware, async (req, res) => {
   try {
     logger().info({
       msg: 'Attempting to fetch chat list',
