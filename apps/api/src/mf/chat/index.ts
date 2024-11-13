@@ -10,7 +10,115 @@ import cache from 'memory-cache'
 import fetch, { Response as FetchResponse } from 'node-fetch'
 import { Send } from 'express-serve-static-core'
 
-// 错误类型定义
+// 1. 配置常量
+const USE_TEST_AUTH = true // 测试模式开关
+const AI_AGENT_URL = process.env['AI_AGENT_URL']
+const CHAT_DETAIL_CACHE_DURATION = 60
+
+// 2. 速率限制器配置
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100
+})
+
+const createChatLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20
+})
+
+const completionsLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10
+})
+
+const summarizeLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10
+})
+
+// 3. 接口定义
+interface FileInfo {
+  id: string
+  name: string
+  type: string
+}
+
+interface ChatDetailResponse {
+  type: 'rag' | 'report'
+  messages: {
+    id: string
+    role: string
+    content: string
+  }[]
+  documentId: string | null
+  file: FileInfo | null
+}
+
+interface CachedResponse {
+  code: number
+  data: unknown
+  msg: string
+}
+
+interface ExtendedResponse extends Response {
+  sendResponse: Send<any, Response>
+}
+
+interface Message {
+  id: string
+  role: string
+  content: string
+}
+
+interface RelationCheckResponse {
+  code: number
+  msg: string
+  data: {
+    related: boolean
+  }
+}
+
+interface ErrorResponse {
+  code: number
+  msg: string
+  data: null
+}
+
+// 4. Schema 定义
+const createChatSchema = z.object({
+  type: z.enum(['rag', 'report']),
+  fileId: z.string()
+})
+
+const updateChatSchema = z.object({
+  id: z.string().min(1, "对话ID不能为空"),
+  title: z.string().min(1, "标题不能为空"),
+})
+
+const deleteChatSchema = z.object({
+  id: z.string().min(1, "对话ID不能为空"),
+})
+
+const createChatRoundSchema = z.object({
+  question: z.string().min(1, "问题不能为空"),
+  chatId: z.string().min(1, "聊天ID不能为空"),
+})
+
+const getChatDetailSchema = z.object({
+  id: z.string().min(1, "聊天ID不能为空"),
+})
+
+const chatCompletionsSchema = z.object({
+  chatId: z.string().min(1, "对话ID不能为空"),
+  roundId: z.string().min(1, "对话轮次ID不能为空"),
+})
+
+const summarizeChatSchema = z.object({
+  chatId: z.string().min(1, "对话ID不能为空"),
+  roundId: z.string().min(1, "对话轮次ID不能为空"),
+})
+
+// 5. 错误类
 class ValidationError extends Error {
   constructor(message: string) {
     super(message)
@@ -25,34 +133,25 @@ class AuthorizationError extends Error {
   }
 }
 
-const router = Router({ mergeParams: true })
-
-// 1. 添加请求速率限制
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15分钟
-  max: 100 // 限制每个IP 100个请求
-})
-
-router.use(apiLimiter)
-
-// 2. 添加输入数据清理
+// 6. 工具函数
 const sanitizeInput = (input: string): string => {
   if (!input) return ''
-
-  // 移除 HTML 标签
   input = input.replace(/<[^>]*>/g, '')
-
-  // 移除特殊字符
   input = input.replace(/[<>'"]/g, '')
-
-  // 移除控制字符
   input = input.replace(/[\x00-\x1F\x7F]/g, '')
-
-  // 修剪空白字符
   return input.trim()
 }
 
-// 3. 环境变量验证
+const formatDate = (date: Date): string => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  const seconds = String(date.getSeconds()).padStart(2, '0')
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+}
+
 const validateEnvVars = () => {
   const requiredEnvVars = ['AI_AGENT_URL']
   const missingVars = requiredEnvVars.filter(varName => !process.env[varName])
@@ -61,53 +160,13 @@ const validateEnvVars = () => {
   }
 }
 
-// 定义请求参数验证schema
-const createChatSchema = z.object({
-  type: z.enum(['rag', 'report']),
-  fileId: z.string()
+const createErrorResponse = (code: number, message: string): ErrorResponse => ({
+  code,
+  msg: message,
+  data: null
 })
 
-// 定义更新标题请求参数验证schema
-const updateChatSchema = z.object({
-  id: z.string().min(1, "对话ID不能为空"),
-  title: z.string().min(1, "标题不能为空"),
-})
-
-// 定义删除对话请求参数验证schema
-const deleteChatSchema = z.object({
-  id: z.string().min(1, "对话ID不能为空"),
-})
-
-// 添加时间格式化辅助函数
-function formatDate(date: Date): string {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  const hours = String(date.getHours()).padStart(2, '0')
-  const minutes = String(date.getMinutes()).padStart(2, '0')
-  const seconds = String(date.getSeconds()).padStart(2, '0')
-
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
-}
-
-// 定义请求参数验证schema
-const createChatRoundSchema = z.object({
-  question: z.string().min(1, "问题不能为空"),
-  chatId: z.string().min(1, "聊天ID不能为空"),
-})
-
-// 在文件顶部添加一个测试模式开关
-const USE_TEST_AUTH = true; // 改为 false 时使用正常认证，true 时使用测试数据
-
-// 创建通用的认证中间件
-const authMiddleware = USE_TEST_AUTH
-  ? ((req: Request, res: Response, next: NextFunction) => {
-    req.session = getMockSession();
-    next();
-  })
-  : authenticationMiddleware;
-
-// 添加测试用户数据辅助函数，请修改成数据库中的已有数据
+// 7. 测试用户数据
 function getMockSession() {
   return {
     user: {
@@ -135,7 +194,14 @@ function getMockSession() {
   }
 }
 
-// 1. 提取共用的错误处理逻辑
+// 8. 中间件
+const authMiddleware = USE_TEST_AUTH
+  ? ((req: Request, res: Response, next: NextFunction) => {
+    req.session = getMockSession();
+    next();
+  })
+  : authenticationMiddleware;
+
 const handleError = (err: unknown, req: Request, res: Response, operation: string) => {
   logger().error({
     msg: `Failed to ${operation}`,
@@ -155,7 +221,6 @@ const handleError = (err: unknown, req: Request, res: Response, operation: strin
   })
 }
 
-// 2. 提取共用的参数证逻辑
 const validateSchema = <T>(schema: z.ZodSchema<T>, data: unknown, operation: string) => {
   const result = schema.safeParse(data)
   if (!result.success) {
@@ -174,76 +239,16 @@ const validateSchema = <T>(schema: z.ZodSchema<T>, data: unknown, operation: str
   return result.data
 }
 
-// 1. 添加缓存中间件
-interface CachedResponse {
-  code: number
-  data: unknown
-  msg: string
-}
-
-interface ExtendedResponse extends Response {
-  sendResponse: Send<any, Response>
-}
-
-// 工具函数
-async function fetchWithTimeout(
-  url: string,
-  options: RequestInit & { body?: string | URLSearchParams | Buffer },
-  timeout: number
-): Promise<FetchResponse> {
-  const controller = new AbortController()
-  const id = setTimeout(() => controller.abort(), timeout)
-
-  try {
-    const response = await fetch(url, {
-      ...options,
-      signal: controller.signal
-    })
-    clearTimeout(id)
-    return response
-  } catch (error) {
-    clearTimeout(id)
-    throw error
-  }
-}
-
-// 缓存中间件
-const cacheMiddleware = (duration: number) => {
-  return (req: Request, res: Response, next: NextFunction) => {
-    const key = `__express__${req.originalUrl || req.url}`
-    const cachedBody = cache.get(key) as CachedResponse | undefined
-
-    if (cachedBody) {
-      return res.json(cachedBody)
-    } else {
-      const extendedRes = res as ExtendedResponse
-      extendedRes.sendResponse = res.json.bind(res)
-      res.json = (body: CachedResponse) => {
-        cache.put(key, body, duration * 1000)
-        extendedRes.sendResponse(body)
-        return res
-      }
-      next()
-    }
-  }
-}
-
-// 环境变量
-const AI_AGENT_URL = process.env['AI_AGENT_URL']
-
-// 添加 SSE 响应处理工具函数
+// 9. SSE 相关函数
 function setupSSEConnection(res: Response) {
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache',
     'Connection': 'keep-alive'
   })
-  
-  // 发送单个统一格式的连接成功消息
   res.write(`data: {"status": "success", "message": "SSE连接已建立"}\n\n`)
 }
 
-// 修改 handleStreamResponse 函数，移除重复的连接消息
 async function handleStreamResponse(
   response: FetchResponse,
   res: Response
@@ -275,7 +280,6 @@ async function handleStreamResponse(
             return
           }
 
-          // 检查是否是连接成功消息，如果是则跳过
           if (data.includes('"status": "success"') && data.includes('"message": "SSE连接已建立"')) {
             continue
           }
@@ -285,16 +289,12 @@ async function handleStreamResponse(
       }
     }
 
-    // 处理剩余的缓冲区
     if (buffer.trim()) {
       const data = buffer.trim()
       if (data.startsWith('data:')) {
         const content = data.slice(5).trim()
-        if (content) {
-          // 检查是否是连接成功消息，如果是则跳过
-          if (!(content.includes('"status": "success"') && content.includes('"message": "SSE连接已建立"'))) {
-            res.write(`data: ${content}\n\n`)
-          }
+        if (content && !(content.includes('"status": "success"') && content.includes('"message": "SSE连接已建立"'))) {
+          res.write(`data: ${content}\n\n`)
         }
       }
     }
@@ -303,12 +303,54 @@ async function handleStreamResponse(
   }
 }
 
-// 创建聊天的速率限制器
-const createChatLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1分钟
-  max: 20 // 限制每个IP 20个请求
-})
+// 10. 缓存中间件
+const cacheMiddleware = (duration: number) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const key = `__express__${req.originalUrl || req.url}`
+    const cachedBody = cache.get(key) as CachedResponse | undefined
 
+    if (cachedBody) {
+      return res.json(cachedBody)
+    } else {
+      const extendedRes = res as ExtendedResponse
+      extendedRes.sendResponse = res.json.bind(res)
+      res.json = (body: CachedResponse) => {
+        cache.put(key, body, duration * 1000)
+        extendedRes.sendResponse(body)
+        return res
+      }
+      next()
+    }
+  }
+}
+
+// 11. Fetch 工具函数
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit & { body?: string | URLSearchParams | Buffer },
+  timeout: number
+): Promise<FetchResponse> {
+  const controller = new AbortController()
+  const id = setTimeout(() => controller.abort(), timeout)
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    })
+    clearTimeout(id)
+    return response
+  } catch (error) {
+    clearTimeout(id)
+    throw error
+  }
+}
+
+// 12. 路由设置
+const router = Router({ mergeParams: true })
+router.use(apiLimiter)
+
+// Chat 创建路由
 router.post('/create', authMiddleware, createChatLimiter, async (req: Request, res: Response) => {
   try {
     const validatedData = validateSchema(createChatSchema, req.body, 'create chat')
@@ -325,7 +367,6 @@ router.post('/create', authMiddleware, createChatLimiter, async (req: Request, r
       data: { type, fileId, userId }
     })
 
-    // 开启事务前检查文件权限
     if (type === 'report' && fileId) {
       const userFile = await prisma().userFile.findFirst({
         where: {
@@ -340,15 +381,12 @@ router.post('/create', authMiddleware, createChatLimiter, async (req: Request, r
       }
     }
 
-    // 获取用户工作区并确保存在
     const workspace = Object.values(req.session.userWorkspaces ?? {})[0]
     if (!workspace?.workspaceId) {
       throw new ValidationError('未找到有效的工作区')
     }
 
-    // 开启事务
     const response = await prisma().$transaction(async (tx) => {
-      // 创建聊天记录
       const chat = await tx.chat.create({
         data: {
           id: chatId,
@@ -358,10 +396,8 @@ router.post('/create', authMiddleware, createChatLimiter, async (req: Request, r
         }
       })
 
-      // 如果是report类型，创建相关资源
       let documentId = null
       if (type === 'report') {
-        // 创建文档
         const doc = await tx.document.create({
           data: {
             id: uuidv4(),
@@ -373,7 +409,6 @@ router.post('/create', authMiddleware, createChatLimiter, async (req: Request, r
         })
         documentId = doc.id
 
-        // 创建关联关系
         await Promise.all([
           tx.chatDocumentRelation.create({
             data: {
@@ -392,7 +427,7 @@ router.post('/create', authMiddleware, createChatLimiter, async (req: Request, r
 
       return { chatId: chat.id, documentId }
     }, {
-      timeout: 5000 // 设置事务超时时间
+      timeout: 5000
     })
 
     logger().info({
@@ -425,7 +460,7 @@ router.post('/create', authMiddleware, createChatLimiter, async (req: Request, r
   }
 })
 
-// 获取聊天列表
+// Chat 列表路由
 router.get('/list', authMiddleware, cacheMiddleware(60), async (req, res) => {
   try {
     logger().info({
@@ -435,7 +470,6 @@ router.get('/list', authMiddleware, cacheMiddleware(60), async (req, res) => {
       }
     })
 
-    // 优化查询,只获取必要字段
     const chats = await prisma().chat.findMany({
       where: {
         userId: req.session.user.id
@@ -485,7 +519,7 @@ router.get('/list', authMiddleware, cacheMiddleware(60), async (req, res) => {
   }
 })
 
-// 更新对话标题
+// Chat 更新路由
 router.post('/update', authMiddleware, async (req, res) => {
   try {
     const validatedData = validateSchema(updateChatSchema, req.body, 'update chat title')
@@ -504,7 +538,6 @@ router.post('/update', authMiddleware, async (req, res) => {
       }
     })
 
-    // 查询话是否存在且属于当前用户
     const chat = await prisma().chat.findFirst({
       where: {
         id,
@@ -516,10 +549,8 @@ router.post('/update', authMiddleware, async (req, res) => {
       throw new AuthorizationError('对话不存在或无权访问')
     }
 
-    // 清理输入数据
     const sanitizedTitle = sanitizeInput(title)
 
-    // 更新对话标题
     await prisma().chat.update({
       where: { id },
       data: { title: sanitizedTitle }
@@ -547,12 +578,11 @@ router.post('/update', authMiddleware, async (req, res) => {
     if (err instanceof ValidationError) {
       return res.status(400).json(createErrorResponse(400, err.message))
     }
-
     return handleError(err, req, res, 'update chat title')
   }
 })
 
-// 删除对话
+// Chat 删除路由
 router.post('/delete', authMiddleware, async (req, res) => {
   try {
     const validatedData = validateSchema(deleteChatSchema, req.body, 'delete chat')
@@ -570,7 +600,6 @@ router.post('/delete', authMiddleware, async (req, res) => {
       }
     })
 
-    // 使用优化后的查询,只获取必要字段
     const chat = await prisma().chat.findFirst({
       where: {
         id,
@@ -590,7 +619,6 @@ router.post('/delete', authMiddleware, async (req, res) => {
       throw new AuthorizationError('对话不存在或无权访问')
     }
 
-    // 使用事务删除对话及其关联数据
     await prisma().$transaction(async (tx) => {
       if (chat.documentRelations?.length > 0) {
         await tx.document.deleteMany({
@@ -630,10 +658,9 @@ router.post('/delete', authMiddleware, async (req, res) => {
   }
 })
 
-// 创建聊天记录
+// Chat Round 创建路由
 router.post('/round/create', authMiddleware, async (req, res) => {
   try {
-    // 使用提取的验证逻辑
     const validatedData = validateSchema(createChatRoundSchema, req.body, 'create chat round')
     if (!validatedData) {
       return res.status(400).json(createErrorResponse(400, '参数校验失败'))
@@ -649,7 +676,6 @@ router.post('/round/create', authMiddleware, async (req, res) => {
       }
     })
 
-    // 检查聊天是否存在且属于当前用户
     const chat = await prisma().chat.findFirst({
       where: {
         id: chatId,
@@ -661,10 +687,8 @@ router.post('/round/create', authMiddleware, async (req, res) => {
       throw new AuthorizationError('对话不存在或无权访问')
     }
 
-    // 清理输入数据
     const sanitizedQuestion = sanitizeInput(question)
 
-    // 创建聊天记录
     const chatRecord = await prisma().chatRecord.create({
       data: {
         chatId,
@@ -698,38 +722,11 @@ router.post('/round/create', authMiddleware, async (req, res) => {
     if (err instanceof ValidationError) {
       return res.status(400).json(createErrorResponse(400, err.message))
     }
-
-    // 使用通用错误处理
     return handleError(err, req, res, 'create chat round')
   }
 })
 
-// 定义文件信息接口
-interface FileInfo {
-  id: string
-  name: string
-  type: string
-}
-
-// 定义响应数据接口
-interface ChatDetailResponse {
-  type: 'rag' | 'report'
-  messages: {
-    id: string
-    role: string
-    content: string
-  }[]
-  documentId: string | null
-  file: FileInfo | null
-}
-
-const getChatDetailSchema = z.object({
-  id: z.string().min(1, "聊天ID不能为空"),
-})
-
-// 获取聊天详情的缓存时间(秒)
-const CHAT_DETAIL_CACHE_DURATION = 60
-
+// Chat 详情路由
 router.post('/detail',
   authMiddleware,
   cacheMiddleware(CHAT_DETAIL_CACHE_DURATION),
@@ -748,7 +745,6 @@ router.post('/detail',
         data: { chatId: id, userId }
       })
 
-      // 优化查询,只获取必要字段
       const chat = await prisma().chat.findFirst({
         where: {
           id,
@@ -795,14 +791,12 @@ router.post('/detail',
         throw new AuthorizationError('聊天记录不存在或无权访问')
       }
 
-      // 转换消息格式
       const messages = chat.records.map(record => ({
         id: record.id,
         role: record.speakerType.toLowerCase(),
         content: record.answer.toString()
       }))
 
-      // 构造返回数据
       const responseData: ChatDetailResponse = {
         type: chat.type === 1 ? 'rag' : 'report',
         messages,
@@ -810,7 +804,6 @@ router.post('/detail',
         file: null
       }
 
-      // 处理report类型的额外数据
       if (chat.type === 2) {
         const documentRelation = chat.documentRelations[0]
         const fileRelation = chat.fileRelations[0]
@@ -852,35 +845,7 @@ router.post('/detail',
     }
   })
 
-// 定义请求参数验证schema
-const chatCompletionsSchema = z.object({
-  chatId: z.string().min(1, "对话ID不能为空"),
-  roundId: z.string().min(1, "对话轮次ID不能为空"),
-})
-
-// 定义消息类型
-interface Message {
-  id: string
-  role: string
-  content: string
-}
-
-// 定义关联性检查响应类型
-interface RelationCheckResponse {
-  code: number
-  msg: string
-  data: {
-    related: boolean
-  }
-}
-
-// 创建对话补全的速率限制器
-const completionsLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1分钟
-  max: 10 // 限制每个IP 10个请求
-})
-
-// 添加SSE对话接口
+// Chat Completions 路由
 router.get('/completions',
   authMiddleware,
   completionsLimiter,
@@ -893,10 +858,8 @@ router.get('/completions',
 
       const { chatId, roundId } = validatedData
 
-      // 验证环变量
       validateEnvVars()
 
-      // 优化查询
       const chatRecord = await prisma().chatRecord.findFirst({
         where: {
           id: roundId,
@@ -921,10 +884,8 @@ router.get('/completions',
         throw new AuthorizationError('对话记录不存在或无权访问')
       }
 
-      // 使用统一的 SSE 设置函数
       setupSSEConnection(res)
 
-      // 构造消息
       const messages: Message[] = [{
         id: chatRecord.id,
         role: chatRecord.speakerType,
@@ -932,7 +893,6 @@ router.get('/completions',
       }]
 
       try {
-        // 关联性检查
         const relationCheckResponse = await fetchWithTimeout(
           `${AI_AGENT_URL}/v1/ai/chat/relation`,
           {
@@ -940,7 +900,7 @@ router.get('/completions',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ messages })
           },
-          5000 // 5秒超时
+          5000
         )
 
         if (!relationCheckResponse.ok) {
@@ -954,7 +914,6 @@ router.get('/completions',
           return res.end()
         }
 
-        // AI 对话请求
         const response = await fetchWithTimeout(
           `${AI_AGENT_URL}/v1/ai/chat/data/completions`,
           {
@@ -964,14 +923,13 @@ router.get('/completions',
               user_input: chatRecord.question
             })
           },
-          30000 // 30秒超时
+          30000
         ) as FetchResponse
 
         if (!response.ok) {
           throw new Error(`AI 对话请求失败: ${response.status}`)
         }
 
-        // 处理流式响应
         await handleStreamResponse(response, res)
 
       } catch (error) {
@@ -1008,18 +966,7 @@ router.get('/completions',
     }
   })
 
-
-const summarizeChatSchema = z.object({
-  chatId: z.string().min(1, "对话ID不能为空"),
-  roundId: z.string().min(1, "对话轮次ID不能为空"),
-})
-
-// 总结对话的速率限制器
-const summarizeLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1分钟
-  max: 10 // 限制每个IP 10个请求
-})
-
+// Chat 总结路由
 router.get('/summarize',
   authMiddleware,
   summarizeLimiter,
@@ -1032,10 +979,8 @@ router.get('/summarize',
 
       const { chatId, roundId } = validatedData
 
-      // 验证环境变量
       validateEnvVars()
 
-      // 优化查询
       const chatRecord = await prisma().chatRecord.findFirst({
         where: {
           id: roundId,
@@ -1055,7 +1000,6 @@ router.get('/summarize',
         throw new AuthorizationError('对话记录不存在或无权访问')
       }
 
-      // 使用统一的 SSE 设置函数
       setupSSEConnection(res)
 
       try {
@@ -1073,7 +1017,7 @@ router.get('/summarize',
               temperature: 0
             })
           },
-          10000 // 10秒超时
+          10000
         ) as FetchResponse
 
         if (!response.ok) {
@@ -1116,20 +1060,7 @@ router.get('/summarize',
     }
   })
 
-// 2. 统一错误响应格式
-interface ErrorResponse {
-  code: number
-  msg: string
-  data: null
-}
-
-const createErrorResponse = (code: number, message: string): ErrorResponse => ({
-  code,
-  msg: message,
-  data: null
-})
-
-// 在应用初始化时调用
+// 初始化验证
 validateEnvVars()
 
 export default router
