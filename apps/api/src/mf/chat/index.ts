@@ -1067,4 +1067,235 @@ router.get('/completions', authMiddleware, async (req, res) => {
   }
 })
 
+const summarizeChatSchema = z.object({
+  chatId: z.string().min(1, "对话ID不能为空"),
+  roundId: z.string().min(1, "对话轮次ID不能为空"),
+})
+
+// 总结对话标题
+router.get('/summarize', authMiddleware, async (req, res) => {
+  try {
+    // 验证请求参数
+    const result = summarizeChatSchema.safeParse(req.query)
+    if (!result.success) {
+      logger().error({
+        msg: 'Invalid summarize chat input',
+        data: {
+          errors: result.error.errors.map(err => ({
+            path: err.path.join('.'),
+            message: err.message
+          })),
+          requestQuery: req.query
+        }
+      })
+      return res.status(400).json({
+        code: 400,
+        msg: '参数校验失败',
+        data: null
+      })
+    }
+
+    const { chatId, roundId } = result.data
+
+    logger().info({
+      msg: 'Attempting to summarize chat',
+      data: {
+        chatId,
+        roundId,
+        userId: req.session.user.id
+      }
+    })
+
+    // 检查聊天记录是否存在且属于当前用户
+    const chatRecord = await prisma().chatRecord.findFirst({
+      where: {
+        id: roundId,
+        chatId: chatId,  // 添加chatId条件
+        chat: {
+          userId: req.session.user.id
+        }
+      },
+      include: {
+        chat: true  // 只包含chat基本信息，不再包含所有records
+      }
+    })
+
+    if (!chatRecord) {
+      logger().warn({
+        msg: 'Chat record not found or not owned by user',
+        data: {
+          chatId,
+          roundId,
+          userId: req.session.user.id
+        }
+      })
+      return res.status(404).json({
+        code: 404,
+        msg: '对话记录不存在或无权访问',
+        data: null
+      })
+    }
+
+    // 添加 AI Agent URL 检查
+    const aiAgentUrl = process.env["AI_AGENT_URL"]
+    if (!aiAgentUrl) {
+      throw new Error('AI_AGENT_URL environment variable is not set')
+    }
+
+    // 构造总结对话标题的消息
+    const messages: Message[] = [{
+      id: chatRecord.id,
+      role: chatRecord.speakerType,
+      content: chatRecord.question
+    }]
+
+    const summarizeUrl = `${aiAgentUrl}/v1/ai/chat/summarize`
+    const summarizeBody = { messages }
+
+    logger().info({
+      msg: 'Calling summarize API',
+      data: {
+        url: summarizeUrl,
+        body: summarizeBody,
+        chatId,
+        roundId
+      }
+    })
+
+    // 设置SSE响应头
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive'
+    })
+
+    // 发送连接成功消息
+    res.write('event: connected\n');
+    res.write('data: {"status": "success", "message": "SSE连接已建立"}\n\n');
+
+    // 添加 timeout 和错误处理
+    const fetchWithTimeout = async (url: string, options: RequestInit, timeout = 10000) => {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), timeout)
+
+      try {
+        const response = await fetch(url, {
+          ...options,
+          signal: controller.signal
+        })
+        clearTimeout(timeoutId)
+        return response
+      } catch (error) {
+        clearTimeout(timeoutId)
+        throw error
+      }
+    }
+
+    // 调用 AI Agent 总结接口
+    try {
+      const response = await fetch(`${aiAgentUrl}/v1/ai/chat/summarize`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          messages,
+          temperature: 0
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`AI 总结请求失败: ${response.status}`)
+      }
+
+      // 处理SSE响应
+      const reader = response.body?.getReader()
+      if (!reader) {
+        throw new Error('Failed to get response reader')
+      }
+
+      let buffer = ''
+      const textDecoder = new TextDecoder()
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        // 将新的数据添加到buffer
+        buffer += textDecoder.decode(value, { stream: true })
+
+        // 处理buffer中的完整行
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || '' // 保存不完整的最后一行
+
+        for (const line of lines) {
+          const trimmedLine = line.trim()
+          if (!trimmedLine) continue // 跳过空行
+
+          // 处理data:前缀的行
+          if (trimmedLine.startsWith('data:')) {
+            const data = trimmedLine.slice(5).trim()
+            
+            // 检查是否为结束标识
+            if (data.includes('[DONE]')) {
+              res.write(`data: [DONE]\n\n`)
+              res.end()
+              return
+            }
+
+            // 转发AI返回的数据
+            res.write(`data: ${data}\n\n`)
+          }
+        }
+      }
+
+      // 处理最后可能剩余的数据
+      if (buffer.trim()) {
+        const data = buffer.trim()
+        if (data.startsWith('data:')) {
+          const content = data.slice(5).trim()
+          if (content) {
+            res.write(`data: ${content}\n\n`)
+          }
+        }
+      }
+
+      logger().info({
+        msg: 'Chat title summarization completed successfully',
+        data: {
+          chatId,
+          roundId,
+          userId: req.session.user.id
+        }
+      })
+
+    } catch (error) {
+      logger().error({
+        msg: 'Failed to get AI summarization',
+        data: { error }
+      })
+      res.write(`data: [ERROR] AI 服务暂时不可用，请稍后重试\n\n`)
+      res.write(`data: [DONE]\n\n`)
+      res.end()
+      return
+    }
+
+  } catch (err) {
+    logger().error({
+      msg: 'Failed to process summarize chat',
+      data: {
+        error: err,
+        errorMessage: err instanceof Error ? err.message : '未知错误',
+        errorStack: err instanceof Error ? err.stack : undefined,
+        requestQuery: req.query,
+        userId: req.session.user.id
+      }
+    })
+
+    res.write(`data: [ERROR] 服务器内部错误\n\n`)
+    res.write(`data: [DONE]\n\n`)
+    res.end()
+  }
+})
+
 export default router
