@@ -40,21 +40,69 @@ export async function createUser(
 export async function addUserByAPI(
   name: string,
   passwordDigest: string,
-  phone: string | null = null,    // 改为 null 作为默认值
-  nickname: string | null = null,  // 改为 null 作为默认值
-  email: string,                  // 移除可选标记，使其成为必需参数
+  phone: string | null = null,
+  nickname: string | null = null,
+  email: string
 ): Promise<ApiUser> {
-  return prisma().user.create({
-    data: {
-      name,
-      loginName: name,
-      email,
-      passwordDigest,
-      phone,
-      nickname,
-      status: 1,
-    },
-    select: userSelect,
+  return prisma().$transaction(async (tx) => {
+    // 1. 创建用户
+    const user = await tx.user.create({
+      data: {
+        name,
+        loginName: name,
+        email,
+        passwordDigest,
+        phone,
+        nickname,
+        status: 1,
+      },
+      select: userSelect,
+    })
+
+    // 2. 创建 WorkspaceSecrets
+    const secrets = await tx.workspaceSecrets.create({
+      data: {
+        openAiApiKey: null,
+      },
+    })
+
+    // 3. 创建 Workspace
+    const workspace = await tx.workspace.create({
+      data: {
+        name: `${name}'s Workspace`,
+        ownerId: user.id,
+        secretsId: secrets.id,
+        plan: 'free',
+        onboardingStep: 'intro',
+        assistantModel: 'gpt-4o',
+      },
+    })
+
+    // 4. 创建 UserWorkspace 关联
+    await tx.userWorkspace.create({
+      data: {
+        userId: user.id,
+        workspaceId: workspace.id,
+        role: 'admin',
+      },
+    })
+
+    // 5. 返回完整的用户信息，包括工作区信息
+    return {
+      ...user,
+      workspaces: [
+        {
+          id: workspace.id,
+          name: workspace.name,
+          role: 'admin',
+          plan: workspace.plan,
+          onboardingStep: workspace.onboardingStep,
+          assistantModel: workspace.assistantModel,
+          createdAt: workspace.createdAt,
+          updatedAt: workspace.updatedAt,
+        },
+      ],
+    }
   })
 }
 
@@ -80,9 +128,7 @@ export async function getUserByEmail(email: string): Promise<ApiUser | null> {
   return user
 }
 
-export async function listWorkspaceUsers(
-  workspaceId: string
-): Promise<WorkspaceUser[]> {
+export async function listWorkspaceUsers(workspaceId: string): Promise<WorkspaceUser[]> {
   const users = await prisma().userWorkspace.findMany({
     where: { workspaceId },
     select: {
@@ -152,7 +198,7 @@ export async function deleteUserFromWorkspace(
 }
 
 export async function confirmUser(userId: string): Promise<ApiUser | null> {
-  const user = await recoverFromNotFound(
+  const user = (await recoverFromNotFound(
     prisma().user.update({
       where: { id: userId, confirmedAt: null },
       data: {
@@ -160,7 +206,7 @@ export async function confirmUser(userId: string): Promise<ApiUser | null> {
       },
       select: userSelect,
     })
-  ) as ApiUser | null
+  )) as ApiUser | null
 
   return user
 }

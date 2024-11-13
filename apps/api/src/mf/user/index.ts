@@ -80,12 +80,12 @@ userRouter.post('/add', async (req, res) => {
     logger().info({
       msg: 'User created successfully',
       data: {
-        userId: user['id'],
-        username: user['name'],
-        phone: user['phone'],
-        email: user['email'],
-        nickname: user['nickname'],
-        createdAt: user['createdAt'],
+        userId: user.id,
+        username: user.name,
+        phone: user.phone,
+        email: user.email,
+        nickname: user.nickname,
+        createdAt: user.createdAt,
         timestamp: new Date().toISOString()
       }
     })
@@ -93,7 +93,7 @@ userRouter.post('/add', async (req, res) => {
     return res.json({
       code: 0,
       data: {
-        uid: user['id']
+        uid: user.id
       },
       msg: '创建成功'
     })
