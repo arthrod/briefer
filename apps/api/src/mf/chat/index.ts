@@ -274,17 +274,43 @@ async function handleStreamResponse(
         if (trimmedLine.startsWith('data:')) {
           const data = trimmedLine.slice(5).trim()
 
+          logger().info({
+            msg: 'SSE message received',
+            data: {
+              content: data,
+              timestamp: new Date().toISOString()
+            }
+          })
+
           if (data.includes('[DONE]')) {
             res.write(`data: [DONE]\n\n`)
+            logger().info({
+              msg: 'SSE connection closed',
+              data: {
+                reason: '[DONE] received',
+                timestamp: new Date().toISOString()
+              }
+            })
             res.end()
             return
           }
 
           if (data.includes('"status": "success"') && data.includes('"message": "SSE连接已建立"')) {
+            logger().info({
+              msg: 'SSE connection established',
+              timestamp: new Date().toISOString()
+            })
             continue
           }
 
           res.write(`data: ${data}\n\n`)
+          logger().info({
+            msg: 'SSE message sent to client',
+            data: {
+              content: data,
+              timestamp: new Date().toISOString()
+            }
+          })
         }
       }
     }
@@ -295,10 +321,25 @@ async function handleStreamResponse(
         const content = data.slice(5).trim()
         if (content && !(content.includes('"status": "success"') && content.includes('"message": "SSE连接已建立"'))) {
           res.write(`data: ${content}\n\n`)
+          logger().info({
+            msg: 'SSE buffer message sent',
+            data: {
+              content,
+              timestamp: new Date().toISOString()
+            }
+          })
         }
       }
     }
   } catch (error) {
+    logger().error({
+      msg: 'SSE stream error',
+      data: {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        timestamp: new Date().toISOString()
+      }
+    })
     throw new Error(`处理流式响应时发生错误: ${error}`)
   }
 }
