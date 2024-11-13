@@ -937,6 +937,7 @@ router.post('/detail',
             },
             select: {
               id: true,
+              question: true,
               speakerType: true,
               answer: true,
               createdTime: true
@@ -969,18 +970,25 @@ router.post('/detail',
         throw new AuthorizationError('聊天记录不存在或无权访问')
       }
 
-      const messages = chat.records.map(record => ({
-        id: record.id,
-        role: record.speakerType.toLowerCase(),
-        content: record.answer.toString()
-      }))
+      const messages = chat.records.flatMap(record => [
+        {
+          id: record.id,
+          role: 'user', 
+          content: sanitizeInput(record.question)
+        },
+        {
+          id: record.id,
+          role: 'assistant',
+          content: record.answer.toString()
+        }
+      ]);
 
       const responseData: ChatDetailResponse = {
         type: chat.type === 1 ? 'rag' : 'report',
         messages,
         documentId: null,
         file: null
-      }
+      };
 
       if (chat.type === 2) {
         const documentRelation = chat.documentRelations[0]
@@ -1227,7 +1235,7 @@ router.get('/summarize',
         ) as FetchResponse
 
         if (!response.ok) {
-          throw new Error(`AI 总��请求失败: ${response.status}`)
+          throw new Error(`AI 总结请求失败: ${response.status}`)
         }
 
         await handleStreamResponse(response, res, {
