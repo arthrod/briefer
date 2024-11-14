@@ -2,11 +2,14 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { prisma, addUserByAPI } from '@briefer/database'
 import { hashPassword } from '../../password.js'
-import { logger } from '../../logger.js'
+import { Logger } from '../../utils/logger.js'
+import { ErrorCode } from '../../constants/errorcode.js'
+import { success, fail, handleZodError, handleError, sendResponse } from '../../utils/response.js'
 import { sessionFromCookies, authenticationMiddleware } from '../../auth/token.js'
 
 const userRouter = Router({ mergeParams: true })
 
+// Schema 定义
 const userSchema = z.object({
   name: z.string().min(1, "用户名不能为空"),
   password: z.string().min(6, "密码长度至少6位"),
@@ -15,110 +18,6 @@ const userSchema = z.object({
   nickname: z.string().optional()
 })
 
-// 创建用户
-userRouter.post('/add', async (req, res) => {
-  try {
-    const result = userSchema.safeParse(req.body)
-    if (!result.success) {
-      logger().error({
-        msg: 'Invalid user input',
-        data: {
-          errors: result.error.errors.map(err => ({
-            path: err.path.join('.'),
-            message: err.message
-          })),
-          requestBody: req.body,
-          timestamp: new Date().toISOString()
-        }
-      })
-      return res.status(400).json({
-        code: 400,
-        msg: '参数校验失败',
-        data: null
-      })
-    }
-
-    const { name, password, phone, email, nickname } = result.data
-
-    logger().info({ msg: 'Attempting to create user', data: result.data })
-
-    const existingUser = await prisma().user.findFirst({
-      where: { name }
-    })
-
-    if (existingUser) {
-      logger().warn({
-        msg: 'Username already exists',
-        data: {
-          existingUsername: name,
-          requestedData: {
-            phone,
-            email,
-            nickname
-          },
-          timestamp: new Date().toISOString()
-        }
-      })
-
-      return res.status(400).json({
-        code: 500,
-        msg: '用户名已存在',
-        data: null
-      })
-    }
-
-    const passwordDigest = await hashPassword(password)
-
-    const user = await addUserByAPI(
-      name,
-      passwordDigest,
-      phone,
-      nickname ?? '',
-      email ?? ''
-    )
-
-    logger().info({
-      msg: 'User created successfully',
-      data: {
-        userId: user.id,
-        username: user.name,
-        phone: user.phone,
-        email: user.email,
-        nickname: user.nickname,
-        createdAt: user.createdAt,
-        timestamp: new Date().toISOString()
-      }
-    })
-
-    return res.json({
-      code: 0,
-      data: {
-        uid: user.id
-      },
-      msg: '创建成功'
-    })
-
-  } catch (err) {
-    logger().error({
-      msg: 'Failed to create user',
-      data: {
-        error: err,
-        errorMessage: err instanceof Error ? err.message : '未知错误',
-        errorStack: err instanceof Error ? err.stack : undefined,
-        requestBody: req.body
-      }
-    })
-
-    return res.status(500).json({
-      code: 500,
-      msg: '服务器内部错误',
-      data: null
-    })
-  }
-})
-
-
-// 定义请求参数验证schema
 const userEditSchema = z.object({
   uid: z.string().min(1, "用户ID不能为空"),
   phone: z.string().regex(/^1[3-9]\d{9}$/, "请输入有效的手机号").optional(),
@@ -126,34 +25,53 @@ const userEditSchema = z.object({
   nickname: z.string().optional()
 })
 
+const uidSchema = z.object({
+  uid: z.string().min(1, "用户ID不能为空")
+})
+
+const resetPwdSchema = z.object({
+  uid: z.string().min(1, "用户ID不能为空"),
+  pwd: z.string().min(6, "密码长度至少6位")
+})
+
+// 创建用户
+userRouter.post('/add', async (req, res) => {
+  try {
+    const result = userSchema.safeParse(req.body)
+    if (!result.success) {
+      return sendResponse(res, handleZodError(result.error))
+    }
+
+    const { name, password, phone, email, nickname } = result.data
+    Logger.info('尝试创建用户', { name, email, phone })
+
+    const existingUser = await prisma().user.findFirst({ where: { name } })
+    if (existingUser) {
+      Logger.warn('用户名已存在', { name })
+      return sendResponse(res, fail(ErrorCode.USER_EXISTS, '用户名已存在'))
+    }
+
+    const passwordDigest = await hashPassword(password)
+    const user = await addUserByAPI(name, passwordDigest, phone, nickname ?? '', email ?? '')
+
+    Logger.info('用户创建成功', { userId: user.id })
+    return sendResponse(res, success({ uid: user.id }, '创建成功'))
+  } catch (err) {
+    return sendResponse(res, handleError(err, '创建用户失败'))
+  }
+})
+
 // 更新用户信息
 userRouter.post('/edit', async (req, res) => {
   try {
-    // 验证请求参数
     const result = userEditSchema.safeParse(req.body)
     if (!result.success) {
-      logger().error({
-        msg: 'Invalid user edit input',
-        data: {
-          errors: result.error.errors.map(err => ({
-            path: err.path.join('.'),
-            message: err.message
-          })),
-          requestBody: req.body
-        }
-      })
-      return res.status(400).json({
-        code: 400,
-        msg: '参数校验失败',
-        data: {}
-      })
+      return sendResponse(res, handleZodError(result.error))
     }
 
     const { uid, phone, email, nickname } = result.data
+    Logger.info('尝试更新用户信息', { uid, phone, email, nickname })
 
-    logger().info({ msg: 'Attempting to update user info', data: result.data })
-
-    // 更新用户信息
     const updatedUser = await prisma().user.update({
       where: { id: uid },
       data: {
@@ -163,507 +81,181 @@ userRouter.post('/edit', async (req, res) => {
       }
     })
 
-    logger().info({
-      msg: 'User info updated successfully',
-      data: {
-        userId: updatedUser.id,
-        email: updatedUser.email,
-        nickname: updatedUser.nickname
-      }
-    })
-
-    return res.json({
-      code: 0,
-      data: {},
-      msg: '更新成功'
-    })
-
+    Logger.info('用户信息更新成功', { userId: updatedUser.id })
+    return sendResponse(res, success({}, '更新成功'))
   } catch (err) {
-    logger().error({
-      msg: 'Failed to update user info',
-      data: {
-        error: err,
-        errorMessage: err instanceof Error ? err.message : '未知错误',
-        errorStack: err instanceof Error ? err.stack : undefined,
-        requestBody: req.body
-      }
-    })
-
-    return res.status(500).json({
-      code: 500,
-      msg: '服务器内部错误',
-      data: {}
-    })
+    return sendResponse(res, handleError(err, '更新用户信息失败'))
   }
 })
 
 // 删除用户
 userRouter.post('/delete', async (req, res) => {
   try {
-    const deleteSchema = z.object({
-      uid: z.string().min(1, "用户ID不能为空"),
-    })
-
-    const result = deleteSchema.safeParse(req.body)
+    const result = uidSchema.safeParse(req.body)
     if (!result.success) {
-      logger().error({
-        msg: 'Invalid delete user input',
-        data: {
-          errors: result.error.errors.map(err => ({
-            path: err.path.join('.'),
-            message: err.message
-          })),
-          requestBody: req.body,
-          timestamp: new Date().toISOString()
-        }
-      })
-      return res.status(400).json({
-        code: 400,
-        msg: '参数校验失败',
-        data: {}
-      })
+      return sendResponse(res, handleZodError(result.error))
     }
 
     const { uid } = result.data
+    Logger.info('尝试删除用户', { uid })
 
-    logger().info({ msg: 'Attempting to delete user', data: { uid } })
-
-    const user = await prisma().user.findUnique({
-      where: { id: uid }
-    })
-
+    const user = await prisma().user.findUnique({ where: { id: uid } })
     if (!user) {
-      logger().warn({
-        msg: 'User not found for deletion',
-        data: {
-          uid,
-          timestamp: new Date().toISOString()
-        }
-      })
-      return res.status(404).json({
-        code: 404,
-        msg: '用户不存在',
-        data: {}
-      })
+      Logger.warn('用户不存在', { uid })
+      return sendResponse(res, fail(ErrorCode.USER_NOT_EXISTS, '用户不存在'))
     }
 
-    // 检查用户是否已登录
-    // TODO： 需要根据用户登录流程做清理操作
     const session = await sessionFromCookies(req.cookies)
     const isLoggedInUser = session?.user.id === uid
-
-    // 更新用户名添加删除标记
     const deletedUsername = `${user.name}_deleted*!~!*`
 
     await prisma().$transaction(async (tx) => {
-      // 更新用户名
       await tx.user.update({
         where: { id: uid },
         data: {
           name: deletedUsername,
-          // 清除用户的密码，防止重新登录
           passwordDigest: null
         }
       })
     })
 
-    logger().info({
-      msg: 'User marked as deleted successfully',
-      data: {
-        userId: uid,
-        originalUsername: user.name,
-        deletedUsername,
-        wasLoggedIn: isLoggedInUser,
-        timestamp: new Date().toISOString()
-      }
+    Logger.info('用户删除成功', {
+      userId: uid,
+      originalUsername: user.name,
+      wasLoggedIn: isLoggedInUser
     })
 
-    // 如果是当前登录用户才清除当前请求的cookie
     if (isLoggedInUser) {
       res.clearCookie('token')
     }
 
-    return res.json({
-      code: 0,
-      data: {},
-      msg: '删除成功'
-    })
-
+    return sendResponse(res, success({}, '删除成功'))
   } catch (err) {
-    logger().error({
-      msg: 'Failed to delete user',
-      data: {
-        error: err,
-        errorMessage: err instanceof Error ? err.message : '未知错误',
-        errorStack: err instanceof Error ? err.stack : undefined,
-        requestBody: req.body,
-        timestamp: new Date().toISOString()
-      }
-    })
-
-    return res.status(500).json({
-      code: 500,
-      msg: '服务器内部错误',
-      data: {}
-    })
+    return sendResponse(res, handleError(err, '删除用户失败'))
   }
 })
 
 // 禁用用户
 userRouter.post('/disable', async (req, res) => {
   try {
-    const disableSchema = z.object({
-      uid: z.string().min(1, "用户ID不能为空"),
-    })
-
-    const result = disableSchema.safeParse(req.body)
+    const result = uidSchema.safeParse(req.body)
     if (!result.success) {
-      logger().error({
-        msg: 'Invalid disable user input',
-        data: {
-          errors: result.error.errors.map(err => ({
-            path: err.path.join('.'),
-            message: err.message
-          })),
-          requestBody: req.body,
-          timestamp: new Date().toISOString()
-        }
-      })
-      return res.status(400).json({
-        code: 400,
-        msg: '参数校验失败',
-        data: {}
-      })
+      return sendResponse(res, handleZodError(result.error))
     }
 
     const { uid } = result.data
+    Logger.info('尝试禁用用户', { uid })
 
-    logger().info({ msg: 'Attempting to disable user', data: { uid } })
-
-    const user = await prisma().user.findUnique({
-      where: { id: uid }
-    })
-
+    const user = await prisma().user.findUnique({ where: { id: uid } })
     if (!user) {
-      logger().warn({
-        msg: 'User not found for disable',
-        data: {
-          uid,
-          timestamp: new Date().toISOString()
-        }
-      })
-      return res.status(404).json({
-        code: 404,
-        msg: '用户不存在',
-        data: {}
-      })
+      Logger.warn('用户不存在', { uid })
+      return sendResponse(res, fail(ErrorCode.USER_NOT_EXISTS, '用户不存在'))
     }
 
-    // 更新用户状态为禁用
     await prisma().user.update({
       where: { id: uid },
-      data: {
-        status: 0
-      }
+      data: { status: 0 }
     })
 
-    // 清除用户的会话信息
     const session = await sessionFromCookies(req.cookies)
     if (session?.user.id === uid) {
       res.clearCookie('token')
     }
 
-    logger().info({
-      msg: 'User disabled successfully',
-      data: {
-        userId: uid,
-        username: user.name,
-        timestamp: new Date().toISOString()
-      }
-    })
-
-    return res.json({
-      code: 0,
-      data: {},
-      msg: '禁用成功'
-    })
-
+    Logger.info('用户禁用成功', { userId: uid, username: user.name })
+    return sendResponse(res, success({}, '禁用成功'))
   } catch (err) {
-    logger().error({
-      msg: 'Failed to disable user',
-      data: {
-        error: err,
-        errorMessage: err instanceof Error ? err.message : '未知错误',
-        errorStack: err instanceof Error ? err.stack : undefined,
-        requestBody: req.body,
-        timestamp: new Date().toISOString()
-      }
-    })
-
-    return res.status(500).json({
-      code: 500,
-      msg: '服务器内部错误',
-      data: {}
-    })
+    return sendResponse(res, handleError(err, '禁用用户失败'))
   }
 })
 
 // 启用用户
 userRouter.post('/enable', async (req, res) => {
   try {
-    const enableSchema = z.object({
-      uid: z.string().min(1, "用户ID不能为空"),
-    })
-
-    const result = enableSchema.safeParse(req.body)
+    const result = uidSchema.safeParse(req.body)
     if (!result.success) {
-      logger().error({
-        msg: 'Invalid enable user input',
-        data: {
-          errors: result.error.errors.map(err => ({
-            path: err.path.join('.'),
-            message: err.message
-          })),
-          requestBody: req.body,
-          timestamp: new Date().toISOString()
-        }
-      })
-      return res.status(400).json({
-        code: 400,
-        msg: '参数校验失败',
-        data: {}
-      })
+      return sendResponse(res, handleZodError(result.error))
     }
 
     const { uid } = result.data
+    Logger.info('尝试启用用户', { uid })
 
-    logger().info({ msg: 'Attempting to enable user', data: { uid } })
-
-    const user = await prisma().user.findUnique({
-      where: { id: uid }
-    })
-
+    const user = await prisma().user.findUnique({ where: { id: uid } })
     if (!user) {
-      logger().warn({
-        msg: 'User not found for enable',
-        data: {
-          uid,
-          timestamp: new Date().toISOString()
-        }
-      })
-      return res.status(404).json({
-        code: 404,
-        msg: '用户不存在',
-        data: {}
-      })
+      Logger.warn('用户不存在', { uid })
+      return sendResponse(res, fail(ErrorCode.USER_NOT_EXISTS, '用户不存在'))
     }
 
-    // 更新用户状态为启用
     await prisma().user.update({
       where: { id: uid },
-      data: {
-        status: 1
-      }
+      data: { status: 1 }
     })
 
-    logger().info({
-      msg: 'User enabled successfully',
-      data: {
-        userId: uid,
-        username: user.name,
-        timestamp: new Date().toISOString()
-      }
-    })
-
-    return res.json({
-      code: 0,
-      data: {},
-      msg: '启用成功'
-    })
-
+    Logger.info('用户启用成功', { userId: uid, username: user.name })
+    return sendResponse(res, success({}, '启用成功'))
   } catch (err) {
-    logger().error({
-      msg: 'Failed to enable user',
-      data: {
-        error: err,
-        errorMessage: err instanceof Error ? err.message : '未知错误',
-        errorStack: err instanceof Error ? err.stack : undefined,
-        requestBody: req.body,
-        timestamp: new Date().toISOString()
-      }
-    })
-
-    return res.status(500).json({
-      code: 500,
-      msg: '服务器内部错误',
-      data: {}
-    })
+    return sendResponse(res, handleError(err, '启用用户失败'))
   }
 })
 
 // 重置密码
 userRouter.post('/pwd/reset', async (req, res) => {
   try {
-    const resetSchema = z.object({
-      uid: z.string().min(1, "用户ID不能为空"),
-      pwd: z.string().min(6, "密码长度至少6位"),
-    })
-
-    const result = resetSchema.safeParse(req.body)
+    const result = resetPwdSchema.safeParse(req.body)
     if (!result.success) {
-      logger().error({
-        msg: 'Invalid password reset input',
-        data: {
-          errors: result.error.errors.map(err => ({
-            path: err.path.join('.'),
-            message: err.message
-          })),
-          requestBody: req.body,
-          timestamp: new Date().toISOString()
-        }
-      })
-      return res.status(400).json({
-        code: 400,
-        msg: '参数校验失败',
-        data: {}
-      })
+      return sendResponse(res, handleZodError(result.error))
     }
 
     const { uid, pwd } = result.data
+    Logger.info('尝试重置用户密码', { uid })
 
-    logger().info({ msg: 'Attempting to reset user password', data: { uid } })
-
-    const user = await prisma().user.findUnique({
-      where: { id: uid }
-    })
-
+    const user = await prisma().user.findUnique({ where: { id: uid } })
     if (!user) {
-      logger().warn({
-        msg: 'User not found for password reset',
-        data: {
-          uid,
-          timestamp: new Date().toISOString()
-        }
-      })
-      return res.status(404).json({
-        code: 404,
-        msg: '用户不存在',
-        data: {}
-      })
+      Logger.warn('用户不存在', { uid })
+      return sendResponse(res, fail(ErrorCode.USER_NOT_EXISTS, '用户不存在'))
     }
 
     const passwordDigest = await hashPassword(pwd)
-
     await prisma().user.update({
       where: { id: uid },
-      data: {
-        passwordDigest
-      }
+      data: { passwordDigest }
     })
 
-    logger().info({
-      msg: 'User password reset successfully',
-      data: {
-        userId: uid,
-        timestamp: new Date().toISOString()
-      }
-    })
-
-    return res.json({
-      code: 0,
-      data: {},
-      msg: '密码重置成功'
-    })
-
+    Logger.info('用户密码重置成功', { userId: uid })
+    return sendResponse(res, success({}, '密码重置成功'))
   } catch (err) {
-    logger().error({
-      msg: 'Failed to reset user password',
-      data: {
-        error: err,
-        errorMessage: err instanceof Error ? err.message : '未知错误',
-        errorStack: err instanceof Error ? err.stack : undefined,
-        requestBody: req.body,
-        timestamp: new Date().toISOString()
-      }
-    })
-
-    return res.status(500).json({
-      code: 500,
-      msg: '服务器内部错误',
-      data: {}
-    })
+    return sendResponse(res, handleError(err, '重置密码失败'))
   }
 })
 
 // 获取用户信息
 userRouter.get('/profile', authenticationMiddleware, async (req, res) => {
   try {
-    logger().info({ 
-      msg: 'Attempting to get user profile',
-      data: {
-        userId: req.session.user.id,
-        timestamp: new Date().toISOString()
-      }
-    })
+    Logger.info('尝试获取用户信息', { userId: req.session.user.id })
 
     const user = await prisma().user.findUnique({
       where: { id: req.session.user.id }
     })
 
     if (!user) {
-      logger().warn({
-        msg: 'User not found when getting profile',
-        data: {
-          userId: req.session.user.id,
-          timestamp: new Date().toISOString()
-        }
-      })
-      return res.status(404).json({
-        code: 404,
-        msg: '用户不存在',
-        data: null
-      })
+      Logger.warn('用户不存在', { userId: req.session.user.id })
+      return sendResponse(res, fail(ErrorCode.USER_NOT_EXISTS, '用户不存在'))
     }
 
-    logger().info({
-      msg: 'User profile retrieved successfully',
-      data: {
-        userId: user.id,
-        username: user.loginName || user.name,
-        email: user.email,
-        timestamp: new Date().toISOString()
-      }
+    Logger.info('获取用户信息成功', {
+      userId: user.id,
+      username: user.loginName || user.name
     })
 
-    return res.json({
-      code: 0,
-      data: {
-        username: user.loginName || user.name,
-        role: '数据分析师',
-        nickname: user.nickname || '',
-        phone: user.phone || '',
-        email: user.email || ''
-      },
-      msg: '获取成功'
-    })
-
+    return sendResponse(res, success({
+      username: user.loginName || user.name,
+      role: '数据分析师',
+      nickname: user.nickname || '',
+      phone: user.phone || '',
+      email: user.email || ''
+    }, '获取成功'))
   } catch (err) {
-    logger().error({
-      msg: 'Failed to get user profile',
-      data: {
-        error: err,
-        errorMessage: err instanceof Error ? err.message : '未知错误',
-        errorStack: err instanceof Error ? err.stack : undefined,
-        userId: req.session.user.id,
-        timestamp: new Date().toISOString()
-      }
-    })
-
-    return res.status(500).json({
-      code: 500,
-      msg: '服务器内部错误',
-      data: null
-    })
+    return sendResponse(res, handleError(err, '获取用户信息失败'))
   }
 })
 
