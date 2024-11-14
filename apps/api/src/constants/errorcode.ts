@@ -14,7 +14,8 @@ export enum ErrorCode {
   USER_DISABLED = 1003,
   PASSWORD_ERROR = 1004,
   TOKEN_EXPIRED = 1005,
-  TOKEN_INVALID = 1006
+  TOKEN_INVALID = 1006,
+  FILE_TOO_LARGE = 1007
 }
 
 export class BusinessError extends Error {
