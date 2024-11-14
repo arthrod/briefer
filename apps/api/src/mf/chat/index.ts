@@ -421,7 +421,6 @@ async function handleStreamResponse(
                 error: parseError instanceof Error ? parseError.message : 'Unknown error'
               }
             })
-            continue
           }
         }
       }
