@@ -12,30 +12,50 @@ import { Send } from 'express-serve-static-core'
 import fs from 'fs/promises'
 import path from 'path'
 
-// 1. 配置常量
-const USE_TEST_AUTH = true // 测试模式开关
-const AI_AGENT_URL = process.env['AI_AGENT_URL']
-const CHAT_DETAIL_CACHE_DURATION = 60
+// 1. 将所有配置常量集中到一个对象中
+const CONFIG = {
+  USE_TEST_AUTH: true, // 测试模式开关，如果为 true，则使用 mock 数据
+  AI_AGENT_URL: process.env['AI_AGENT_URL'],
+  CHAT_DETAIL_CACHE_DURATION: 60,
+  RATE_LIMITS: {
+    API: {
+      windowMs: 15 * 60 * 1000,
+      max: 100
+    },
+    CREATE_CHAT: {
+      windowMs: 60 * 1000, 
+      max: 20
+    },
+    COMPLETIONS: {
+      windowMs: 60 * 1000,
+      max: 10
+    },
+    SUMMARIZE: {
+      windowMs: 60 * 1000,
+      max: 10
+    }
+  }
+} as const
 
 // 2. 速率限制器配置
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100
+  windowMs: CONFIG.RATE_LIMITS.API.windowMs,
+  max: CONFIG.RATE_LIMITS.API.max
 })
 
 const createChatLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 20
+  windowMs: CONFIG.RATE_LIMITS.CREATE_CHAT.windowMs,
+  max: CONFIG.RATE_LIMITS.CREATE_CHAT.max
 })
 
 const completionsLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 10
+  windowMs: CONFIG.RATE_LIMITS.COMPLETIONS.windowMs,
+  max: CONFIG.RATE_LIMITS.COMPLETIONS.max
 })
 
 const summarizeLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 10
+  windowMs: CONFIG.RATE_LIMITS.SUMMARIZE.windowMs,
+  max: CONFIG.RATE_LIMITS.SUMMARIZE.max
 })
 
 // 3. 接口定义
@@ -197,7 +217,7 @@ function getMockSession() {
 }
 
 // 8. 中间件
-const authMiddleware = USE_TEST_AUTH
+const authMiddleware = CONFIG.USE_TEST_AUTH
   ? ((req: Request, res: Response, next: NextFunction) => {
     req.session = getMockSession();
     next();
@@ -949,7 +969,7 @@ router.post('/round/create', authMiddleware, async (req, res) => {
 // Chat 详情路由
 router.post('/detail',
   authMiddleware,
-  cacheMiddleware(CHAT_DETAIL_CACHE_DURATION),
+  cacheMiddleware(CONFIG.CHAT_DETAIL_CACHE_DURATION),
   async (req, res) => {
     try {
       const validatedData = validateSchema(getChatDetailSchema, req.body, 'get chat detail')
@@ -1125,7 +1145,7 @@ router.get('/completions',
         logger().info({
           msg: 'Relation check request',
           data: {
-            url: `${AI_AGENT_URL}/v1/ai/chat/relation`,
+            url: `${CONFIG.AI_AGENT_URL}/v1/ai/chat/relation`,
             requestBody: { messages },
             chatId,
             roundId,
@@ -1134,7 +1154,7 @@ router.get('/completions',
         })
 
         const relationCheckResponse = await fetchWithTimeout(
-          `${AI_AGENT_URL}/v1/ai/chat/relation`,
+          `${CONFIG.AI_AGENT_URL}/v1/ai/chat/relation`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1167,7 +1187,7 @@ router.get('/completions',
         }
 
         const response = await fetchWithTimeout(
-          `${AI_AGENT_URL}/v1/ai/chat/data/completions`,
+          `${CONFIG.AI_AGENT_URL}/v1/ai/chat/data/completions`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1277,7 +1297,7 @@ router.get('/summarize',
         logger().info({
           msg: 'Summarize request parameters',
           data: {
-            url: `${AI_AGENT_URL}/v1/ai/chat/summarize`,
+            url: `${CONFIG.AI_AGENT_URL}/v1/ai/chat/summarize`,
             requestBody: {
               messages,
               temperature: 0
@@ -1289,7 +1309,7 @@ router.get('/summarize',
         })
 
         const response = await fetchWithTimeout(
-          `${AI_AGENT_URL}/v1/ai/chat/summarize`,
+          `${CONFIG.AI_AGENT_URL}/v1/ai/chat/summarize`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
