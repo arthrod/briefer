@@ -1136,7 +1136,7 @@ router.get('/completions',
 
       const messages: Message[] = [{
         id: chatRecord.id,
-        role: chatRecord.speakerType,
+        role: 'user',
         content: sanitizeInput(chatRecord.question)
       }]
 
