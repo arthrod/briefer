@@ -18,11 +18,26 @@ const userSchema = z.object({
   nickname: z.string().optional()
 })
 
+const emptyStringToUndefined = (value: unknown) => 
+  value === '' ? undefined : value
+
 const userEditSchema = z.object({
   uid: z.string().min(1, "用户ID不能为空"),
-  phone: z.string().regex(/^1[3-9]\d{9}$/, "请输入有效的手机号").optional(),
-  email: z.string().email("请输入有效的邮箱").optional(),
-  nickname: z.string().optional()
+  phone: z.preprocess(
+    emptyStringToUndefined,
+    z.union([
+      z.string().regex(/^1[3-9]\d{9}$/, "请输入有效的手机号"),
+      z.null()
+    ]).optional()
+  ),
+  email: z.preprocess(
+    emptyStringToUndefined,
+    z.union([
+      z.string().email("请输入有效的邮箱"),
+      z.null()
+    ]).optional()
+  ),
+  nickname: z.string().optional().nullable()
 })
 
 const uidSchema = z.object({
@@ -72,13 +87,14 @@ userRouter.post('/edit', async (req, res) => {
     const { uid, phone, email, nickname } = result.data
     Logger.info('尝试更新用户信息', { uid, phone, email, nickname })
 
+    const updateData: any = {}
+    if (phone !== undefined) updateData.phone = phone
+    if (email !== undefined) updateData.email = email
+    if (nickname !== undefined) updateData.nickname = nickname
+
     const updatedUser = await prisma().user.update({
       where: { id: uid },
-      data: {
-        phone: phone ?? undefined,
-        email: email ?? undefined,
-        nickname: nickname ?? undefined
-      }
+      data: updateData
     })
 
     Logger.info('用户信息更新成功', { userId: updatedUser.id })
