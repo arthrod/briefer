@@ -14,7 +14,7 @@ import rateLimit from 'express-rate-limit'
 const uploadRouter = Router()
 
 // 配置常量
-const USE_TEST_AUTH = true // 测试模式开关，true 时使用测试数据，false 时使用正常认证
+const USE_TEST_AUTH = false // 测试模式开关，true 时使用测试数据，false 时使用正常认证
 const fileSizeLimit = 1024 * 1024 * 1024 // 1GB
 
 // 速率限制器配置
