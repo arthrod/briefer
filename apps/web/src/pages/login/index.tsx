@@ -6,13 +6,33 @@ import Link from 'next/link'
 import Spin from '@/components/Spin'
 import Cookies from 'js-cookie'
 import useProperties from '@/hooks/useProperties'
+import styles from './index.module.scss'
+import { Icon } from 'lucide-react'
+import AccountSvg from '../../icons/login_account.svg'
+import PwdSvg from '../../icons/logn_pwd.svg'
+import MindFlowSvg from '../../icons/mind-flow.svg'
+import { Checkbox } from '@/components/mf/Checkbox/Checkbox'
+import { CheckedState } from '@radix-ui/react-checkbox'
 
 export default function Login() {
   const properties = useProperties()
   const router = useRouter()
   const session = useSession()
   const tokenExists = Cookies.get('sessionExpiry')
-
+  const [remePwd, setRemePwd] = useState<boolean | 'indeterminate'>(false)
+  useEffect(() => {
+    const value = localStorage.getItem('remePwd');
+    const username = localStorage.getItem('username') || '';
+    const booleanValue = value === 'true';
+    setRemePwd(booleanValue);
+    if (value) {
+      setUsername(username)
+    }
+  },[])
+  const onChangeChecked = useCallback((checked: CheckedState) => {
+    setRemePwd(checked);
+    localStorage.setItem('remePwd', checked.toString())
+  }, [])
   useEffect(() => {
     if (session.data && tokenExists) {
       router.replace('/')
@@ -27,6 +47,7 @@ export default function Login() {
     [setUsername]
   )
 
+
   const [password, setPassword] = useState('')
   const onChangePassword: ChangeEventHandler<HTMLInputElement> = useCallback(
     (e) => {
@@ -35,12 +56,13 @@ export default function Login() {
     [setPassword]
   )
 
+
   const [auth, { loginWithPassword }] = useLogin()
 
   const onPasswordAuth: FormEventHandler<HTMLFormElement> = useCallback(
     (e) => {
       e.preventDefault()
-
+      
       loginWithPassword(username, password)
     },
     [username, password]
@@ -48,7 +70,7 @@ export default function Login() {
 
   useEffect(() => {
     if (properties.data?.needsSetup) {
-      router.replace('/setup')
+      // router.replace('/setup')
     }
   }, [properties, router])
 
@@ -67,87 +89,93 @@ export default function Login() {
   }
 
   return (
-    <div className="w-100vw relative h-full overflow-hidden">
-      <img
-        className="t-0 l-0 absolute opacity-10"
-        src="/images/zebra-pattern.svg"
-        alt="background pattern"
-      />
-      <div className="font-syne bg-ceramic-100/90 relative flex h-full items-center justify-center sm:justify-around">
-        <div className="">
-          <h1 className="font-trap text-hunter-950 text-7xl font-bold leading-[6rem] tracking-tight lg:text-[96px]">
-            DataAgent
-          </h1>
-          <p className="text-hunter-900 pl-1 text-lg lg:text-2xl">
-            The collaborative data platform.
-          </p>
-        </div>
+    <div
+      className={clsx('w-100vw relative h-full overflow-hidden', styles.login_home)}>
+      <MindFlowSvg
+      className={styles.mindflow_icon}
+      ></MindFlowSvg>
+      <div className={styles.content}>
 
         {/*
          * This padding must match the sum of the paddings of the messages at
          * the bottom of the box so that the box is centered with the logo on
          * the left.
          */}
-        <div className="pt-12">
-          <div className={clsx(auth.error ? 'visible' : 'hidden', 'py-8')}>
-            <div className="bg-ceramic-50 rounded-sm border border-red-300 py-4 shadow sm:w-[380px] lg:w-[480px]">
+        <div>
+          <div className={clsx(auth.error ? 'visible' : 'hidden', 'py-8', 'flex')}>
+            <div className="bg-ceramic-50 rounded-sm border border-red-300 py-4 sm:w-[380px] lg:w-[480px]">
               <div className="text-md text-center text-red-700">
                 {auth.error === 'unexpected' && 'Something went wrong. Please contact support.'}
-                {auth.error === 'invalid-creds' && 'Invalid credentials. Please try again.'}
+                {auth.error === 'invalid-creds' && '用户名或密码错误'}
               </div>
             </div>
           </div>
 
           <div
             className={clsx(
-              'bg-ceramic-50 flex flex-col rounded-lg p-12 shadow sm:w-[380px] lg:w-[480px]',
-              'gap-y-6'
+              'flex flex-col rounded-lg',
+              styles.form
             )}>
             <h2 className="text-hunter-900 text-4xl font-bold tracking-tight">登录</h2>
 
-            <form onSubmit={onPasswordAuth}>
+            <form onSubmit={onPasswordAuth} className='mt-[16px]'>
               <div>
-                <div className="pb-4">
+                <div className={clsx('pb-4')}>
                   <label htmlFor="username" className="block pb-2 text-sm leading-6 text-gray-500">
-                    用户名
+                    帐号
                   </label>
-                  <div>
+                  <div className={styles.input_layout}>
+                    <AccountSvg className={styles.icon} />
                     <input
                       name="username"
                       type="text"
+                      className={styles.input}
                       disabled={auth.data !== undefined || auth.loading}
                       required
                       value={username}
                       onChange={onChangeEmail}
-                      className="block w-full rounded-md border-0 py-2 text-sm leading-6 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-gray-600 disabled:cursor-not-allowed disabled:bg-gray-100"
+                      placeholder="请输入帐号"
                     />
                   </div>
                 </div>
 
-                <div className="pb-4">
+                <div className={clsx('mt-[28px]')}>
                   <label htmlFor="username" className="block pb-2 text-sm leading-6 text-gray-500">
                     密码
                   </label>
-                  <div>
+                  <div className={styles.input_layout}>
+                    <PwdSvg className={styles.icon}></PwdSvg>
                     <input
                       name="password"
                       type="password"
                       autoComplete="password"
+                      placeholder="请输入密码"
                       disabled={auth.data !== undefined || auth.loading}
                       required
                       value={password}
                       onChange={onChangePassword}
-                      className="block w-full rounded-md border-0 py-2 text-sm leading-6 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-gray-600 disabled:cursor-not-allowed disabled:bg-gray-100"
+                      className={styles.input}
                     />
                   </div>
                 </div>
-
-                <div className={clsx('pt-3')}>
+                <div className="flex items-center space-x-2 mt-[18px]">
+                  <Checkbox id="terms" checked={remePwd} onCheckedChange={onChangeChecked}/>
+                  <label
+                    htmlFor="terms"
+                    className={clsx("text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
+                      styles.checkbox
+                  
+                    )}>
+                    记住密码
+                  </label>
+                </div>
+                <div className={clsx('mt-[44px]')}>
                   <button
                     type="submit"
                     disabled={auth.data !== undefined || auth.loading}
                     className={clsx(
-                      'bg-primary-200 hover:bg-primary-300 flex w-full items-center justify-center rounded-sm px-6 py-3 text-sm font-medium shadow-sm disabled:bg-gray-200 disabled:hover:cursor-not-allowed'
+                      styles.botton,
+                      'flex w-full items-center justify-center rounded-sm px-6 py-3 text-sm font-medium shadow-sm disabled:bg-gray-200 disabled:hover:cursor-not-allowed'
                     )}>
                     <span>登录</span>
                     {auth.loading && <Spin wrapperClassName="pl-2" />}
@@ -156,7 +184,7 @@ export default function Login() {
               </div>
             </form>
           </div>
-          <div className="pt-8 text-center text-slate-500">
+          {/* <div className="pt-8 text-center text-slate-500">
             <p className="text-xs text-slate-500">
               By logging in, you agree to our{' '}
               <Link
@@ -174,7 +202,7 @@ export default function Login() {
               </Link>
               .
             </p>
-          </div>
+          </div> */}
         </div>
       </div>
     </div>

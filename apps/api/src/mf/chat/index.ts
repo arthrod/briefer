@@ -14,7 +14,7 @@ import path from 'path'
 
 // 1. 将所有配置常量集中到一个对象中
 const CONFIG = {
-  USE_TEST_AUTH: true, // 测试模式开关，如果为 true，则使用 mock 数据
+  USE_TEST_AUTH: false, // 测试模式开关，如果为 true，则使用 mock 数据
   AI_AGENT_URL: process.env['AI_AGENT_URL'],
   CHAT_DETAIL_CACHE_DURATION: 60,
   RATE_LIMITS: {

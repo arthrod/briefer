@@ -74,12 +74,11 @@ export const useLogin = (): UseLogin => {
   const loginWithPassword = useCallback(
     (username: string, password: string) => {
       setState((s) => ({ ...s, loading: true }))
-
       fetch(`${NEXT_PUBLIC_API_URL()}/auth/sign-in/password`, {
         credentials: 'include',
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: username, password }),
+        body: JSON.stringify({ loginName: username, password: AesTools.encrypt(password) }),
       })
         .then(async (res) => {
           if (res.ok) {
@@ -88,6 +87,7 @@ export const useLogin = (): UseLogin => {
               data: await res.json(),
               error: undefined,
             })
+            localStorage.setItem('username', username)
             return
           }
 

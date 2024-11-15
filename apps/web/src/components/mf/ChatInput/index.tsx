@@ -3,27 +3,56 @@ import UploadIcon from '../../../icons/upload.svg'
 import SendIcon from '../../../icons/send.svg'
 import FileIcon from '../../../icons/file.svg'
 import DeleteIcon from '../../../icons/delete.svg'
-import { ChangeEvent, useEffect, useRef, useState } from 'react'
+import { ChangeEvent, forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import clsx from 'clsx'
+import { props } from 'ramda'
+import Spinner from '../Spinner'
 
 interface IProps {
   className?: string
+  isUpload: boolean
+  send?: (question: string, fileId?: string) => void
 }
 
-export default function ChatInput({ className }: IProps) {
+const ChatInput = forwardRef(({ className, isUpload, send }: IProps, ref) => {
   const [question, setQuestion] = useState('')
+  const [fileId, setFileId] = useState('')
+  const [isLoading, setIsLoading] = useState<boolean>(false)
   const [isOpen, setIsOpen] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
-
+  const questionRef = useRef<HTMLInputElement>(null)
+  useImperativeHandle(ref, () => ({
+    clearQuestion: clearQuestion,
+    openLoading: openLoading,
+    closeLoading: closeLoading,
+  }))
+  const clearQuestion = () => {
+    setQuestion('')
+    if (questionRef.current) {
+      questionRef.current.value = ''
+    }
+  }
+  const openLoading = () => {
+    setIsLoading(true)
+  }
+  const closeLoading = () => {
+    setIsLoading(false)
+  }
   const handleFileChangeEvent = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
+      //todo 添加上传文件获取服务端返回的id并赋值给fileId
       console.log(e.target.files[0])
     }
   }
 
   useEffect(() => {}, [])
-
+  let prefixClassName = ''
+  if (isUpload) {
+    prefixClassName = clsx(styles.prefix)
+  } else {
+    prefixClassName = clsx(styles.prefix, styles.hiddenPrefix)
+  }
   return (
     <div className={clsx(styles.chatInput, className)}>
       <Popover open={isOpen}>
@@ -36,7 +65,7 @@ export default function ChatInput({ className }: IProps) {
           hidden
         />
         <span
-          className={styles.prefix}
+          className={prefixClassName}
           onClick={() => {
             inputRef.current?.click()
           }}>
@@ -44,6 +73,7 @@ export default function ChatInput({ className }: IProps) {
         </span>
         <PopoverTrigger asChild>
           <input
+            ref={questionRef}
             type="text"
             className={clsx(styles.input)}
             placeholder="向AI助手描述需求"
@@ -52,8 +82,14 @@ export default function ChatInput({ className }: IProps) {
             }}
           />
         </PopoverTrigger>
-        <button className={clsx(styles.sendBtn, question ? styles.activate : '')}>
-          <SendIcon />
+        <button
+          className={clsx(styles.sendBtn, question ? styles.activate : '')}
+          onClick={(e) => {
+            if (send) {
+              send(question, fileId)
+            }
+          }}>
+          {isLoading ? <Spinner /> : <SendIcon />}
         </button>
 
         <PopoverContent asChild>
@@ -77,4 +113,6 @@ export default function ChatInput({ className }: IProps) {
       </Popover>
     </div>
   )
-}
+})
+
+export default ChatInput

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { forwardRef, useId, useImperativeHandle, useState } from 'react'
 import ScrollBar from '../../ScrollBar'
 import styles from './index.module.scss'
 import clsx from 'clsx'
@@ -6,16 +6,22 @@ import { Markdown } from '../markdown'
 
 const content =
   '我是您的AI小助手，有什么可以帮您？我是您的AI小助手，有什么可以帮您？我是您的AI小助手，有什么可以帮您？我是您的AI小助手，有什么可以帮您？我是您的AI小助手，有什么可以帮您？我是您的AI小助手，有什么可以帮您？我是您的AI小助手，有什么可以帮您？我是您的AI小助手，有什么可以帮您？我是您的AI小助手，有什么可以帮您？我是您的AI小助手，有什么可以帮您？我是您的AI小助手，有什么可以帮您？我是您的AI小助手，有什么可以帮您？我是您的AI小助手，有什么可以帮您？我是您的AI小助手，有什么可以帮您？'
-const ChatDetail = () => {
-  const [list, setList] = useState([{}])
 
+const ChatDetail = forwardRef((props, ref) => {
+  const [list, setList] = useState([{}])
+  useImperativeHandle(ref, () => {
+    addSendMsg: addSendMsg
+  })
+  const addSendMsg = (msg: string) => {
+    
+  }
   const onRightClick = (e: any) => {}
 
   return (
     <ScrollBar className={styles.chatList}>
       {list.length ? (
         list.map((message, index) => (
-          <div className={clsx(styles.chatItem, styles.user)}>
+          <div className={clsx(styles.chatItem, styles.user)} key={useId()}>
             <span className={styles.robot}>
               <img width={14} src="/icons/logo.svg" alt="" />
             </span>
@@ -34,5 +40,5 @@ const ChatDetail = () => {
       )}
     </ScrollBar>
   )
-}
+})
 export default ChatDetail

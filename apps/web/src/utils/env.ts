@@ -25,6 +25,11 @@ export const NEXT_PUBLIC_API_WS_URL = () =>
   getFromWindow('NEXT_PUBLIC_API_WS_URL') ||
   `${currentUrl().replace('http', 'ws')}/api`
 
+  export const NEXT_PUBLIC_MF_API_URL = () =>
+    process.env.NEXT_PUBLIC_MF_API_URL ||
+    getFromWindow('NEXT_PUBLIC_MF_API_URL') ||
+    `${currentUrl()}/v1/mf`
+
 export const NEXT_PUBLIC_PUBLIC_URL = () =>
   process.env.NEXT_PUBLIC_PUBLIC_URL ||
   getFromWindow('NEXT_PUBLIC_PUBLIC_URL') ||

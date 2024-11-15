@@ -30,11 +30,12 @@ export const useSessionRedirect = (shouldRedirect = true) => {
     }
 
     if (!session.data) {
-      if (properties.data.needsSetup) {
-        router.replace('/setup')
-      } else {
-        redirectToLogin(router)
-      }
+      redirectToLogin(router)
+      // if (properties.data.needsSetup) {
+      //   router.replace('/setup')
+      // } else {
+      //   redirectToLogin(router)
+      // }
     } else if (workspaces.data.length === 0) {
       signOut()
     } else {

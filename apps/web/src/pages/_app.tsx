@@ -13,6 +13,7 @@ import '@/styles/globals.css'
 import '@/styles/markdown.scss'
 import 'simplebar-react/dist/simplebar.min.css'
 
+
 import '../../scripts/wdyr'
 import DndBackendProvider from '@/components/DndBackendProvider'
 import { SideBarProvider } from '@/hooks/useSideBar'
