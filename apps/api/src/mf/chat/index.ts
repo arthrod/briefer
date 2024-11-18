@@ -1026,7 +1026,7 @@ router.post('/round/create', authMiddleware, async (req, res) => {
 // Chat 详情路由
 router.post('/detail',
   authMiddleware,
-  cacheMiddleware(CONFIG.CHAT_DETAIL_CACHE_DURATION),
+  // cacheMiddleware(CONFIG.CHAT_DETAIL_CACHE_DURATION),
   async (req, res) => {
     try {
       const validatedData = validateSchema(getChatDetailSchema, req.body, 'get chat detail')
