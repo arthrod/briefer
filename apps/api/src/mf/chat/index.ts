@@ -113,42 +113,47 @@ interface ErrorResponse {
 }
 
 // 4. Schema 定义
+
+// 基础类型定义
+const baseId = z.string().min(1, "ID不能为空")
+
+// 基础 Schema
+const baseChatSchema = {
+  chatId: baseId.describe("对话ID")
+}
+
+const baseRoundSchema = {
+  ...baseChatSchema,
+  roundId: baseId.describe("对话轮次ID")
+}
+
+// 具体业务 Schema
 const createChatSchema = z.object({
   type: z.enum(['rag', 'report']),
   fileId: z.string()
 })
 
 const updateChatSchema = z.object({
-  id: z.string().min(1, "对话ID不能为空"),
+  id: baseId.describe("对话ID"),
   title: z.string().min(1, "标题不能为空"),
 })
 
 const deleteChatSchema = z.object({
-  id: z.string().min(1, "对话ID不能为空"),
+  id: baseId.describe("对话ID"),
 })
 
 const createChatRoundSchema = z.object({
   question: z.string().min(1, "问题不能为空"),
-  chatId: z.string().min(1, "聊天ID不能为空"),
+  ...baseChatSchema,
 })
 
 const getChatDetailSchema = z.object({
-  id: z.string().min(1, "聊天ID不能为空"),
+  id: baseId.describe("对话ID"),
 })
 
-const chatCompletionsSchema = z.object({
-  chatId: z.string().min(1, "对话ID不能为空"),
-  roundId: z.string().min(1, "对话轮次ID不能为空"),
-})
-
-const summarizeChatSchema = z.object({
-  chatId: z.string().min(1, "对话ID不能为空"),
-  roundId: z.string().min(1, "对话轮次ID不能为空"),
-})
-
-const getChatStatusSchema = z.object({
-  chatId: z.string().min(1, "聊天ID不能为空")
-})
+const chatCompletionsSchema = z.object(baseRoundSchema)
+const summarizeChatSchema = z.object(baseRoundSchema)
+const getChatStatusSchema = z.object(baseChatSchema)
 
 // 5. 错误类
 class ValidationError extends Error {
