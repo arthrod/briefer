@@ -146,6 +146,10 @@ const summarizeChatSchema = z.object({
   roundId: z.string().min(1, "对话轮次ID不能为空"),
 })
 
+const getChatStatusSchema = z.object({
+  chatId: z.string().min(1, "聊天ID不能为空")
+})
+
 // 5. 错误类
 class ValidationError extends Error {
   constructor(message: string) {
@@ -1423,6 +1427,72 @@ router.get('/summarize',
       res.end()
     }
   })
+
+// Chat 状态查询路由
+router.post('/status', authMiddleware, async (req, res) => {
+  try {
+    const validatedData = validateSchema(getChatStatusSchema, req.body, 'get chat status')
+    if (!validatedData) {
+      return res.status(400).json(createErrorResponse(400, '参数校验失败'))
+    }
+
+    const { chatId } = validatedData
+    const userId = req.session.user.id
+
+    logger().info({
+      msg: 'Attempting to get chat status',
+      data: { chatId, userId }
+    })
+
+    const chat = await prisma().chat.findFirst({
+      where: {
+        id: chatId,
+        userId
+      },
+      select: {
+        id: true,
+        records: {
+          orderBy: {
+            createdTime: 'desc'
+          },
+          take: 1,
+          select: {
+            status: true
+          }
+        }
+      }
+    })
+
+    if (!chat) {
+      throw new AuthorizationError('聊天记录不存在或无权访问')
+    }
+
+    const status = chat.records[0]?.status === CONFIG.CHAT_STATUS.CHATTING ? 'chating' : 'idle'
+
+    logger().info({
+      msg: 'Chat status retrieved successfully',
+      data: {
+        chatId,
+        userId,
+        status
+      }
+    })
+
+    return res.json({
+      code: 0,
+      data: {
+        status
+      },
+      msg: '获取成功'
+    })
+
+  } catch (err) {
+    if (err instanceof AuthorizationError) {
+      return res.status(403).json(createErrorResponse(403, err.message))
+    }
+    return handleError(err, req, res, 'get chat status')
+  }
+})
 
 // 初始化验证
 validateEnvVars()
