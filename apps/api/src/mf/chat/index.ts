@@ -14,7 +14,7 @@ import path from 'path'
 
 // 1. 将所有配置常量集中到一个对象中
 const CONFIG = {
-  USE_TEST_AUTH: false, // 测试模式开关，如果为 true，则使用 mock 数据
+  USE_TEST_AUTH: true, // 测试模式开关，如果为 true，则使用 mock 数据
   AI_AGENT_URL: process.env['AI_AGENT_URL'],
   CHAT_DETAIL_CACHE_DURATION: 60,
   RATE_LIMITS: {
@@ -378,7 +378,9 @@ async function handleStreamResponse(
           })
 
           if (data.includes('[DONE]')) {
-            // 根据不同类型更新不同的目标
+            // 在完整消息末尾添加[DONE]标记
+            completeMessage += '\n[DONE]'
+            
             try {
               const now = new Date()
 
@@ -451,7 +453,7 @@ async function handleStreamResponse(
           try {
             // 解析JSON获取实际内容
             const jsonData = JSON.parse(data)
-            const content = (jsonData.choices?.[0]?.delta?.content || '').replace(/\n/g, '')
+            const content = jsonData.choices?.[0]?.delta?.content || ''
 
             if (content && typeof content === 'string' && content.trim().length > 0) {
               completeMessage += content
@@ -468,7 +470,7 @@ async function handleStreamResponse(
               })
 
               // 正确的SSE数据格式: "data: " + content + "\n\n"
-              res.write(`data: ${content}\n\n`)
+              res.write(`data: ${content.replace(/\n/g, '')}\n\n`) // 发送时去除换行符
             }
           } catch (parseError) {
             logger().error({
@@ -502,7 +504,7 @@ async function handleStreamResponse(
           const content = jsonData.choices?.[0]?.delta?.content || ''
           if (content && typeof content === 'string' && content.trim().length > 0) {
             completeMessage += content
-            res.write(`data: ${content}\n\n`)
+            res.write(`data: ${content.replace(/\n/g, '')}\n\n`) // 发送时去除换行符
           }
         } catch (parseError) {
           logger().error({
@@ -543,6 +545,11 @@ async function handleStreamResponse(
     // 错误情况下也尝试保存
     try {
       const now = new Date()
+      
+      // 确保错误情况下也添加[DONE]标记
+      if (!completeMessage.endsWith('[DONE]')) {
+        completeMessage += '\n[DONE]'
+      }
 
       if (updateTarget.type === 'chat_record' && updateTarget.roundId) {
         await prisma().$transaction([
