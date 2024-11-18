@@ -1,0 +1,18 @@
+.robotMessage {
+    .content {
+        font-size: 14px;
+        color: #272A33;
+        &:not(:last-child) {
+            margin-bottom: 16px; // 只有在不是最后一个元素时才加 margin-bottom
+        }
+    }
+
+    .title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #272A33;
+        &:not(:last-child) {
+            margin-bottom: 4px; // 只有在不是最后一个元素时才加 margin-bottom
+        }
+    }
+}

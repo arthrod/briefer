@@ -2,13 +2,17 @@
   height: 100%;
   display: flex;
   font-size: 0.875rem;
+  width: 100%;
 }
-
+.logo_icon {
+  cursor: pointer;
+}
 .left {
   width: 15rem;
   background-color: #f4f7fe;
   padding: 1rem;
   height: 100%;
+
   .createBtn {
     margin-top: 1.25rem;
     display: flex;
@@ -23,15 +27,18 @@
     border: 1px solid rgba(47, 105, 254, 0.12);
     cursor: pointer;
   }
+
   .chatListWrapper {
     margin-top: 1.25rem;
     height: calc(100% - 1.25rem - 2rem - 2.5rem - 1.25rem);
+
     .chatItem {
       position: relative;
       width: 13rem;
       padding: 0.75rem;
       border-radius: 0.5rem;
       cursor: pointer;
+
       .moreOpt {
         display: none;
         position: absolute;
@@ -39,14 +46,22 @@
         transform: translateY(-50%);
         right: 1.25rem;
       }
+
       &:hover {
         color: #2f69fe;
-        background: #dce6fa;
+        background: rgb(220, 230, 250, 0.5);
+
         .moreOpt {
           display: block;
         }
       }
     }
+
+    .chatItem_active {
+      color: #2f69fe;
+      background: rgba(220, 230, 250);
+    }
+
     .empty {
       margin-top: 5rem;
     }
@@ -59,4 +74,28 @@
   background-repeat: no-repeat;
   background-position: right bottom;
   background-size: 53rem auto;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  .title {
+    padding-top: 20px;
+    display: flex;
+    flex-direction: row-reverse;
+    align-items: center;
+    padding-bottom: 24px;
+    .userAvatar {
+      width: 40px; // 设置宽度
+      height: 40px; // 设置高度
+      margin-right: 40px;
+      border-radius: 60%; // 设置为圆形
+      background-color: #2F69FE; // 设置背景颜色
+      color: white; // 设置字体颜色
+      display: flex; // 使用 flexbox 进行居中
+      align-items: center; // 垂直居中
+      justify-content: center; // 水平居中
+      font-size: 20px; // 设置字体大小
+      font-weight: bold; // 设置字体加粗
+      cursor: pointer;
+    }
+  }
 }

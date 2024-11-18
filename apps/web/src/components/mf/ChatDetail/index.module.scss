@@ -1,10 +1,28 @@
 .chatList {
-  padding: 24px 16px;
+  // scroll-behavior: smooth;
+  // overflow-y: auto;
   height: 100%;
-  overflow-y: auto;
+  width: 100%;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+  }
+
   .chatItem {
     display: flex;
     margin-bottom: 24px;
+    width: 100%;
+    overflow: hidden;
+
     .robot {
       display: inline-flex;
       align-items: center;
@@ -14,17 +32,117 @@
       border-radius: 12px;
       border: 1px solid rgba(0, 0, 0, 0.06);
     }
+
     .content {
+      white-space: pre-wrap;
+      color: #272A33;
       margin: 0 4px;
       padding: 8px;
       border-radius: 0px 12px 12px 12px;
       border: 1px solid rgba(0, 0, 0, 0.06);
+      overflow: hidden;
+      /* 允许文本换行 */
+      /* 限制最大宽度 */
+      /* 兼容性处理 */
     }
+
+    .content * {
+      white-space: pre-wrap;
+      /* 对所有子元素生效 */
+      word-wrap: break-word;
+      /* 兼容性更好的自动换行 */
+      overflow-wrap: break-word;
+      /* 确保长单词换行 */
+    }
+
+    .errorContent {
+      background: rgba(255, 59, 82, 0.12);
+      border-width: 1px;
+      border-color: rgba(255, 59, 82, 0.5);
+      padding: 20px;
+      color: #272A33;
+      border-radius: 8px;
+      margin-top: 24px;
+      margin-left: 4px;
+      display: flex;
+      align-items: flex-start;
+      flex-direction: column;
+
+      >div:first-child {
+        // 错误信息文本
+        width: 100%;
+        text-align: left; // 文本左对齐
+      }
+
+      .buttonWrapper {
+        width: 100%;
+        display: flex;
+        justify-content: center; // 水平居中
+
+        .errorButton {
+          width: fit-content;
+          margin-top: 12px;
+          padding: 8px 16px;
+          cursor: pointer;
+          border: none;
+          border-radius: 6px;
+          font-size: 14px;
+          line-height: 20px;
+          transition: all 0.2s ease;
+
+          // 主色调按钮
+          background-color: #2f69fe;
+          color: white;
+
+          // 悬停效果（稍微暗一点）
+          &:hover {
+            background-color: #1a54fa;
+          }
+
+          // 点击效果（更暗）
+          &:active {
+            background-color: #0040f5;
+          }
+
+          // 可选：添加微妙的阴影效果
+          box-shadow: 0 2px 4px rgba(47, 105, 254, 0.2);
+
+          // 禁用状态
+          &:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            background-color: #a8c1fe;
+          }
+
+          // 可选：添加 focus 状态的轮廓
+          &:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(47, 105, 254, 0.3);
+          }
+        }
+      }
+    }
+
     &.user {
       flex-direction: row-reverse;
+
       .content {
         border-radius: 12px 0px 12px 12px;
         background: #dce6fa;
+      }
+
+      .userAvatar {
+
+        min-width: 24px; // 设置宽度
+        height: 24px; // 设置高度
+        border-radius: 60%; // 设置为圆形
+        background-color: #2F69FE; // 设置背景颜色
+        color: white; // 设置字体颜色
+        display: flex; // 使用 flexbox 进行居中
+        align-items: center; // 垂直居中
+        justify-content: center; // 水平居中
+        font-size: 14px; // 设置字体大小
+        font-weight: bold; // 设置字体加粗
       }
     }
   }

@@ -12,28 +12,24 @@ export type ReportFileData = {
   type: ReportFileType
 }
 
-export type ReportMessage = {
-  id: number
-  role: MessageRoleType
-  content: string
-}
-
 export type ReportDetailData = {
   type: ChatType
-  messages: ReportMessage[]
+  messages: MessageContent[]
   documentId?: string
   file: ReportFileData
 }
 
-export type RagMessage = {
-  id: number
+export type MessageContent = {
+  id: string
   role: MessageRoleType
   content: string
+  isError?: boolean
+  roundId?: string
 }
 
 export type RagDetailData = {
   type: ChatType
-  messages: ReportMessage[]
+  messages: MessageContent[]
 }
 
 export type ChatDetail = {
@@ -58,7 +54,7 @@ export const useChatDetail = () => {
     //   throw new Error(`Unexpected status ${res.status}`)
     // }
 
-    return getData<T>(await res.json()) as T
+    return getData<T>(res) as T
   }, [])
   return useMemo(() => [{ getChatDetail }], [getChatDetail])
 }
