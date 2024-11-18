@@ -34,6 +34,12 @@ const CONFIG = {
       windowMs: 60 * 1000,
       max: 10
     }
+  },
+  CHAT_STATUS: {
+    START: 1,
+    CHATTING: 2,
+    COMPLETED: 3,
+    FAILED: 4
   }
 } as const
 
@@ -388,7 +394,6 @@ async function handleStreamResponse(
 
             await fs.writeFile(logFilePath, completeMessage, 'utf-8')
             res.write(`data: [DONE]\n\n`)
-            res.end()
             return
           }
 
@@ -1131,7 +1136,7 @@ router.get('/completions',
         throw new AuthorizationError('对话记录不存在或无权访问')
       }
 
-      setupSSEConnection(res)
+      // setupSSEConnection(res)
 
       const messages: Message[] = [{
         id: chatRecord.id,
@@ -1182,7 +1187,7 @@ router.get('/completions',
         if (relationResult.code !== 0 || !relationResult.data.related) {
           res.write(`data: [ERROR] 暂时无法回答非相关内容\n\n`)
           res.write(`data: [DONE]\n\n`)
-          return res.end()
+          return
         }
 
         const response = await fetchWithTimeout(
@@ -1276,7 +1281,7 @@ router.get('/summarize',
         throw new AuthorizationError('对话记录不存在或无权访问')
       }
 
-      setupSSEConnection(res)
+      // setupSSEConnection(res)
 
       try {
         const messages = [
