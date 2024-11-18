@@ -286,6 +286,33 @@ function setupSSEConnection(res: Response) {
   // res.write(`data: {"status": "success", "message": "SSE连接已建立"}\n\n`)
 }
 
+// 添加错误消息格式化函数
+const formatErrorMessage = (error: unknown): string => {
+  const errorMessage = error instanceof Error ? error.message : '未知错误'
+  return [
+    '```error',
+    errorMessage,
+    '```'
+  ].join('\n')
+}
+
+// 添加 SSE 错误处理函数
+const sendSSEError = (res: Response, error: unknown) => {
+  const formattedError = formatErrorMessage(error)
+
+  logger().error({
+    msg: 'SSE error occurred',
+    data: {
+      error: error instanceof Error ? error.message : '未知错误',
+      stack: error instanceof Error ? error.stack : undefined
+    }
+  })
+
+  res.write(`data: ${formattedError}\n\n`)
+  res.write('data: [DONE]\n\n')
+  res.end()
+}
+
 // 定义更新类型
 type UpdateTarget = {
   type: 'chat_record' | 'chat_title';
@@ -424,7 +451,7 @@ async function handleStreamResponse(
           try {
             // 解析JSON获取实际内容
             const jsonData = JSON.parse(data)
-            const content = jsonData.choices?.[0]?.delta?.content || ''
+            const content = (jsonData.choices?.[0]?.delta?.content || '').replace(/\n/g, '')
 
             if (content && typeof content === 'string' && content.trim().length > 0) {
               completeMessage += content
@@ -440,6 +467,7 @@ async function handleStreamResponse(
                 }
               })
 
+              // 正确的SSE数据格式: "data: " + content + "\n\n"
               res.write(`data: ${content}\n\n`)
             }
           } catch (parseError) {
@@ -1270,32 +1298,15 @@ router.get('/completions',
           msg: 'AI service error',
           data: { error }
         })
-        res.write(`data: [ERROR] ${error instanceof Error ? error.message : 'AI 服务暂时不可用'}\n\n`)
-        res.write(`data: [DONE]\n\n`)
-        res.end()
+        sendSSEError(res, error instanceof Error ? error : 'AI 服务暂时不可用')
       }
 
     } catch (err) {
       if (err instanceof AuthorizationError) {
-        res.write(`data: [ERROR] ${err.message}\n\n`)
-        res.write(`data: [DONE]\n\n`)
-        return res.end()
+        sendSSEError(res, err)
+        return
       }
-
-      logger().error({
-        msg: 'Failed to process chat completion',
-        data: {
-          error: err,
-          errorMessage: err instanceof Error ? err.message : '未知错误',
-          errorStack: err instanceof Error ? err.stack : undefined,
-          requestQuery: req.query,
-          userId: req.session?.user?.id
-        }
-      })
-
-      res.write(`data: [ERROR] 服务器内部错误\n\n`)
-      res.write(`data: [DONE]\n\n`)
-      res.end()
+      sendSSEError(res, '服务器内部错误')
     }
   })
 
@@ -1404,32 +1415,15 @@ router.get('/summarize',
           msg: 'AI summarization error',
           data: { error }
         })
-        res.write(`data: [ERROR] ${error instanceof Error ? error.message : 'AI 服务暂时不可用'}\n\n`)
-        res.write(`data: [DONE]\n\n`)
-        res.end()
+        sendSSEError(res, error instanceof Error ? error : 'AI 服务暂时不可用')
       }
 
     } catch (err) {
       if (err instanceof AuthorizationError) {
-        res.write(`data: [ERROR] ${err.message}\n\n`)
-        res.write(`data: [DONE]\n\n`)
-        return res.end()
+        sendSSEError(res, err)
+        return
       }
-
-      logger().error({
-        msg: 'Failed to process chat summarization',
-        data: {
-          error: err,
-          errorMessage: err instanceof Error ? err.message : '未知错误',
-          errorStack: err instanceof Error ? err.stack : undefined,
-          requestQuery: req.query,
-          userId: req.session?.user?.id
-        }
-      })
-
-      res.write(`data: [ERROR] 服务器内部错误\n\n`)
-      res.write(`data: [DONE]\n\n`)
-      res.end()
+      sendSSEError(res, '服务器内部错误')
     }
   })
 
