@@ -33,7 +33,6 @@ type Props = AppProps & {
 
 function App({ Component, pageProps: { session, ...pageProps } }: Props) {
   const Layout = Component.layout ?? Fragment
-  console.log(Layout)
 
   const properties = useProperties()
   const telemetryEnabled = !(properties.data?.disabledAnonymousTelemetry ?? true)

@@ -43,6 +43,21 @@
       color: #fff;
       background-color: #2f69fe;
     }
+    &.disabled {
+      cursor: not-allowed;
+    }
+    .stopSquare {
+      width: 16px;
+      height: 16px;
+      background-color: #2f69fe;
+      display: inline-block;
+      border-radius: 4px;
+    }
+  }
+  .disabled {
+    background-color: #f0f0f0;
+    color: #a0a0a0;
+    cursor: not-allowed;
   }
 }
 
@@ -69,4 +84,9 @@
       }
     }
   }
+  
 }
+
+
+
+

@@ -5,7 +5,7 @@ import ChatInput from '@/components/mf/ChatInput'
 
 import RagIcon from '../../icons/rag.svg'
 import ReportIcon from '../../icons/report.svg'
-import ChatLayout from '@/components/mf/ChatLayout'
+import ChatLayout, { useChatLayout } from '@/components/mf/ChatLayout'
 import clsx from 'clsx'
 import { useCreateChat } from '@/hooks/mf/chat/useCreateChat'
 import { ChatType, HistoryChat } from '@/hooks/mf/chat/useChatList'
@@ -16,13 +16,10 @@ function HomePage() {
   const [fileId, setFileId] = useState<string>('')
   const [{ createChat }] = useCreateChat()
   const router = useRouter()
+  const { newChat, refreshChatList, getScope } = useChatLayout()
   const chatInput = useRef<{
     openLoading: () => void
     closeLoading: () => void
-    refreshChatList: () => void
-  }>(null)
-  const chatLayout = useRef<{
-    newChat: (chat: HistoryChat) => void
     refreshChatList: () => void
   }>(null)
   const setRagType = useCallback(() => {
@@ -35,8 +32,8 @@ function HomePage() {
     chatInput.current?.openLoading()
     try {
       createChat(type, fileId).then((data) => {
-        router.push(`/rag/${data.id}`)
-        chatLayout.current?.newChat(data);
+        router.push(`/rag/${data.id}`, undefined, { shallow: true })
+        newChat(data, msg);
       })
     } finally {
       chatInput.current?.closeLoading()
@@ -44,33 +41,34 @@ function HomePage() {
   }, [])
   const classNames = {
     rag: clsx(styles.item, { [styles.item_active]: type === 'rag' }),
-    report: clsx(styles.item, { [styles.item_active]: type === 'report' }),
+    report: clsx(styles.report_margin, styles.item, { [styles.item_active]: type === 'report' }),
   }
+
   return (
-    <ChatLayout
-      ref={chatLayout}
-      children={
-        <div className={styles.container}>
-          <div className={styles.title}>我能帮你做点儿什么？</div>
-          <ChatInput
-            className={styles.input}
-            isUpload={type == 'report'}
-            send={send}
-            ref={chatInput}
-          />
-          <div className={styles.suggestions}>
-            <div className={classNames.rag} onClick={setRagType}>
-              <RagIcon />
-              根据需求查找数据
-            </div>
-            <div className={classNames.report} onClick={setReportType}>
-              <ReportIcon />
-              撰写数据分析报告
-            </div>
-          </div>
+    <div className={styles.container}>
+      <div className={styles.title}>我能帮你做点儿什么？</div>
+      <div className={styles.chat_input}>
+        <ChatInput
+          className={styles.input}
+          isUpload={type == 'report'}
+          send={send}
+          ref={chatInput}
+        />
+      </div>
+      <div className={styles.suggestions}>
+        <div className={classNames.rag} onClick={setRagType}>
+          <RagIcon />
+          根据需求查找数据
         </div>
-      }></ChatLayout>
+        <div className={classNames.report} onClick={setReportType}>
+          <ReportIcon />
+          撰写数据分析报告
+        </div>
+      </div>
+    </div>
   )
 }
+
+HomePage.layout = ChatLayout
 
 export default HomePage

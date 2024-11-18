@@ -7,7 +7,7 @@ export type ChatList = {
   list: HistoryChat[]
 }
 export type HistoryChat = {
-  id: number
+  id: string
   title: string
   type: ChatType
   createdTime: string

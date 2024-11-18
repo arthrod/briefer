@@ -1,0 +1,43 @@
+
+
+``` content
+用电量是企业能源管理的重要指标，以下是对该指标含义及计算方式的简要解释:
+```
+
+
+
+``` title
+查询含义
+```
+
+
+``` content
+用电量是指企业在一定时期内实际消耗的电能总量，通常以千瓦时（kWh）为单位。它是衡量企业能源使用效率和生产活动强度的重要指标之一。用电量的计算涉及到对各类用电设备的运行时间、功率因数以及负载情况的综合分析。准确的用电量数据有助于企业进行能源管理、成本控制和节能减排策略的制定。
+```
+
+
+
+``` title
+计算公式
+```
+
+
+``` content
+用电量=电力需求x用电时间电力需求:指单位时间内所需的电力量，通常以千瓦时(kWh)为单位。用电时间:指单位时间内使用电力的时间，通常以小时为单位。
+```
+
+
+
+``` title
+数据查找结果
+```
+
+
+
+``` json
+{'table_name': 'TWC_MK_CU_ELEC_MP_DET', 'region': 'diwang_market_auto', 'link': 'https://edata.gd.csg.local:16060/index.html#/index', 'storageUri': 'cloud_sim_data/weather-project-3-data/sim_task_pwrw0amy/', 'storageTableName': 'weather_project_3_weather_project_3_weather_project_3', 'relatedColumns': [{'columnName': 'PQ_CALCU_MODE_CODE', 'columnDesp': '电量计算方式代码'}, {'columnName': 'PQ_CALCU_MODE_NAME', 'columnDesp': '电量计算方式'}, {'columnName': 'M_FIXED_PQ', 'columnDesp': '月固定电量'}, {'columnName': 'ELE_CAPACITY', 'columnDesp': '用电容量'}, {'columnName': 'RUN_CAP', 'columnDesp': '正在使用的合同容量'}]}
+```
+
+``` json
+{'table_name': 'MK_CA_AMT_NOTI_DET', 'region': 'diwang_market_auto', 'link': 'https://edata.gd.csg.local:16060/index.html#/index', 'storageUri': 'cloud_sim_data/weather-project-3-data/sim_task_pwrw0amy/', 'storageTableName': 'weather_project_4_weather_project_4_weather_project_4', 'relatedColumns': [{'columnName': 'ALL_TOTAL_PQ', 'columnDesp': '总合计电量'}, {'columnName': 'BILL_PQ_PERIOD_TOTAL', 'columnDesp': '计费电量本期合计'}, {'columnName': 'TOTAL_PQ_AMT', 'columnDesp': '总电度电费'}, {'columnName': 'SHOULD_SETTLE_AMT', 'columnDesp': '应结电费'}, {'columnName': 'BILL_MONTH', 'columnDesp': '计费月份'}]}
+```

@@ -6,13 +6,13 @@ import DeleteIcon from '../../../icons/delete.svg'
 import { ChangeEvent, forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import clsx from 'clsx'
-import { props } from 'ramda'
 import Spinner from '../Spinner'
 
 interface IProps {
   className?: string
   isUpload: boolean
   send?: (question: string, fileId?: string) => void
+  stop?: () => void
 }
 
 const ChatInput = forwardRef(({ className, isUpload, send }: IProps, ref) => {
@@ -20,18 +20,20 @@ const ChatInput = forwardRef(({ className, isUpload, send }: IProps, ref) => {
   const [fileId, setFileId] = useState('')
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const [isOpen, setIsOpen] = useState(false)
+  const [isDisabled, setIsDisabled] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const questionRef = useRef<HTMLInputElement>(null)
   useImperativeHandle(ref, () => ({
-    clearQuestion: clearQuestion,
     openLoading: openLoading,
     closeLoading: closeLoading,
+    disableInput: disableInput,
+    enableInput: enableInput
   }))
-  const clearQuestion = () => {
-    setQuestion('')
-    if (questionRef.current) {
-      questionRef.current.value = ''
-    }
+  const disableInput = () => {
+    setIsDisabled(true)
+  }
+  const enableInput = () => {
+    setIsDisabled(false)
   }
   const openLoading = () => {
     setIsLoading(true)
@@ -45,8 +47,19 @@ const ChatInput = forwardRef(({ className, isUpload, send }: IProps, ref) => {
       console.log(e.target.files[0])
     }
   }
-
-  useEffect(() => {}, [])
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault() // 防止默认的换行行为
+      if (send) {
+        send(question, fileId)
+      }
+      setQuestion('')
+      if (questionRef.current) {
+        questionRef.current.value = ''
+      }
+    }
+  }
+  useEffect(() => { }, [])
   let prefixClassName = ''
   if (isUpload) {
     prefixClassName = clsx(styles.prefix)
@@ -75,21 +88,35 @@ const ChatInput = forwardRef(({ className, isUpload, send }: IProps, ref) => {
           <input
             ref={questionRef}
             type="text"
-            className={clsx(styles.input)}
+            className={clsx(styles.input, { [styles.disabled]: isDisabled })}
             placeholder="向AI助手描述需求"
             onChange={(e) => {
               setQuestion(e.target.value)
             }}
+            onKeyDown={handleKeyDown}
+            disabled={isDisabled}
           />
         </PopoverTrigger>
         <button
-          className={clsx(styles.sendBtn, question ? styles.activate : '')}
+          className={clsx(styles.sendBtn, question ? styles.activate : '', isDisabled ? styles.disabled : '')}
           onClick={(e) => {
-            if (send) {
-              send(question, fileId)
+            if (isLoading) {
+              if (stop) {
+                stop();
+              }
+            } else {
+              if (send) {
+                send(question, fileId);
+              }
             }
-          }}>
-          {isLoading ? <Spinner /> : <SendIcon />}
+          }}
+          disabled={isDisabled || isLoading}
+        >
+          {isLoading ? (
+            <div className={styles.stopSquare}></div>
+          ) : (
+            <SendIcon />
+          )}
         </button>
 
         <PopoverContent asChild>

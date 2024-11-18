@@ -1,15 +1,32 @@
 .rag_layout {
     display: flex;
     flex-direction: column;
-    height: 100vh;
+    height: 100%;
+    width: 100%;
     align-items: center;
+    justify-content: center;
+    overflow: hidden;
+
     .chat_detail {
-        flex: 1;
-        overflow-y: auto;
-        width: 768px;
+        height: 100%;
+        width: 100%;
+        overflow: auto;
+        display: flex;
+        justify-content: center;
+        :global(.simplebar-content-wrapper) {
+            display: flex;
+            justify-content: center;
+        }
+        :global(.simplebar-content) {
+            width: 768px;
+            
+        }
     }
+
     .chat_input {
-        width: 768px;
+        margin-top: 20px;
         margin-bottom: 40px;
+        width: 768px;
     }
+
 }
