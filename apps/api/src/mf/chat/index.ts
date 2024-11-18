@@ -394,6 +394,7 @@ async function handleStreamResponse(
 
             await fs.writeFile(logFilePath, completeMessage, 'utf-8')
             res.write(`data: [DONE]\n\n`)
+            res.end()
             return
           }
 
