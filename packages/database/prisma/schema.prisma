@@ -559,10 +559,12 @@ model ChatRecord {
   question    String
   answer      Bytes
   speakerType ChatSpeakerType @default(user)
+  status      Int             @default(1) @db.SmallInt // 1-开始 2-聊天中 3-结束 4-失败
   createdTime DateTime        @default(now())
   updateTime  DateTime?       @updatedAt
 
   chat        Chat            @relation(fields: [chatId], references: [id], onDelete: Cascade)
 
   @@map("ChatRecord")
+  @@index([chatId])
 }

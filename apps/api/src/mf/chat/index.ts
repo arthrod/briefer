@@ -23,7 +23,7 @@ const CONFIG = {
       max: 100
     },
     CREATE_CHAT: {
-      windowMs: 60 * 1000, 
+      windowMs: 60 * 1000,
       max: 20
     },
     COMPLETIONS: {
@@ -306,6 +306,19 @@ async function handleStreamResponse(
   try {
     await fs.mkdir(path.join(process.cwd(), 'logs'), { recursive: true })
 
+    // 更新状态为聊天中
+    if (updateTarget.type === 'chat_record' && updateTarget.roundId) {
+      await prisma().chatRecord.update({
+        where: { id: updateTarget.roundId },
+        data: { status: CONFIG.CHAT_STATUS.CHATTING } // 聊天中状态
+      })
+
+      logger().info({
+        msg: 'Chat status updated to CHATTING',
+        data: { roundId: updateTarget.roundId, status: CONFIG.CHAT_STATUS.CHATTING }
+      })
+    }
+
     for await (const chunk of stream) {
       buffer += textDecoder.decode(chunk as Buffer, { stream: true })
       const lines = buffer.split('\n')
@@ -341,6 +354,7 @@ async function handleStreamResponse(
                     data: {
                       answer: Buffer.from(completeMessage),
                       speakerType: 'assistant',
+                      status: CONFIG.CHAT_STATUS.COMPLETED,
                       updateTime: now
                     }
                   }),
@@ -405,7 +419,7 @@ async function handleStreamResponse(
 
             if (content && typeof content === 'string' && content.trim().length > 0) {
               completeMessage += content
-              
+
               // 打印每个内容片段
               logger().info({
                 msg: 'SSE content chunk',
@@ -500,6 +514,7 @@ async function handleStreamResponse(
             data: {
               answer: Buffer.from(completeMessage),
               speakerType: 'assistant',
+              status: CONFIG.CHAT_STATUS.FAILED,
               updateTime: now
             }
           }),
@@ -1186,7 +1201,32 @@ router.get('/completions',
         })
 
         if (relationResult.code !== 0 || !relationResult.data.related) {
-          res.write(`data: [ERROR] 暂时无法回答非相关内容\n\n`)
+          logger().info({
+            msg: 'Chat content not related',
+            data: { roundId, chatId }
+          })
+
+          const errorMessage = [
+            '```error',
+            '暂时无法回答非相关内容',
+            '```'
+          ];
+
+          // 更新 ChatRecord 状态为结束，并存储错误信息
+          await prisma().chatRecord.update({
+            where: { id: roundId },
+            data: {
+              status: CONFIG.CHAT_STATUS.COMPLETED, // 结束状态
+              answer: Buffer.from(errorMessage.join('\n')),
+              speakerType: 'assistant',
+              updateTime: new Date()
+            }
+          })
+
+          errorMessage.forEach(line => {
+            res.write(`data: ${line}\n`);
+          });
+          res.write('\n'); // 表示该消息结束
           res.write(`data: [DONE]\n\n`)
           return
         }
