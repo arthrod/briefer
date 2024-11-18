@@ -274,7 +274,7 @@ function setupSSEConnection(res: Response) {
     'Cache-Control': 'no-cache',
     'Connection': 'keep-alive'
   })
-  res.write(`data: {"status": "success", "message": "SSE连接已建立"}\n\n`)
+  // res.write(`data: {"status": "success", "message": "SSE连接已建立"}\n\n`)
 }
 
 // 定义更新类型
@@ -1137,7 +1137,7 @@ router.get('/completions',
         throw new AuthorizationError('对话记录不存在或无权访问')
       }
 
-      // setupSSEConnection(res)
+      setupSSEConnection(res)
 
       const messages: Message[] = [{
         id: chatRecord.id,
@@ -1282,7 +1282,7 @@ router.get('/summarize',
         throw new AuthorizationError('对话记录不存在或无权访问')
       }
 
-      // setupSSEConnection(res)
+      setupSSEConnection(res)
 
       try {
         const messages = [
