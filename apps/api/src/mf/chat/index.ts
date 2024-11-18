@@ -1022,6 +1022,7 @@ router.post('/detail',
               question: true,
               speakerType: true,
               answer: true,
+              status: true,
               createdTime: true
             }
           },
@@ -1056,12 +1057,14 @@ router.post('/detail',
         {
           id: record.id,
           role: 'user',
-          content: sanitizeInput(record.question)
+          content: sanitizeInput(record.question),
+          status: 'success'
         },
         {
           id: record.id,
           role: 'assistant',
-          content: record.answer.toString()
+          content: record.answer.toString(),
+          status: record.status === CONFIG.CHAT_STATUS.FAILED ? 'error' : 'success'
         }
       ]);
 
@@ -1207,7 +1210,7 @@ router.get('/completions',
           })
 
           const errorMessage = [
-            '```error',
+            '```content',
             '暂时无法回答非相关内容',
             '```'
           ];
