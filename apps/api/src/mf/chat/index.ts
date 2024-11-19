@@ -296,8 +296,8 @@ const formatErrorMessage = (error: unknown): string => {
   ].join('\n')
 }
 
-// 添加 SSE 错误处理函数
-const sendSSEError = (res: Response, error: unknown) => {
+// 修改 SSE 错误处理函数
+const sendSSEError = async (res: Response, error: unknown, updateTarget?: UpdateTarget) => {
   const formattedError = formatErrorMessage(error)
 
   logger().error({
@@ -308,7 +308,37 @@ const sendSSEError = (res: Response, error: unknown) => {
     }
   })
 
-  res.write(`data: ${formattedError}\n\n`)
+  // 如果存在更新目标，将错误消息保存到数据库
+  if (updateTarget?.type === 'chat_record' && updateTarget.roundId) {
+    try {
+      await prisma().$transaction([
+        prisma().chatRecord.update({
+          where: { id: updateTarget.roundId },
+          data: {
+            answer: Buffer.from(formattedError),
+            speakerType: 'assistant',
+            status: CONFIG.CHAT_STATUS.FAILED,
+            updateTime: new Date()
+          }
+        }),
+        prisma().chat.update({
+          where: { id: updateTarget.chatId },
+          data: { updateTime: new Date() }
+        })
+      ])
+    } catch (dbError) {
+      logger().error({
+        msg: 'Failed to save error message to database',
+        data: { error: dbError }
+      })
+    }
+  }
+
+  // 分行发送错误消息，确保格式正确
+  formattedError.split('\n').forEach(line => {
+    res.write(`data: ${line}\n`)
+  })
+  res.write('\n') // 表示该消息结束
   res.write('data: [DONE]\n\n')
   res.end()
 }
@@ -542,21 +572,25 @@ async function handleStreamResponse(
       }
     })
 
-    // 错误情况下也尝试保存
+    // 格式化错误消息
+    const errorMessage = formatErrorMessage(error)
+    
+    // 组合已接收的消息和错误信息
+    const finalMessage = [
+      completeMessage.trim(),  // 已接收的消息
+      '',  // 空行分隔
+      errorMessage  // 错误信息
+    ].join('\n')
+
     try {
       const now = new Date()
       
-      // 确保错误情况下也添加[DONE]标记
-      if (!completeMessage.endsWith('[DONE]')) {
-        completeMessage += '\n[DONE]'
-      }
-
       if (updateTarget.type === 'chat_record' && updateTarget.roundId) {
         await prisma().$transaction([
           prisma().chatRecord.update({
             where: { id: updateTarget.roundId },
             data: {
-              answer: Buffer.from(completeMessage),
+              answer: Buffer.from(finalMessage),
               speakerType: 'assistant',
               status: CONFIG.CHAT_STATUS.FAILED,
               updateTime: now
@@ -571,14 +605,6 @@ async function handleStreamResponse(
             }
           })
         ])
-      } else if (updateTarget.type === 'chat_title' && updateTarget.chatId) {
-        await prisma().chat.update({
-          where: { id: updateTarget.chatId },
-          data: {
-            title: completeMessage.trim(),
-            updateTime: now
-          }
-        })
       }
     } catch (dbError) {
       logger().error({
@@ -590,7 +616,7 @@ async function handleStreamResponse(
       })
     }
 
-    throw new Error(`处理流式响应时发生错误: ${error}`)
+    throw error // 继续抛出错误以触发外层错误处理
   }
 }
 
