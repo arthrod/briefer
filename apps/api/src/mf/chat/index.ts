@@ -1133,7 +1133,18 @@ router.post('/detail',
           id: record.id,
           role: 'assistant',
           content: record.answer.toString(),
-          status: record.status === CONFIG.CHAT_STATUS.FAILED ? 'error' : 'success'
+          status: (() => {
+            switch (record.status) {
+              case CONFIG.CHAT_STATUS.FAILED:
+                return 'error'
+              case CONFIG.CHAT_STATUS.CHATTING:
+                return 'chatting'
+              case CONFIG.CHAT_STATUS.START:
+              case CONFIG.CHAT_STATUS.COMPLETED:
+              default:
+                return 'success'
+            }
+          })()
         }
       ]);
 
@@ -1524,7 +1535,7 @@ router.post('/status', authMiddleware, async (req, res) => {
       throw new AuthorizationError('聊天记录不存在或无权访问')
     }
 
-    const status = chat.records[0]?.status === CONFIG.CHAT_STATUS.CHATTING ? 'chating' : 'idle'
+    const status = chat.records[0]?.status === CONFIG.CHAT_STATUS.CHATTING ? 'chatting' : 'idle'
 
     logger().info({
       msg: 'Chat status retrieved successfully',
