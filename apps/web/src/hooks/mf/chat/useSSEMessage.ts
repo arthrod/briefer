@@ -32,7 +32,7 @@ export function parseSSEStream(input: string, callbacks: SSECallback,
                 callbacks.onStart(state.currentType);  // 触发开始回调
             } else if (state.currentType && !type) {
                 // 结束当前块
-                callbacks.onContent(state.currentContent.join(""));  // 传递内容
+                // callbacks.onContent(state.currentContent.join(""));  // 传递内容
                 callbacks.onEnd();  // 触发结束回调
                 state.currentType = null;
                 state.currentContent = [];  // 清空当前内容
