@@ -17,24 +17,24 @@ const CONFIG = {
   USE_TEST_AUTH: false, // 测试模式开关，如果为 true，则使用 mock 数据
   AI_AGENT_URL: process.env['AI_AGENT_URL'],
   CHAT_DETAIL_CACHE_DURATION: 60,
-  RATE_LIMITS: {
-    API: {
-      windowMs: 15 * 60 * 1000,
-      max: 100
-    },
-    CREATE_CHAT: {
-      windowMs: 60 * 1000,
-      max: 20
-    },
-    COMPLETIONS: {
-      windowMs: 60 * 1000,
-      max: 10
-    },
-    SUMMARIZE: {
-      windowMs: 60 * 1000,
-      max: 10
-    }
-  },
+  // RATE_LIMITS: {
+  //   API: {
+  //     windowMs: 15 * 60 * 1000,
+  //     max: 100
+  //   },
+  //   CREATE_CHAT: {
+  //     windowMs: 60 * 1000,
+  //     max: 20
+  //   },
+  //   COMPLETIONS: {
+  //     windowMs: 60 * 1000,
+  //     max: 10
+  //   },
+  //   SUMMARIZE: {
+  //     windowMs: 60 * 1000,
+  //     max: 10
+  //   }
+  // },
   CHAT_STATUS: {
     START: 1,
     CHATTING: 2,
@@ -44,25 +44,25 @@ const CONFIG = {
 } as const
 
 // 2. 速率限制器配置
-const apiLimiter = rateLimit({
-  windowMs: CONFIG.RATE_LIMITS.API.windowMs,
-  max: CONFIG.RATE_LIMITS.API.max
-})
-
-const createChatLimiter = rateLimit({
-  windowMs: CONFIG.RATE_LIMITS.CREATE_CHAT.windowMs,
-  max: CONFIG.RATE_LIMITS.CREATE_CHAT.max
-})
-
-const completionsLimiter = rateLimit({
-  windowMs: CONFIG.RATE_LIMITS.COMPLETIONS.windowMs,
-  max: CONFIG.RATE_LIMITS.COMPLETIONS.max
-})
-
-const summarizeLimiter = rateLimit({
-  windowMs: CONFIG.RATE_LIMITS.SUMMARIZE.windowMs,
-  max: CONFIG.RATE_LIMITS.SUMMARIZE.max
-})
+// const apiLimiter = rateLimit({
+//   windowMs: CONFIG.RATE_LIMITS.API.windowMs,
+//   max: CONFIG.RATE_LIMITS.API.max
+// })
+//
+// const createChatLimiter = rateLimit({
+//   windowMs: CONFIG.RATE_LIMITS.CREATE_CHAT.windowMs,
+//   max: CONFIG.RATE_LIMITS.CREATE_CHAT.max
+// })
+//
+// const completionsLimiter = rateLimit({
+//   windowMs: CONFIG.RATE_LIMITS.COMPLETIONS.windowMs,
+//   max: CONFIG.RATE_LIMITS.COMPLETIONS.max
+// })
+//
+// const summarizeLimiter = rateLimit({
+//   windowMs: CONFIG.RATE_LIMITS.SUMMARIZE.windowMs,
+//   max: CONFIG.RATE_LIMITS.SUMMARIZE.max
+// })
 
 // 3. 接口定义
 interface FileInfo {
@@ -664,10 +664,13 @@ async function fetchWithTimeout(
 
 // 12. 路由设置
 const router = Router({ mergeParams: true })
-router.use(apiLimiter)
+// router.use(apiLimiter)
 
 // Chat 创建路由
-router.post('/create', authMiddleware, createChatLimiter, async (req: Request, res: Response) => {
+router.post('/create',
+  authMiddleware,
+  // createChatLimiter,
+  async (req: Request, res: Response) => {
   try {
     const validatedData = validateSchema(createChatSchema, req.body, 'create chat')
     if (!validatedData) {
@@ -1199,7 +1202,7 @@ router.post('/detail',
 // Chat Completions 路由
 router.get('/completions',
   authMiddleware,
-  completionsLimiter,
+  // completionsLimiter,
   async (req, res) => {
     // 在路由开始就建立 SSE 连接
     setupSSEConnection(res)
@@ -1371,7 +1374,7 @@ router.get('/completions',
 // Chat 总结路由
 router.get('/summarize',
   authMiddleware,
-  summarizeLimiter,
+  // summarizeLimiter,
   async (req, res) => {
     // 在路由开始就建立 SSE 连接
     setupSSEConnection(res)
