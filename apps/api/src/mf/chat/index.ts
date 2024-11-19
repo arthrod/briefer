@@ -1190,10 +1190,18 @@ router.get('/completions',
   authMiddleware,
   completionsLimiter,
   async (req, res) => {
+    // 在路由开始就建立 SSE 连接
+    setupSSEConnection(res)
+    
     try {
       const validatedData = validateSchema(chatCompletionsSchema, req.query, 'chat completions')
       if (!validatedData) {
-        return res.status(400).json(createErrorResponse(400, '参数校验失败'))
+        await sendSSEError(res, new ValidationError('参数校验失败'), {
+          type: 'chat_record',
+          chatId: req.query['chatId'] as string,
+          roundId: req.query['roundId'] as string
+        })
+        return
       }
 
       const { chatId, roundId } = validatedData
@@ -1221,10 +1229,13 @@ router.get('/completions',
       })
 
       if (!chatRecord) {
-        throw new AuthorizationError('对话记录不存在或无权访问')
+        await sendSSEError(res, new AuthorizationError('对话记录不存在或无权访问'), {
+          type: 'chat_record',
+          chatId,
+          roundId
+        })
+        return
       }
-
-      setupSSEConnection(res)
 
       const messages: Message[] = [{
         id: chatRecord.id,
@@ -1330,15 +1341,19 @@ router.get('/completions',
           msg: 'AI service error',
           data: { error }
         })
-        sendSSEError(res, error instanceof Error ? error : 'AI 服务暂时不可用')
+        await sendSSEError(res, error, {
+          type: 'chat_record',
+          chatId,
+          roundId
+        })
       }
 
     } catch (err) {
-      if (err instanceof AuthorizationError) {
-        sendSSEError(res, err)
-        return
-      }
-      sendSSEError(res, '服务器内部错误')
+      await sendSSEError(res, err, {
+        type: 'chat_record',
+        chatId: req.query['chatId'] as string,
+        roundId: req.query['roundId'] as string
+      })
     }
   })
 
@@ -1347,10 +1362,17 @@ router.get('/summarize',
   authMiddleware,
   summarizeLimiter,
   async (req, res) => {
+    // 在路由开始就建立 SSE 连接
+    setupSSEConnection(res)
+    
     try {
       const validatedData = validateSchema(summarizeChatSchema, req.query, 'summarize chat')
       if (!validatedData) {
-        return res.status(400).json(createErrorResponse(400, '参数校验失败'))
+        await sendSSEError(res, new ValidationError('参数校验失败'), {
+          type: 'chat_title',
+          chatId: req.query['chatId'] as string
+        })
+        return
       }
 
       const { chatId, roundId } = validatedData
@@ -1374,10 +1396,12 @@ router.get('/summarize',
       })
 
       if (!chatRecord) {
-        throw new AuthorizationError('对话记录不存在或无权访问')
+        await sendSSEError(res, new AuthorizationError('对话记录不存在或无权访问'), {
+          type: 'chat_title',
+          chatId
+        })
+        return
       }
-
-      setupSSEConnection(res)
 
       try {
         const messages = [
@@ -1447,15 +1471,17 @@ router.get('/summarize',
           msg: 'AI summarization error',
           data: { error }
         })
-        sendSSEError(res, error instanceof Error ? error : 'AI 服务暂时不可用')
+        await sendSSEError(res, error, {
+          type: 'chat_title',
+          chatId
+        })
       }
 
     } catch (err) {
-      if (err instanceof AuthorizationError) {
-        sendSSEError(res, err)
-        return
-      }
-      sendSSEError(res, '服务器内部错误')
+      await sendSSEError(res, err, {
+        type: 'chat_title',
+        chatId: req.query['chatId'] as string
+      })
     }
   })
 
