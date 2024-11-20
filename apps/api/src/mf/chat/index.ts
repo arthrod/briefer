@@ -295,7 +295,7 @@ const formatErrorMessage = (error: unknown): string => {
       stack: error instanceof Error ? error.stack : undefined
     }
   })
-  
+
   return [
     '```error',
     '抱歉，操作未能成功，请稍后再试。如果问题持续，请联系我们的支持团队！ 🙏',
@@ -409,7 +409,7 @@ async function handleStreamResponse(
           if (data.includes('[DONE]')) {
             // 在完整消息末尾添加[DONE]标记
             completeMessage += '\n[DONE]'
-            
+
             try {
               const now = new Date()
 
@@ -572,7 +572,7 @@ async function handleStreamResponse(
 
     // 格式化错误消息
     const errorMessage = formatErrorMessage(error)
-    
+
     // 组合已接收的消息和错误信息
     const finalMessage = [
       completeMessage.trim(),  // 已接收的消息
@@ -582,7 +582,7 @@ async function handleStreamResponse(
 
     try {
       const now = new Date()
-      
+
       if (updateTarget.type === 'chat_record' && updateTarget.roundId) {
         await prisma().$transaction([
           prisma().chatRecord.update({
@@ -670,125 +670,125 @@ router.post('/create',
   authMiddleware,
   // createChatLimiter,
   async (req: Request, res: Response) => {
-  try {
-    const validatedData = validateSchema(createChatSchema, req.body, 'create chat')
-    if (!validatedData) {
-      return res.status(400).json(createErrorResponse(400, '参数校验失败'))
-    }
+    try {
+      const validatedData = validateSchema(createChatSchema, req.body, 'create chat')
+      if (!validatedData) {
+        return res.status(400).json(createErrorResponse(400, '参数校验失败'))
+      }
 
-    const { type, fileId } = validatedData
-    const chatId = uuidv4()
-    const userId = req.session.user.id
-    const title = sanitizeInput(type === 'rag' ? 'Untitled' : '新的报告')
+      const { type, fileId } = validatedData
+      const chatId = uuidv4()
+      const userId = req.session.user.id
+      const title = sanitizeInput(type === 'rag' ? 'Untitled' : '新的报告')
 
-    logger().info({
-      msg: 'Attempting to create chat',
-      data: { type, fileId, userId }
-    })
-
-    if (type === 'report' && fileId) {
-      const userFile = await prisma().userFile.findFirst({
-        where: {
-          fileId,
-          createdUserId: userId
-        },
-        select: { fileId: true }
+      logger().info({
+        msg: 'Attempting to create chat',
+        data: { type, fileId, userId }
       })
 
-      if (!userFile) {
-        throw new AuthorizationError('文件不存在或无权访问')
+      if (type === 'report' && fileId) {
+        const userFile = await prisma().userFile.findFirst({
+          where: {
+            fileId,
+            createdUserId: userId
+          },
+          select: { fileId: true }
+        })
+
+        if (!userFile) {
+          throw new AuthorizationError('文件不存在或无权访问')
+        }
       }
-    }
 
-    const workspace = Object.values(req.session.userWorkspaces ?? {})[0]
-    if (!workspace?.workspaceId) {
-      throw new ValidationError('未找到有效的工作区')
-    }
+      const workspace = Object.values(req.session.userWorkspaces ?? {})[0]
+      if (!workspace?.workspaceId) {
+        throw new ValidationError('未找到有效的工作区')
+      }
 
-    const response = await prisma().$transaction(async (tx) => {
-      const chat = await tx.chat.create({
+      const response = await prisma().$transaction(async (tx) => {
+        const chat = await tx.chat.create({
+          data: {
+            id: chatId,
+            userId,
+            title,
+            type: type === 'rag' ? 1 : 2
+          }
+        })
+
+        let documentId = null
+        if (type === 'report') {
+          const doc = await tx.document.create({
+            data: {
+              id: uuidv4(),
+              title: sanitizeInput('新的报告'),
+              workspaceId: workspace.workspaceId,
+              icon: 'DocumentIcon',
+              orderIndex: -1
+            }
+          })
+          documentId = doc.id
+
+          await Promise.all([
+            tx.chatDocumentRelation.create({
+              data: {
+                chatId: chat.id,
+                documentId: doc.id
+              }
+            }),
+            tx.chatFileRelation.create({
+              data: {
+                chatId: chat.id,
+                fileId
+              }
+            })
+          ])
+        }
+
+        return {
+          chatId: chat.id,
+          documentId,
+          title: chat.title,
+          type: type,
+          createdTime: formatDate(chat.createdTime)
+        }
+      }, {
+        timeout: 5000
+      })
+
+      logger().info({
+        msg: 'Chat created successfully',
         data: {
-          id: chatId,
-          userId,
-          title,
-          type: type === 'rag' ? 1 : 2
+          chatId: response.chatId,
+          documentId: response.documentId,
+          title: response.title,
+          type: response.type,
+          createdTime: response.createdTime,
+          userId
         }
       })
 
-      let documentId = null
-      if (type === 'report') {
-        const doc = await tx.document.create({
-          data: {
-            id: uuidv4(),
-            title: sanitizeInput('新的报告'),
-            workspaceId: workspace.workspaceId,
-            icon: 'DocumentIcon',
-            orderIndex: -1
-          }
-        })
-        documentId = doc.id
+      return res.json({
+        code: 0,
+        data: {
+          id: response.chatId,
+          documentId: response.documentId,
+          title: response.title,
+          type: response.type,
+          createdTime: response.createdTime
+        },
+        msg: '创建成功'
+      })
 
-        await Promise.all([
-          tx.chatDocumentRelation.create({
-            data: {
-              chatId: chat.id,
-              documentId: doc.id
-            }
-          }),
-          tx.chatFileRelation.create({
-            data: {
-              chatId: chat.id,
-              fileId
-            }
-          })
-        ])
+    } catch (err) {
+      if (err instanceof AuthorizationError) {
+        return res.status(403).json(createErrorResponse(403, err.message))
       }
-
-      return {
-        chatId: chat.id,
-        documentId,
-        title: chat.title,
-        type: type,
-        createdTime: formatDate(chat.createdTime)
+      if (err instanceof ValidationError) {
+        return res.status(400).json(createErrorResponse(400, err.message))
       }
-    }, {
-      timeout: 5000
-    })
-
-    logger().info({
-      msg: 'Chat created successfully',
-      data: {
-        chatId: response.chatId,
-        documentId: response.documentId,
-        title: response.title,
-        type: response.type,
-        createdTime: response.createdTime,
-        userId
-      }
-    })
-
-    return res.json({
-      code: 0,
-      data: {
-        id: response.chatId,
-        documentId: response.documentId,
-        title: response.title,
-        type: response.type,
-        createdTime: response.createdTime
-      },
-      msg: '创建成功'
-    })
-
-  } catch (err) {
-    if (err instanceof AuthorizationError) {
-      return res.status(403).json(createErrorResponse(403, err.message))
+      return handleError(err, req, res, 'create chat')
     }
-    if (err instanceof ValidationError) {
-      return res.status(400).json(createErrorResponse(400, err.message))
-    }
-    return handleError(err, req, res, 'create chat')
-  }
-})
+  })
 
 // Chat 列表路由
 // router.get('/list', authMiddleware, cacheMiddleware(60), async (req, res) => {
@@ -1205,7 +1205,7 @@ router.get('/completions',
   async (req, res) => {
     // 在路由开始就建立 SSE 连接
     setupSSEConnection(res)
-    
+
     try {
       const validatedData = validateSchema(chatCompletionsSchema, req.query, 'chat completions')
       if (!validatedData) {
@@ -1377,7 +1377,7 @@ router.get('/summarize',
   async (req, res) => {
     // 在路由开始就建立 SSE 连接
     setupSSEConnection(res)
-    
+
     try {
       const validatedData = validateSchema(summarizeChatSchema, req.query, 'summarize chat')
       if (!validatedData) {
