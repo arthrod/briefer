@@ -116,7 +116,7 @@ export type SessionUser = ApiUser & {
   roles: Record<string, UserWorkspaceRole>
 }
 
-export const useSession = () =>
+export const useSession = () => 
   useSWR<SessionUser>(`${NEXT_PUBLIC_API_URL()}/auth/session`, fetcher)
 
 export const useSignout = () => {

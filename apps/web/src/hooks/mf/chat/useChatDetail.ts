@@ -19,12 +19,15 @@ export type ReportDetailData = {
   file: ReportFileData
 }
 
+export type MessageStatus = 'success' | 'chatting' | 'error'
+
 export type MessageContent = {
   id: string
   role: MessageRoleType
   content: string
   isError?: boolean
   roundId?: string
+  status: MessageStatus
 }
 
 export type RagDetailData = {

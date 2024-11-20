@@ -46,6 +46,11 @@
     &.disabled {
       cursor: not-allowed;
     }
+    .loading {
+      background-color: #f0f0f0;
+      color: #a0a0a0;
+      cursor: not-allowed;
+    }
     .stopSquare {
       width: 16px;
       height: 16px;
@@ -59,6 +64,7 @@
     color: #a0a0a0;
     cursor: not-allowed;
   }
+  
 }
 
 :root {

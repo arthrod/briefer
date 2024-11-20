@@ -32,13 +32,12 @@ function RagDetail() {
   const chatDetail = useRef<{
     addSendMsg: (msg: string) => Promise<ChatSessionData>,
     addReceiveMsg: (msg: string) => string
-    stopSend: () => void
+    stopSendMsg: () => void
   }>(null)
   const router = useRouter()
   const chatId = router.query.chatId
   useEffect(() => {
     const scope = getScope();
-    console.log(scope)
     send(scope);
   }, [chatDetail])
   const disableInput = useCallback(() => {
@@ -59,7 +58,7 @@ function RagDetail() {
     chatInput.current?.closeLoading()
   }, [])
   const stop = () => {
-    chatDetail.current?.stopSend()
+    chatDetail.current?.stopSendMsg()
   }
   const scrollToBottom = useCallback(() => {
     if (scrollRef.current) {

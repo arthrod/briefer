@@ -26,8 +26,9 @@ interface ChatLayoutContextType {
   newChat: (chat: HistoryChat, msg: string) => void
   refreshChatList: () => void
   getScope: () => string
-  startRound: (chatId: string, roundId: string) => EventListener
-  getRound: (chatId: string) => EventListener | undefined
+  startRound: (chatId: string, roundId: string) => ChatSession
+  getRound: (roundId: string) => ChatSession | undefined
+  endRound: (roundId: string) => void;
 }
 export const ChatLayoutContext = createContext<ChatLayoutContextType | null>(null)
 export const useChatLayout = () => {
@@ -71,8 +72,10 @@ interface Props {
 
 export type ChatSession = {
   chatId: string
+  roundId: string
   content: string
   listener: EventListener
+  eventSource: EventSource
 }
 
 export type EventListener = {
@@ -105,11 +108,17 @@ export default function ChatLayout({ children }: Props) {
   const refreshChatList = useCallback(() => {
     handleUpdate();
   }, [])
-  const getRound = useCallback((chatId: string) => {
+  const getRound = useCallback((roundId: string) => {
     for (let i = 0; i < chatSession.length; i++) {
-      if (chatSession[i].chatId === chatId) {
-        return chatSession[i].listener;
+      if (chatSession[i].roundId === roundId) {
+        return chatSession[i];
       }
+    }
+  }, [])
+  const endRound = useCallback((roundId: string) => {
+    const chatSession = getRound(roundId)
+    if (chatSession) {
+      chatSession.eventSource.close()
     }
   }, [])
   const startRound = useCallback((chatId: string, roundId: string) => {
@@ -125,11 +134,14 @@ export default function ChatLayout({ children }: Props) {
         eventSource.close();
       }
     }
-    setChatSession((sessions) => [...sessions, {
+    const chatSession = {
       chatId: chatId,
+      roundId: roundId,
       content: '',
-      listener: listener
-    }])
+      listener: listener,
+      eventSource: eventSource
+    }
+    setChatSession((sessions) => [...sessions, chatSession])
     eventSource.onopen = () => {
       if (listener.onopen) {
         listener.onopen();
@@ -152,11 +164,10 @@ export default function ChatLayout({ children }: Props) {
 
     // 处理连接关闭
     eventSource.addEventListener('done', () => {
-      console.log("SSE DONE")
       eventSource.close()
     })
 
-    return listener;
+    return chatSession;
   }, [])
 
   const [{ getChatList }] = useChatList()
@@ -175,6 +186,7 @@ export default function ChatLayout({ children }: Props) {
       refreshChatList,
       getScope,
       getRound,
+      endRound,
       startRound
     }}>
       <div className={clsx(styles.chatLayout)}>

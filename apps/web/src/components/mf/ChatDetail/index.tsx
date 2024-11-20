@@ -1,19 +1,17 @@
 import { forwardRef, useCallback, useEffect, useId, useImperativeHandle, useState, useRef } from 'react'
-import ScrollBar from '../../ScrollBar'
 import styles from './index.module.scss'
 import clsx from 'clsx'
-import { Markdown } from '../markdown'
-import { ChatType, MessageContent, RagDetailData, useChatDetail } from '@/hooks/mf/chat/useChatDetail'
+import { MessageContent, MessageStatus, RagDetailData, useChatDetail } from '@/hooks/mf/chat/useChatDetail'
 import { useRouter } from 'next/router'
 import { ChatSessionData, useChatSession } from '@/hooks/mf/chat/useChatSession'
-import { EventListener, useChatLayout } from '../ChatLayout'
+import { ChatSession, useChatLayout } from '../ChatLayout'
 import { v4 as uuidv4 } from 'uuid';
 import { showToast } from '../Toast'
 import { useRagDetailLayout } from '@/pages/rag/[chatId]'
 import { useSession } from '@/hooks/useAuth'
 import RobotMessage from './RobotMessage'
-import { close } from 'node:inspector/promises'
 import { ChatStatus, useChatStatus } from '@/hooks/mf/chat/useChatStatus'
+import { useChatStop } from '@/hooks/mf/chat/useChatStop'
 const defaultMsg = "``` content\n我是你的AI小助手\n```"
 export interface ChatDetailProps {
   listChange?: () => void
@@ -21,10 +19,11 @@ export interface ChatDetailProps {
 }
 const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
   const [list, setList] = useState<MessageContent[]>([])
-  const [blocks, setBlocks] = useState<{ type: string; content: string }[]>([]);
+  const [chatSession, setChatSession] = useState<ChatSession | null>(null)
   const [{ createChatSession }] = useChatSession()
   const { startRound } = useChatLayout();
   const [{ getChatStatus }] = useChatStatus();
+  const [{ stopChat }] = useChatStop();
   const { disableInput, enableInput, openLoading, closeLoading } = useRagDetailLayout()
   const scrollRef = useRef<HTMLDivElement>(null)
   useImperativeHandle(ref, () => ({
@@ -37,14 +36,17 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
   const firstLetter = session.data?.loginName.charAt(0).toUpperCase(); // 获取用户名的第一个字母并转为大写
 
   let waiting = false;
-  let listener: EventListener | null = null;
   const [{ getChatDetail }] = useChatDetail()
-  const onRightClick = (e: any) => { }
   const router = useRouter()
   const chatId = router.query.chatId
   const stopSendMSg = (): void => {
-    if (listener) {
-      listener.close()
+    if (chatSession) {
+      stopChat(chatSession.roundId).then(() => {
+        chatSession.eventSource.close()
+        chatSession.listener.close()
+      }).catch(() => {
+        showToast('停止失败', '请重试', 'error')
+      })
     }
   }
 
@@ -54,36 +56,34 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
       waiting = true;
       createChatSession(msg, String(chatId)).then((data: ChatSessionData) => {
         const msgId = uuidv4()
-        const msgContent: MessageContent = { id: msgId, role: 'user', content: msg };
+        const msgContent: MessageContent = { id: msgId, role: 'user', content: msg, status: 'chatting' };
         setList((messageList) => [...messageList, msgContent])
-        const receiveMsg = addReceiveMsg('');
+        const receiveMsg = addReceiveMsg('', 'chatting');
         receiveMsg.roundId = data.id;
         waitingReceive(receiveMsg.id, data.id)
       }).catch((e) => {
         showToast('消息发送失败，请检查网络', '', 'error');
         waiting = false
-      }).finally(() => {
-        closeLoading()
       })
     }
   }
   const waitingReceive = (msgId: string, roundId: string) => {
-    listener = startRound(String(chatId), roundId)
+    const chatSession = startRound(String(chatId), roundId)
+    setChatSession(chatSession)
     const index = list.length + 1;
     console.log(index)
-    const state = { currentType: '', currentContent: [] }
-    listener.onopen = () => {
+    chatSession.listener.onopen = () => {
       console.log("sse open")
       openLoading();
     }
-    listener.onerror = (error) => {
+    chatSession.listener.onerror = (error) => {
       updateMsg(msgId, '服务错误', true)
       console.log("sse error")
       waiting = true
       disableInput();
       closeLoading();
     }
-    listener.onmessage = (event) => {
+    chatSession.listener.onmessage = (event) => {
       const data = event.data + '\n';
       setList((prevList) => {
         const lastIndex = prevList.length - 1; // 获取最后一条消息的索引
@@ -97,17 +97,34 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
         return updatedList;
       });
     }
-    listener.close = () => {
+    chatSession.listener.close = () => {
       console.log("sse close")
+      updateMsgStatus(msgId, 'success')
       closeLoading();
     }
   }
-  const addReceiveMsg = (msg: string): MessageContent => {
+  const addReceiveMsg = (msg: string, status: MessageStatus): MessageContent => {
     const msgId = uuidv4()
-    const msgContent: MessageContent = { id: msgId, role: 'assistant', content: msg, roundId: '' };
+    const msgContent: MessageContent = {
+      id: msgId,
+      role: 'assistant',
+      content: msg,
+      roundId: '',
+      status: status
+    };
     setList((messageList) => [...messageList, msgContent])
     return msgContent
   }
+
+  const updateMsgStatus = useCallback((id: string, status: MessageStatus): void => {
+    setList(prevList =>
+      prevList.map(item =>
+        item.id === id
+          ? { ...item, status: status }  // 如果找到匹配的 id，更新内容
+          : item                       // 否则保持不变
+      )
+    )
+  }, []);
 
   const updateMsg = useCallback((id: string, msg: string, error: boolean): void => {
     setList(prevList =>
@@ -126,6 +143,42 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
       waitingReceive(message.id, message.roundId)
     }
   }
+
+  const receiveMsgDone = () => {
+    chatSession?.eventSource.close();
+    chatSession?.listener.close();
+    setChatSession(null)
+    if (props.receiveMsgDone) {
+      props.receiveMsgDone();
+    }
+  }
+  const getSuccessElm = (message: MessageContent, index: number) => {
+    return message.isError ? ((<div className={styles.errorContent}>
+      <div>发生错误。服务器发生错误，或者在处理您的请求时出现了其他问题</div>
+      <div className={styles.buttonWrapper}>
+        <div className={styles.errorButton}
+          onClick={() => handleRegenerate(message)}
+        >点击重新生成</div>
+      </div>
+    </div>)) :
+      (<div className={styles.content} key={index}>
+        <RobotMessage content={message.content}
+          receiveMsgDone={receiveMsgDone}
+        />
+        {getChatting(message, index)}
+      </div>)
+  }
+  const getChatting = (message: MessageContent, index: number) => {
+    return message.status === 'chatting' ? (
+      <div className={styles.chattingContent} key={index}>
+        <div className={styles.robotTyping}>
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+      </div>
+    ) : null
+  }
   const getMessageElm = useCallback((message: MessageContent, index: number) => {
     if (message.role === 'system' || message.role === 'assistant') {
       return (
@@ -133,19 +186,7 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
           <span className={styles.robot}>
             <img width={14} src="/icons/logo.svg" alt="" />
           </span>
-          {message.isError ? ((<div className={styles.errorContent}>
-            <div>发生错误。服务器发生错误，或者在处理您的请求时出现了其他问题</div>
-            <div className={styles.buttonWrapper}>
-              <div className={styles.errorButton}
-                onClick={() => handleRegenerate(message)}
-              >点击重新生成</div>
-            </div>
-          </div>)) :
-            message.content ? (<div className={styles.content}>
-              <RobotMessage key={index} content={message.content}
-                receiveMsgDone={props.receiveMsgDone}
-              />
-            </div>) : (<div></div>)}
+          {getSuccessElm(message, index)}
         </div>
       )
     } else {
@@ -169,25 +210,26 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
   }, [list])
 
   const loadDetail = () => {
-    getChatDetail<RagDetailData>(String(chatId), 'rag').then((data) => {
+    return getChatDetail<RagDetailData>(String(chatId), 'rag').then((data) => {
       if (data) {
-        data.messages.unshift({ id: '', role: 'system', content: defaultMsg })
+        data.messages.unshift({ id: '', role: 'system', content: defaultMsg, status: 'success' })
         setList(data.messages);
-        watchStatus()
       }
     })
   }
   // 初始加载数据后滚动到底部
   useEffect(() => {
     if (chatId) {
-      loadDetail();
+      loadDetail().then(() => {
+        watchStatus()
+      });
     }
   }, [chatId, router])
 
   const watchStatus = (timeoutId?: number) => {
     getChatStatus(String(chatId)).then((data: ChatStatus) => {
       if (data) {
-        if (data.status === 'chating') {
+        if (data.status === 'chatting') {
           openLoading();
           const id = window.setTimeout(() => {
             watchStatus(id)

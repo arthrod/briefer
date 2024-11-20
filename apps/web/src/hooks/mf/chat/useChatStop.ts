@@ -2,26 +2,23 @@ import { NEXT_PUBLIC_MF_API_URL } from "@/utils/env"
 import { useCallback, useMemo } from "react"
 import { getData } from "../useResponse"
 
-export type ChatStatus = {
-    status: 'idle' | 'chatting'
-}
-export const useChatStatus = () => {
-    const getChatStatus = useCallback(async (id: string): Promise<ChatStatus> => {
-        const res = await fetch(`${NEXT_PUBLIC_MF_API_URL()}/chat/status`, {
+export const useChatStop = () => {
+    const stopChat = useCallback(async (roundId: string): Promise<null> => {
+        const res = await fetch(`${NEXT_PUBLIC_MF_API_URL()}/chat/stop`, {
             credentials: 'include',
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                chatId: id,
+                roundId: roundId,
             }),
         })
         // if (res.status > 299) {
         //   throw new Error(`Unexpected status ${res.status}`)
         // }
 
-        return getData<ChatStatus>(res)
+        return getData<null>(res)
     }, [])
-    return useMemo(() => [{ getChatStatus }], [getChatStatus])
+    return useMemo(() => [{ stopChat }], [stopChat])
 }

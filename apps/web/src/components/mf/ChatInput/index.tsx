@@ -15,7 +15,7 @@ interface IProps {
   stop?: () => void
 }
 
-const ChatInput = forwardRef(({ className, isUpload, send }: IProps, ref) => {
+const ChatInput = forwardRef(({ className, isUpload, send, stop }: IProps, ref) => {
   const [question, setQuestion] = useState('')
   const [fileId, setFileId] = useState('')
   const [isLoading, setIsLoading] = useState<boolean>(false)
@@ -66,6 +66,7 @@ const ChatInput = forwardRef(({ className, isUpload, send }: IProps, ref) => {
   } else {
     prefixClassName = clsx(styles.prefix, styles.hiddenPrefix)
   }
+  console.log(isLoading)
   return (
     <div className={clsx(styles.chatInput, className)}>
       <Popover open={isOpen}>
@@ -94,11 +95,14 @@ const ChatInput = forwardRef(({ className, isUpload, send }: IProps, ref) => {
               setQuestion(e.target.value)
             }}
             onKeyDown={handleKeyDown}
-            disabled={isDisabled}
+            disabled={isDisabled || isLoading}
           />
         </PopoverTrigger>
         <button
-          className={clsx(styles.sendBtn, question ? styles.activate : '', isDisabled ? styles.disabled : '')}
+          className={clsx(styles.sendBtn,
+            question ? styles.activate : '',
+            isDisabled ? styles.disabled : '',
+            isLoading ? styles.loading : '')}
           onClick={(e) => {
             if (isLoading) {
               if (stop) {
@@ -107,10 +111,14 @@ const ChatInput = forwardRef(({ className, isUpload, send }: IProps, ref) => {
             } else {
               if (send) {
                 send(question, fileId);
+                setQuestion('')
+                if (questionRef.current) {
+                  questionRef.current.value = ''
+                }
               }
             }
           }}
-          disabled={isDisabled || isLoading}
+          disabled={isDisabled}
         >
           {isLoading ? (
             <div className={styles.stopSquare}></div>
