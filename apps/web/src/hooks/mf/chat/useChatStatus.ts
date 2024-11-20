@@ -4,6 +4,7 @@ import { getData } from "../useResponse"
 
 export type ChatStatus = {
     status: 'idle' | 'chatting'
+    roundId?: string
 }
 export const useChatStatus = () => {
     const getChatStatus = useCallback(async (id: string): Promise<ChatStatus> => {

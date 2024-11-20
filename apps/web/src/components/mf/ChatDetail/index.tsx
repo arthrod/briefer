@@ -12,14 +12,22 @@ import { useSession } from '@/hooks/useAuth'
 import RobotMessage from './RobotMessage'
 import { ChatStatus, useChatStatus } from '@/hooks/mf/chat/useChatStatus'
 import { useChatStop } from '@/hooks/mf/chat/useChatStop'
+import { clearTimeout } from 'timers'
+import { time } from 'console'
 const defaultMsg = "``` content\n我是你的AI小助手\n```"
 export interface ChatDetailProps {
   listChange?: () => void
   receiveMsgDone?: () => void
 }
+type ChatRound = {
+  data: ChatStatus | null,
+  timeoutId: number
+}
 const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
   const [list, setList] = useState<MessageContent[]>([])
   const [chatSession, setChatSession] = useState<ChatSession | null>(null)
+  const [chatRound, setChatRound] = useState<ChatRound>({ data: null, timeoutId: -1 })
+  const latestChatRound = useRef(chatRound);
   const [{ createChatSession }] = useChatSession()
   const { startRound } = useChatLayout();
   const [{ getChatStatus }] = useChatStatus();
@@ -39,7 +47,7 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
   const [{ getChatDetail }] = useChatDetail()
   const router = useRouter()
   const chatId = router.query.chatId
-  const stopSendMSg = (): void => {
+  const stopSendMSg = useCallback((): void => {
     if (chatSession) {
       stopChat(chatSession.roundId).then(() => {
         chatSession.eventSource.close()
@@ -47,8 +55,24 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
       }).catch(() => {
         showToast('停止失败', '请重试', 'error')
       })
+    } else if (chatRound &&
+      chatRound.data &&
+      chatRound.timeoutId != -1) {
+      if (chatRound.data.roundId) {
+        stopChat(chatRound.data.roundId).then(() => {
+          window.clearTimeout(chatRound.timeoutId)
+          closeLoading()
+          loadDetail().then(() => {
+            watchStatus()
+          });
+        }).catch(() => {
+          showToast('停止失败', '请重试', 'error')
+        })
+      } else {
+        showToast('停止失败', '请重试', 'error')
+      }
     }
-  }
+  }, [list, chatRound]);
 
   const addSendMsg = (msg: string): void => {
     if (msg && !waiting) {
@@ -73,12 +97,10 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
     const index = list.length + 1;
     console.log(index)
     chatSession.listener.onopen = () => {
-      console.log("sse open")
       openLoading();
     }
     chatSession.listener.onerror = (error) => {
       updateMsg(msgId, '服务错误', true)
-      console.log("sse error")
       waiting = true
       disableInput();
       closeLoading();
@@ -98,7 +120,6 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
       });
     }
     chatSession.listener.close = () => {
-      console.log("sse close")
       updateMsgStatus(msgId, 'success')
       closeLoading();
     }
@@ -217,7 +238,6 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
       }
     })
   }
-  // 初始加载数据后滚动到底部
   useEffect(() => {
     if (chatId) {
       loadDetail().then(() => {
@@ -225,26 +245,47 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
       });
     }
   }, [chatId, router])
+  // 初始加载数据后滚动到底部
+  useEffect(() => {
+    return () => {
+      closeLoading();
+      window.clearTimeout(latestChatRound.current.timeoutId)
+    }
+  }, [])
 
-  const watchStatus = (timeoutId?: number) => {
+  useEffect(() => {
+    latestChatRound.current = chatRound;
+  }, [chatRound]);
+
+  const stopWatchStatus = () => {
+    closeLoading();
+    window.clearTimeout(latestChatRound.current.timeoutId)
+  }
+
+  const watchStatus = useCallback(() => {
     getChatStatus(String(chatId)).then((data: ChatStatus) => {
       if (data) {
         if (data.status === 'chatting') {
+          stopWatchStatus();
           openLoading();
-          const id = window.setTimeout(() => {
-            watchStatus(id)
+          const timeoutId = window.setTimeout(() => {
+            watchStatus()
           }, 3000)
+          setChatRound(
+            {
+              data: data,
+              timeoutId: timeoutId
+            }
+          )
         } else {
           loadDetail();
-          closeLoading();
-          window.clearTimeout(timeoutId)
+          stopWatchStatus();
         }
       } else {
-        closeLoading();
-        window.clearTimeout(timeoutId)
+        stopWatchStatus();
       }
     })
-  }
+  }, [chatRound])
   return (
     <div className={styles.chatList} ref={scrollRef} key={String(chatId)}>
       {list.map((message, index) => (
