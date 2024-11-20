@@ -1,6 +1,14 @@
 import { prisma } from '@briefer/database'
 import { logger } from '../../logger.js'
 import fetch from 'node-fetch'
+import { EventEmitter } from 'events'
+
+// 设置最大监听器数量，避免内存泄漏警告
+const MAX_LISTENERS = 1000
+
+// 创建全局事件发射器实例
+export const titleUpdateEmitter = new EventEmitter()
+titleUpdateEmitter.setMaxListeners(MAX_LISTENERS)
 
 // 过滤字符串
 const sanitizeInput = (input: string): string => {
@@ -114,6 +122,28 @@ export async function summarizeUntitledChats() {
                       messageCount: messages.length
                     }
                   })
+
+                  // 发送标题更新事件
+                  const updateData = {
+                    chatId: chat.id,
+                    title: completeTitle.trim()
+                  }
+
+                  logger().info({
+                    msg: 'Emitting title update event',
+                    data: updateData
+                  })
+
+                  titleUpdateEmitter.emit('titleUpdate', updateData)
+
+                  logger().info({
+                    msg: 'Title update event emitted',
+                    data: {
+                      chatId: chat.id,
+                      listenerCount: titleUpdateEmitter.listenerCount('titleUpdate')
+                    }
+                  })
+
                   break
                 }
 

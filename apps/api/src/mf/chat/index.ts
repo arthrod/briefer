@@ -11,6 +11,7 @@ import fetch, { Response as FetchResponse } from 'node-fetch'
 import { Send } from 'express-serve-static-core'
 import fs from 'fs/promises'
 import path from 'path'
+import { titleUpdateEmitter } from './title-summarizer.js'
 
 // 1. 将所有配置常量集中到一个对象中
 const CONFIG = {
@@ -1752,6 +1753,136 @@ router.post('/stop', authMiddleware, async (req: Request, res: Response) => {
       return res.status(403).json(createErrorResponse(403, err.message))
     }
     return handleError(err, req, res, 'stop chat')
+  }
+})
+
+// 添加标题更新 SSE 路由
+router.get('/title/update', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const userId = req.session.user.id
+
+    logger().info({
+      msg: 'Title update SSE connection established',
+      data: { 
+        userId,
+        currentListeners: titleUpdateEmitter.listenerCount('titleUpdate')
+      }
+    })
+
+    // 设置 SSE 头部
+    setupSSEConnection(res)
+
+    // 创建标题更新处理函数
+    const handleTitleUpdate = async (data: { chatId: string, title: string }) => {
+      logger().info({
+        msg: 'Received title update event',
+        data: {
+          userId,
+          chatId: data.chatId,
+          title: data.title
+        }
+      })
+
+      try {
+        // 验证该聊天是否属于当前用户
+        const chat = await prisma().chat.findFirst({
+          where: {
+            id: data.chatId,
+            userId: userId
+          }
+        })
+
+        if (chat) {
+          const message = JSON.stringify({
+            chatId: data.chatId,
+            title: data.title
+          })
+          
+          logger().info({
+            msg: 'Sending title update via SSE',
+            data: {
+              userId,
+              chatId: data.chatId,
+              title: data.title,
+              messageContent: message
+            }
+          })
+
+          // 确保连接仍然打开
+          if (!res.writableEnded) {
+            res.write(`data: ${message}\n\n`)
+          } else {
+            logger().warn({
+              msg: 'SSE connection already closed',
+              data: { userId, chatId: data.chatId }
+            })
+          }
+        } else {
+          logger().warn({
+            msg: 'Attempted to send title update for unauthorized chat',
+            data: {
+              userId,
+              chatId: data.chatId
+            }
+          })
+        }
+      } catch (error) {
+        logger().error({
+          msg: 'Error processing title update',
+          data: {
+            error: error instanceof Error ? error.message : 'Unknown error',
+            stack: error instanceof Error ? error.stack : undefined,
+            userId,
+            chatId: data.chatId
+          }
+        })
+      }
+    }
+
+    // 注册事件监听器
+    titleUpdateEmitter.on('titleUpdate', handleTitleUpdate)
+    
+    logger().info({
+      msg: 'Title update event listener registered',
+      data: { 
+        userId,
+        totalListeners: titleUpdateEmitter.listenerCount('titleUpdate')
+      }
+    })
+
+    // 发送初始连接成功消息
+    res.write('data: {"connected":true}\n\n')
+
+    // 当客户端断开连接时清理
+    req.on('close', () => {
+      titleUpdateEmitter.off('titleUpdate', handleTitleUpdate)
+      
+      logger().info({
+        msg: 'Title update SSE connection closed',
+        data: { 
+          userId,
+          remainingListeners: titleUpdateEmitter.listenerCount('titleUpdate')
+        }
+      })
+
+      // 确保连接被正确关闭
+      if (!res.writableEnded) {
+        res.end()
+      }
+    })
+
+  } catch (err) {
+    logger().error({
+      msg: 'Title update SSE error',
+      data: {
+        error: err instanceof Error ? err.message : 'Unknown error',
+        stack: err instanceof Error ? err.stack : undefined,
+        userId: req.session.user.id
+      }
+    })
+    if (!res.writableEnded) {
+      res.end()
+    }
   }
 })
 
