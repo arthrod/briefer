@@ -155,6 +155,11 @@ const chatCompletionsSchema = z.object(baseRoundSchema)
 const summarizeChatSchema = z.object(baseRoundSchema)
 const getChatStatusSchema = z.object(baseChatSchema)
 
+// 在 Schema 定义部分添加
+const stopChatSchema = z.object({
+  roundId: baseId.describe("对话轮次ID")
+})
+
 // 5. 错误类
 class ValidationError extends Error {
   constructor(message: string) {
@@ -349,13 +354,22 @@ type UpdateTarget = {
   roundId?: string;
 }
 
+// 在全局范围内添加一个 Map 来存储活跃的请求控制器
+const activeRequests = new Map<string, AbortController>();
+
 async function handleStreamResponse(
   response: FetchResponse,
   res: Response,
-  updateTarget: UpdateTarget
+  updateTarget: UpdateTarget,
+  controller?: AbortController
 ): Promise<void> {
   if (!response.body) {
     throw new Error('Response body is empty')
+  }
+
+  if (controller) {
+    // 存储控制器
+    activeRequests.set(updateTarget.roundId!, controller);
   }
 
   const stream = response.body
@@ -385,6 +399,15 @@ async function handleStreamResponse(
     }
 
     for await (const chunk of stream) {
+      // 添加中断检查
+      if (controller?.signal.aborted) {
+        logger().info({
+          msg: 'Stream processing aborted',
+          data: { roundId: updateTarget.roundId }
+        });
+        break;
+      }
+
       buffer += textDecoder.decode(chunk as Buffer, { stream: true })
       const lines = buffer.split('\n')
       buffer = lines.pop() || ''
@@ -501,8 +524,10 @@ async function handleStreamResponse(
                 }
               })
 
-              // 正确的SSE数据格式: "data: " + content + "\n\n"
-              res.write(`data: ${content.replace(/\n/g, '')}\n\n`) // 发送时去除换行符
+              // 添加中断检查
+              if (!controller?.signal.aborted) {
+                res.write(`data: ${content.replace(/\n/g, '')}\n\n`)
+              }
             }
           } catch (jsonError) {
             logger().error({
@@ -542,7 +567,10 @@ async function handleStreamResponse(
           const content = jsonData.choices?.[0]?.delta?.content || ''
           if (content && typeof content === 'string' && content.trim().length > 0) {
             completeMessage += content
-            res.write(`data: ${content.replace(/\n/g, '')}\n\n`) // 发送时去除换行符
+            // 添加中断检查
+            if (!controller?.signal.aborted) {
+              res.write(`data: ${content.replace(/\n/g, '')}\n\n`) // 发送时去除换行符
+            }
           }
         } catch (parseError) {
           logger().error({
@@ -554,6 +582,39 @@ async function handleStreamResponse(
           })
         }
       }
+    }
+
+    // 如果是因为中断而结束的，确保保存当前进度并结束响应
+    if (controller?.signal.aborted) {
+      const now = new Date()
+      if (updateTarget.type === 'chat_record' && updateTarget.roundId) {
+        // 确保消息末尾有 [DONE] 标识
+        const finalMessage = completeMessage.includes('[DONE]') 
+          ? completeMessage 
+          : completeMessage.trim() + '\n[DONE]'
+
+        await prisma().$transaction([
+          prisma().chatRecord.update({
+            where: { id: updateTarget.roundId },
+            data: {
+              answer: Buffer.from(finalMessage), // 使用添加了 [DONE] 的消息
+              speakerType: 'assistant',
+              status: CONFIG.CHAT_STATUS.COMPLETED,
+              updateTime: now
+            }
+          }),
+          prisma().chat.update({
+            where: { id: updateTarget.chatId },
+            data: { updateTime: now }
+          })
+        ])
+      }
+      
+      if (!res.writableEnded) {
+        res.write('data: [DONE]\n\n')
+        res.end()
+      }
+      return
     }
 
     // 打印完整的消息内容
@@ -628,6 +689,11 @@ async function handleStreamResponse(
     }
 
     throw error // 继续抛出错误以触发外层错误处理
+  } finally {
+    // 清理控制器
+    if (updateTarget.roundId) {
+      activeRequests.delete(updateTarget.roundId);
+    }
   }
 }
 
@@ -1219,6 +1285,8 @@ router.get('/completions',
     // 在路由开始就建立 SSE 连接
     setupSSEConnection(res)
 
+    const controller = new AbortController();
+
     try {
       const validatedData = validateSchema(chatCompletionsSchema, req.query, 'chat completions')
       if (!validatedData) {
@@ -1347,7 +1415,8 @@ router.get('/completions',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               user_input: chatRecord.question
-            })
+            }),
+            signal: controller.signal // 添加 signal
           },
           30000
         ) as FetchResponse
@@ -1360,7 +1429,7 @@ router.get('/completions',
           type: 'chat_record',
           chatId: chatId,
           roundId: roundId
-        })
+        }, controller) // 传入 controller
 
       } catch (error) {
         logger().error({
@@ -1578,6 +1647,111 @@ router.post('/status', authMiddleware, async (req, res) => {
       return res.status(403).json(createErrorResponse(403, err.message))
     }
     return handleError(err, req, res, 'get chat status')
+  }
+})
+
+// 添加停止聊天路由
+router.post('/stop', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const validatedData = validateSchema(stopChatSchema, req.body, 'stop chat')
+    if (!validatedData) {
+      return res.status(400).json(createErrorResponse(400, '参数校验失败'))
+    }
+
+    const { roundId } = validatedData
+    const userId = req.session.user.id
+
+    logger().info({
+      msg: 'Attempting to stop chat',
+      data: { roundId, userId }
+    })
+
+    // 查找对话记录并验证权限
+    const chatRecord = await prisma().chatRecord.findFirst({
+      where: {
+        id: roundId,
+        chat: {
+          userId
+        }
+      },
+      select: {
+        id: true,
+        chatId: true,
+        status: true,
+        answer: true
+      }
+    })
+
+    if (!chatRecord) {
+      throw new AuthorizationError('对话记录不存在或无权访问')
+    }
+
+    if (chatRecord.status !== CONFIG.CHAT_STATUS.CHATTING) {
+      logger().info({
+        msg: 'Chat already stopped or completed',
+        data: { roundId, status: chatRecord.status }
+      })
+      return res.json({
+        code: 0,
+        data: {},
+        msg: '对话已经停止或完成'
+      })
+    }
+
+    // 尝试中断正在进行的请求
+    const controller = activeRequests.get(roundId)
+    if (controller) {
+      logger().info({
+        msg: 'Aborting active request',
+        data: { roundId }
+      })
+      controller.abort()
+      activeRequests.delete(roundId)
+    }
+
+    // 更新对话状态为完成
+    const currentAnswer = chatRecord.answer.toString()
+    const updatedAnswer = currentAnswer.includes('[DONE]') 
+      ? currentAnswer 
+      : `${currentAnswer}\n[DONE]`
+
+    await prisma().$transaction([
+      prisma().chatRecord.update({
+        where: { id: roundId },
+        data: {
+          status: CONFIG.CHAT_STATUS.COMPLETED,
+          answer: Buffer.from(updatedAnswer),
+          updateTime: new Date()
+        }
+      }),
+      prisma().chat.update({
+        where: { id: chatRecord.chatId },
+        data: {
+          updateTime: new Date()
+        }
+      })
+    ])
+
+    logger().info({
+      msg: 'Chat stopped successfully',
+      data: {
+        roundId,
+        chatId: chatRecord.chatId,
+        userId
+      }
+    })
+
+    return res.json({
+      code: 0,
+      data: {},
+      msg: '停止成功'
+    })
+
+  } catch (err) {
+    if (err instanceof AuthorizationError) {
+      return res.status(403).json(createErrorResponse(403, err.message))
+    }
+    return handleError(err, req, res, 'stop chat')
   }
 })
 
