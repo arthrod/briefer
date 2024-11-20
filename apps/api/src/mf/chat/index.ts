@@ -283,15 +283,22 @@ function setupSSEConnection(res: Response) {
     'Cache-Control': 'no-cache',
     'Connection': 'keep-alive'
   })
-  // res.write(`data: {"status": "success", "message": "SSE连接已建立"}\n\n`)
 }
 
 // 添加错误消息格式化函数
 const formatErrorMessage = (error: unknown): string => {
-  const errorMessage = error instanceof Error ? error.message : '未知错误'
+  // 记录原始错误信息到日志
+  logger().error({
+    msg: 'Error details',
+    data: {
+      error: error instanceof Error ? error.message : '未知错误',
+      stack: error instanceof Error ? error.stack : undefined
+    }
+  })
+  
   return [
     '```error',
-    errorMessage,
+    '抱歉，操作未能成功，请稍后再试。如果问题持续，请联系我们的支持团队！ 🙏',
     '```'
   ].join('\n')
 }
@@ -299,14 +306,6 @@ const formatErrorMessage = (error: unknown): string => {
 // 修改 SSE 错误处理函数
 const sendSSEError = async (res: Response, error: unknown, updateTarget?: UpdateTarget) => {
   const formattedError = formatErrorMessage(error)
-
-  logger().error({
-    msg: 'SSE error occurred',
-    data: {
-      error: error instanceof Error ? error.message : '未知错误',
-      stack: error instanceof Error ? error.stack : undefined
-    }
-  })
 
   // 如果存在更新目标，将错误消息保存到数据库
   if (updateTarget?.type === 'chat_record' && updateTarget.roundId) {
