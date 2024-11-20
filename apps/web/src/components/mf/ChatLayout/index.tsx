@@ -1,5 +1,5 @@
 import { ChatList, HistoryChat, useChatList } from '@/hooks/mf/chat/useChatList'
-import React, { createContext, forwardRef, useCallback, useContext, useEffect, useImperativeHandle, useState } from 'react'
+import React, { createContext, forwardRef, useCallback, useContext, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { clsx } from 'clsx'
 import { useRouter } from 'next/router'
 import { useWorkspaces } from '@/hooks/useWorkspaces'
@@ -10,7 +10,6 @@ import styles from './index.module.scss'
 import ScrollBar from '@/components/ScrollBar'
 
 import Logo from '../../../icons/mind-flow.svg'
-import { useChatSession } from '@/hooks/mf/chat/useChatSession'
 import { useSession } from '@/hooks/useAuth'
 interface Item {
   type: string
@@ -44,6 +43,7 @@ const MoreBtn = (props: IMoreBtnProps) => {
     <Popover>
       <PopoverTrigger
         className={styles.moreOpt}
+        asChild
         onClick={(e) => {
           e.stopPropagation()
         }}>
@@ -84,12 +84,15 @@ export type EventListener = {
   onerror?: (error: Event) => void
   close: () => void
 }
-
 export default function ChatLayout({ children }: Props) {
   const [chatList, setChatList] = useState<HistoryChat[]>([])
   const [workspaces] = useWorkspaces()
   const [chatSession, setChatSession] = useState<ChatSession[]>([])
-  const [{ createChatSession }] = useChatSession()
+  const [updateTitleEvent, setUpdateTitleEvent] = useState<EventSource | null>(null)
+  const lastedEvent = useRef<EventSource | null>(updateTitleEvent)
+  const [eventTimeoutId, setEventTimeoutId] = useState<number>(-1)
+  const lastedTimeoutId = useRef<number>(eventTimeoutId)
+
   const router = useRouter()
   const chatId = router.query.chatId // 获取当前路由的 chatId
   let scope = '';
@@ -173,7 +176,56 @@ export default function ChatLayout({ children }: Props) {
   const [{ getChatList }] = useChatList()
   useEffect(() => {
     handleUpdate()
+    titleUpdate();
+    return () => {
+      if (lastedEvent.current) {
+        lastedEvent.current.close()
+      }
+    }
   }, [])
+  useEffect(() => {
+    lastedTimeoutId.current = eventTimeoutId;
+  }, [eventTimeoutId])
+  useEffect(() => {
+    lastedEvent.current = updateTitleEvent;
+  }, [updateTitleEvent])
+  useEffect(() => {
+    lastedEvent.current = updateTitleEvent;
+  }, [updateTitleEvent])
+  const titleUpdate = useCallback((timeoutId?: number) => {
+    const eventSource = new EventSource(
+      `${process.env.NEXT_PUBLIC_API_URL}/v1/mf/chat/title/update`,
+      {
+        withCredentials: true // 如果需要发送 cookies
+      }
+    )
+    eventSource.onmessage = (event: MessageEvent) => {
+      try {
+        const data = JSON.parse(event.data)
+        setChatList((prevList) => {
+          const lastIndex = prevList.findIndex((item) => item.id === data.chatId); // 获取最后一条消息的索引
+          const updatedList = [...prevList];
+          if (lastIndex >= 0) {
+            updatedList[lastIndex] = {
+              ...updatedList[lastIndex],
+              title: updatedList[lastIndex].title = data.title // 将新内容追加到最后一条消息
+            };
+          }
+          return updatedList;
+        });
+      } catch (e) {
+
+      }
+    }
+    eventSource.onerror = (error) => {
+      eventSource.close()
+      const timeoutId = window.setTimeout(() => {
+        titleUpdate();
+      }, 5000)
+      setEventTimeoutId(timeoutId)
+    }
+    setUpdateTitleEvent(eventSource)
+  }, [chatList])
 
   const handleUpdate = () => {
     getChatList().then((data: ChatList) => {

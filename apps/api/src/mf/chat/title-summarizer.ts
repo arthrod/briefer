@@ -41,10 +41,10 @@ export async function summarizeUntitledChats() {
 
     for (const chat of untitledChats) {
       try {
-        if (chat.records.length < 2) {
-          logger().debug(`Skipping chat ${chat.id}: insufficient records`)
-          continue
-        }
+        // if (chat.records.length < 2) {
+        //   logger().debug(`Skipping chat ${chat.id}: insufficient records`)
+        //   continue
+        // }
 
         // 构造消息格式，包含 id
         const messages = chat.records.map(record => [

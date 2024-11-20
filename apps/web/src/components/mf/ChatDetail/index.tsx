@@ -63,7 +63,7 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
           window.clearTimeout(chatRound.timeoutId)
           closeLoading()
           loadDetail().then(() => {
-            watchStatus()
+            watchStatus(true)
           });
         }).catch(() => {
           showToast('停止失败', '请重试', 'error')
@@ -74,23 +74,26 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
     }
   }, [list, chatRound]);
 
-  const addSendMsg = (msg: string): void => {
+  const addSendMsg = useCallback((msg: string): void => {
     if (msg && !waiting) {
       openLoading()
       waiting = true;
+      console.log('start')
       createChatSession(msg, String(chatId)).then((data: ChatSessionData) => {
         const msgId = uuidv4()
-        const msgContent: MessageContent = { id: msgId, role: 'user', content: msg, status: 'chatting' };
+        const msgContent: MessageContent = { id: msgId, role: 'user', content: msg, status: 'success' };
         setList((messageList) => [...messageList, msgContent])
-        const receiveMsg = addReceiveMsg('', 'chatting');
-        receiveMsg.roundId = data.id;
-        waitingReceive(receiveMsg.id, data.id)
+        setTimeout(() => {
+          const receiveMsg = addReceiveMsg('', 'chatting');
+          receiveMsg.roundId = data.id;
+          waitingReceive(receiveMsg.id, data.id)
+        })
       }).catch((e) => {
         showToast('消息发送失败，请检查网络', '', 'error');
         waiting = false
       })
     }
-  }
+  }, [list])
   const waitingReceive = (msgId: string, roundId: string) => {
     const chatSession = startRound(String(chatId), roundId)
     setChatSession(chatSession)
@@ -120,6 +123,7 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
       });
     }
     chatSession.listener.close = () => {
+      console.log('close:')
       updateMsgStatus(msgId, 'success')
       closeLoading();
     }
@@ -133,6 +137,7 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
       roundId: '',
       status: status
     };
+    console.log('addReceive:' + status)
     setList((messageList) => [...messageList, msgContent])
     return msgContent
   }
@@ -174,6 +179,7 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
     }
   }
   const getSuccessElm = (message: MessageContent, index: number) => {
+    console.log(message.status)
     return message.isError ? ((<div className={styles.errorContent}>
       <div>发生错误。服务器发生错误，或者在处理您的请求时出现了其他问题</div>
       <div className={styles.buttonWrapper}>
@@ -235,13 +241,14 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
       if (data) {
         data.messages.unshift({ id: '', role: 'system', content: defaultMsg, status: 'success' })
         setList(data.messages);
+        console.log('loadDetail')
       }
     })
   }
   useEffect(() => {
     if (chatId) {
       loadDetail().then(() => {
-        watchStatus()
+        watchStatus(true)
       });
     }
   }, [chatId, router])
@@ -262,14 +269,14 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
     window.clearTimeout(latestChatRound.current.timeoutId)
   }
 
-  const watchStatus = useCallback(() => {
+  const watchStatus = useCallback((isFirst: boolean) => {
     getChatStatus(String(chatId)).then((data: ChatStatus) => {
       if (data) {
         if (data.status === 'chatting') {
           stopWatchStatus();
           openLoading();
           const timeoutId = window.setTimeout(() => {
-            watchStatus()
+            watchStatus(false)
           }, 3000)
           setChatRound(
             {
@@ -277,7 +284,7 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
               timeoutId: timeoutId
             }
           )
-        } else {
+        } else if(!isFirst) {
           loadDetail();
           stopWatchStatus();
         }

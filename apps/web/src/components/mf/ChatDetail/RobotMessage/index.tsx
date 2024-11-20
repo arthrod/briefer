@@ -109,7 +109,7 @@ const RobotMessage = forwardRef((props: IProps, ref) => {
                         </div>
                     );
                 } catch (e) {
-                    return <div key={index} className={styles.errorBlock}>Invalid JSON</div>;
+                    
                 }
             default:
                 return <div key={index} >{block.content}</div>;
