@@ -19,13 +19,26 @@ const sanitizeInput = (input: string): string => {
   return input.trim()
 }
 
+// 在文件开头添加常量定义
+const CHAT_STATUS = {
+  START: 1,
+  CHATTING: 2,
+  COMPLETED: 3,
+  FAILED: 4
+} as const
+
 export async function summarizeUntitledChats() {
   try {
     logger().info('Starting untitled chats summarization task')
 
     const untitledChats = await prisma().chat.findMany({
       where: {
-        isTitleSet: false
+        isTitleSet: false,
+        records: {
+          none: {
+            status: CHAT_STATUS.CHATTING
+          }
+        }
       },
       include: {
         records: {
@@ -202,7 +215,7 @@ export async function summarizeUntitledChats() {
 
 // 启动周期性任务
 export function startTitleSummarizationTask() {
-  const INTERVAL = 15000 // 15秒
+  const INTERVAL = 10000 // 10秒
 
   logger().info('Starting title summarization task scheduler')
 
