@@ -513,6 +513,7 @@ model Chat {
   userId       String    
   title        String
   type         Int       @db.SmallInt // 1-找数, 2-报告
+  isTitleSet   Boolean   @default(false)  // 标识标题是否已设置
   createdTime  DateTime  @default(now())
   updateTime   DateTime? @updatedAt
 
