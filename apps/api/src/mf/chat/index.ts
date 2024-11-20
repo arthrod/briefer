@@ -477,6 +477,7 @@ async function handleStreamResponse(
             }
 
             await fs.writeFile(logFilePath, completeMessage, 'utf-8')
+
             res.write(`data: [DONE]\n\n`)
             return
           }
@@ -1539,7 +1540,8 @@ router.post('/status', authMiddleware, async (req, res) => {
           },
           take: 1,
           select: {
-            status: true
+            status: true,
+            id: true
           }
         }
       }
@@ -1550,20 +1552,23 @@ router.post('/status', authMiddleware, async (req, res) => {
     }
 
     const status = chat.records[0]?.status === CONFIG.CHAT_STATUS.CHATTING ? 'chatting' : 'idle'
+    const roundId = status === 'chatting' ? chat.records[0]?.id : ''
 
     logger().info({
       msg: 'Chat status retrieved successfully',
       data: {
         chatId,
         userId,
-        status
+        status,
+        roundId
       }
     })
 
     return res.json({
       code: 0,
       data: {
-        status
+        status,
+        roundId
       },
       msg: '获取成功'
     })
