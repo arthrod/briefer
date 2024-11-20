@@ -1,4 +1,4 @@
-import ShortUniqueId from 'short-unique-id'
+import { v4 as uuidv4 } from 'uuid'
 import CryptoJS from 'crypto-js'
 
 class CryptData {
@@ -61,7 +61,7 @@ class AesTools {
   }
 
   private static getCbcIv(): string {
-    let iv = uuid(16)
+    let iv = uuidv4().replace(/-/g, '').slice(0, 16);
     if (!iv) {
       iv = AesTools.genRandomStr(16) // 使用备用的随机生成方法
     }
@@ -69,5 +69,4 @@ class AesTools {
   }
 }
 
-const uuid = new ShortUniqueId().randomUUID
 export { AesTools }
