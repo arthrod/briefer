@@ -471,6 +471,9 @@ async function handleStreamResponse(
                   error: dbError instanceof Error ? dbError.message : 'Unknown error'
                 }
               })
+              // 使用sendSSEError处理数据库错误
+              await sendSSEError(res, dbError, updateTarget);
+              return;
             }
 
             await fs.writeFile(logFilePath, completeMessage, 'utf-8')
@@ -500,14 +503,20 @@ async function handleStreamResponse(
               // 正确的SSE数据格式: "data: " + content + "\n\n"
               res.write(`data: ${content.replace(/\n/g, '')}\n\n`) // 发送时去除换行符
             }
-          } catch (parseError) {
+          } catch (jsonError) {
             logger().error({
-              msg: 'Failed to parse SSE JSON data',
+              msg: 'Failed to parse SSE data',
               data: {
                 rawData: data,
-                error: parseError instanceof Error ? parseError.message : 'Unknown error'
+                error: jsonError instanceof Error ? jsonError.message : 'Unknown error'
               }
             })
+
+            // 使用sendSSEError处理JSON解析错误
+            if (updateTarget.type === 'chat_record' && updateTarget.roundId) {
+              await sendSSEError(res, new Error('解析响应数据失败，请重试'), updateTarget);
+              return;
+            }
           }
         }
       }
@@ -612,6 +621,9 @@ async function handleStreamResponse(
           error: dbError instanceof Error ? dbError.message : 'Unknown error'
         }
       })
+      // 使用sendSSEError处理数据库错误
+      await sendSSEError(res, dbError, updateTarget);
+      return;
     }
 
     throw error // 继续抛出错误以触发外层错误处理
@@ -1061,7 +1073,7 @@ router.post('/round/create', authMiddleware, async (req, res) => {
 router.post('/detail',
   authMiddleware,
   // cacheMiddleware(CONFIG.CHAT_DETAIL_CACHE_DURATION),
-  async (req, res) => {
+  async (req: Request, res: Response) => {
     try {
       const validatedData = validateSchema(getChatDetailSchema, req.body, 'get chat detail')
       if (!validatedData) {
