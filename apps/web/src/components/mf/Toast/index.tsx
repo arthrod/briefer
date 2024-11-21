@@ -118,7 +118,9 @@ type ToastActionElement = React.ReactElement<typeof ToastAction>
 
 import { createRoot } from 'react-dom/client'
 
-export function showToast(title: string, description: string, p0: string, variant: "success" | "error" | "warning" | "default" = "default") {
+export function showToast(title: string, description: string,
+    variant: "success" | "error" | "warning" | "default" = "default"
+) {
   const toastContainer = document.createElement('div')
   document.body.appendChild(toastContainer)
 
