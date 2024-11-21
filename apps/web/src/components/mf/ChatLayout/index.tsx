@@ -243,18 +243,20 @@ export default function ChatLayout({ children }: Props) {
     }}>
       <div className={clsx(styles.chatLayout)}>
         <div className={clsx(styles.left, 'text-sm')}>
-          <div className={clsx("flex w-full flex-col", styles.logo_icon)} onClick={() => {
-            router.push('/home')
-          }}>
-            <Logo />
-          </div>
-          <div
-            className={styles.createBtn}
-            onClick={() => {
-              router.push(`/home`)
+          <div className={styles.top}>
+            <div className={clsx("flex w-full flex-col", styles.logo_icon)} onClick={() => {
+              router.push('/home')
             }}>
-            <img src="/icons/chat-new-line.svg" width={16} height={16} />
-            <span>新建对话</span>
+              <Logo />
+            </div>
+            <div
+              className={styles.createBtn}
+              onClick={() => {
+                router.push(`/home`)
+              }}>
+              <img src="/icons/chat-new-line.svg" width={16} height={16} />
+              <span>新建对话</span>
+            </div>
           </div>
           <ScrollBar className={styles.chatListWrapper}>
             {chatList.length ? (
