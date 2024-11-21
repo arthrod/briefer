@@ -28,7 +28,7 @@ export default function Login() {
     if (value) {
       setUsername(username)
     }
-  },[])
+  }, [])
   const onChangeChecked = useCallback((checked: CheckedState) => {
     setRemePwd(checked);
     localStorage.setItem('remePwd', checked.toString())
@@ -62,7 +62,7 @@ export default function Login() {
   const onPasswordAuth: FormEventHandler<HTMLFormElement> = useCallback(
     (e) => {
       e.preventDefault()
-      
+
       loginWithPassword(username, password)
     },
     [username, password]
@@ -91,100 +91,101 @@ export default function Login() {
   return (
     <div
       className={clsx('w-100vw relative h-full overflow-hidden', styles.login_home)}>
-      <MindFlowSvg
-      className={styles.mindflow_icon}
-      ></MindFlowSvg>
-      <div className={styles.content}>
+      <div className={styles.top}>
+        <MindFlowSvg
+          className={styles.mindflow_icon}
+        ></MindFlowSvg>
+        <div className={styles.content}>
 
-        {/*
+          {/*
          * This padding must match the sum of the paddings of the messages at
          * the bottom of the box so that the box is centered with the logo on
          * the left.
          */}
-        <div>
-          <div className={clsx(auth.error ? 'visible' : 'hidden', 'py-8', 'flex')}>
-            <div className="bg-ceramic-50 rounded-sm border border-red-300 py-4 sm:w-[380px] lg:w-[480px]">
-              <div className="text-md text-center text-red-700">
-                {auth.error === 'unexpected' && 'Something went wrong. Please contact support.'}
-                {auth.error === 'invalid-creds' && '用户名或密码错误'}
+          <div>
+            <div className={clsx(auth.error ? 'visible' : 'hidden', 'py-8', 'flex')}>
+              <div className="bg-ceramic-50 rounded-sm border border-red-300 py-4 sm:w-[380px] lg:w-[480px]">
+                <div className="text-md text-center text-red-700">
+                  {auth.error === 'unexpected' && 'Something went wrong. Please contact support.'}
+                  {auth.error === 'invalid-creds' && '用户名或密码错误'}
+                </div>
               </div>
             </div>
-          </div>
 
-          <div
-            className={clsx(
-              'flex flex-col rounded-lg',
-              styles.form
-            )}>
-            <h2 className="text-hunter-900 text-4xl font-bold tracking-tight">登录</h2>
+            <div
+              className={clsx(
+                'flex flex-col rounded-lg',
+                styles.form
+              )}>
+              <h2 className="text-hunter-900 text-4xl font-bold tracking-tight">登录</h2>
 
-            <form onSubmit={onPasswordAuth} className='mt-[16px]'>
-              <div>
-                <div className={clsx('pb-4')}>
-                  <label htmlFor="username" className="block pb-2 text-sm leading-6 text-gray-500">
-                    帐号
-                  </label>
-                  <div className={styles.input_layout}>
-                    <AccountSvg className={styles.icon} />
-                    <input
-                      name="username"
-                      type="text"
-                      className={styles.input}
+              <form onSubmit={onPasswordAuth} className='mt-[16px]'>
+                <div>
+                  <div className={clsx('pb-4')}>
+                    <label htmlFor="username" className="block pb-2 text-sm leading-6 text-gray-500">
+                      帐号
+                    </label>
+                    <div className={styles.input_layout}>
+                      <AccountSvg className={styles.icon} />
+                      <input
+                        name="username"
+                        type="text"
+                        className={styles.input}
+                        disabled={auth.data !== undefined || auth.loading}
+                        required
+                        value={username}
+                        onChange={onChangeEmail}
+                        placeholder="请输入帐号"
+                      />
+                    </div>
+                  </div>
+
+                  <div className={clsx('mt-[28px]')}>
+                    <label htmlFor="username" className="block pb-2 text-sm leading-6 text-gray-500">
+                      密码
+                    </label>
+                    <div className={styles.input_layout}>
+                      <PwdSvg className={styles.icon}></PwdSvg>
+                      <input
+                        name="password"
+                        type="password"
+                        autoComplete="password"
+                        placeholder="请输入密码"
+                        disabled={auth.data !== undefined || auth.loading}
+                        required
+                        value={password}
+                        onChange={onChangePassword}
+                        className={styles.input}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2 mt-[18px]">
+                    <Checkbox id="terms" checked={remePwd} onCheckedChange={onChangeChecked} />
+                    <label
+                      htmlFor="terms"
+                      className={clsx("text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
+                        styles.checkbox
+
+                      )}>
+                      记住密码
+                    </label>
+                  </div>
+                  <div className={clsx('mt-[44px]')}>
+                    <button
+                      type="submit"
                       disabled={auth.data !== undefined || auth.loading}
-                      required
-                      value={username}
-                      onChange={onChangeEmail}
-                      placeholder="请输入帐号"
-                    />
+                      className={clsx(
+                        styles.botton,
+                        'flex w-full items-center justify-center rounded-sm px-6 py-3 text-sm font-medium shadow-sm disabled:bg-gray-200 disabled:hover:cursor-not-allowed'
+                      )}>
+                      <span>登录</span>
+                      {auth.loading && <Spin wrapperClassName="pl-2" />}
+                    </button>
                   </div>
                 </div>
-
-                <div className={clsx('mt-[28px]')}>
-                  <label htmlFor="username" className="block pb-2 text-sm leading-6 text-gray-500">
-                    密码
-                  </label>
-                  <div className={styles.input_layout}>
-                    <PwdSvg className={styles.icon}></PwdSvg>
-                    <input
-                      name="password"
-                      type="password"
-                      autoComplete="password"
-                      placeholder="请输入密码"
-                      disabled={auth.data !== undefined || auth.loading}
-                      required
-                      value={password}
-                      onChange={onChangePassword}
-                      className={styles.input}
-                    />
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2 mt-[18px]">
-                  <Checkbox id="terms" checked={remePwd} onCheckedChange={onChangeChecked}/>
-                  <label
-                    htmlFor="terms"
-                    className={clsx("text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
-                      styles.checkbox
-                  
-                    )}>
-                    记住密码
-                  </label>
-                </div>
-                <div className={clsx('mt-[44px]')}>
-                  <button
-                    type="submit"
-                    disabled={auth.data !== undefined || auth.loading}
-                    className={clsx(
-                      styles.botton,
-                      'flex w-full items-center justify-center rounded-sm px-6 py-3 text-sm font-medium shadow-sm disabled:bg-gray-200 disabled:hover:cursor-not-allowed'
-                    )}>
-                    <span>登录</span>
-                    {auth.loading && <Spin wrapperClassName="pl-2" />}
-                  </button>
-                </div>
-              </div>
-            </form>
-          </div>
-          {/* <div className="pt-8 text-center text-slate-500">
+              </form>
+            </div>
+            {/* <div className="pt-8 text-center text-slate-500">
             <p className="text-xs text-slate-500">
               By logging in, you agree to our{' '}
               <Link
@@ -203,7 +204,11 @@ export default function Login() {
               .
             </p>
           </div> */}
+          </div>
         </div>
+      </div>
+      <div className={styles.copyright}>
+      Copyright © 2024 mindflow.cn All Rights Reserved 创意之海版权所有
       </div>
     </div>
   )
