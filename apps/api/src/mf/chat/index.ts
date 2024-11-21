@@ -1386,7 +1386,7 @@ router.get('/completions',
 
           const errorMessage = [
             '```content',
-            '暂时无法回答非相关内容',
+            '抱歉，我目前无法回答与查找数据无关的内容。如果您有查找数据需求，请随时告诉我！',
             '```'
           ];
 
