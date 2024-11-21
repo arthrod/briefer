@@ -1,12 +1,8 @@
 import { forwardRef, useCallback, useEffect, useState } from "react";
 import styles from './index.module.scss';
-import { prop } from "ramda";
 import { parseSSEStream } from "@/hooks/mf/chat/useSSEMessage";
-import { json } from "stream/consumers";
-import { Item } from "yjs";
-import { Columns } from "lucide-react";
 import React from "react";
-
+import LinkSvg from '../../../../icons/link-icon.svg'
 // 定义 SSE 块的类型
 export interface IProps {
     content: string;
@@ -80,12 +76,19 @@ const RobotMessage = forwardRef((props: IProps, ref) => {
                     return (
                         <div key={index} className={styles.json}>
                             <div className={styles.jsonTitle}>
-                                <a className={styles.link}
+                                <div
+                                className={styles.link}
+                                >
+                                <a 
                                     href={jsonData.link}
                                     target="_blank"
                                 >
                                     {jsonData.table_name}
                                 </a>
+                                <div className={styles.linkIcon}>
+                                <LinkSvg></LinkSvg>
+                                </div>
+                                </div>
                                 <div className={styles.tips}>
                                     {'查找结果' + block.jsonNumber}
                                 </div>

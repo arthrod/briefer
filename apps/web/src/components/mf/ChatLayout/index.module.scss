@@ -10,28 +10,32 @@
 .left {
   width: 15rem;
   background-color: #f4f7fe;
-  padding: 1rem;
   height: 100%;
-
-  .createBtn {
-    margin-top: 1.25rem;
-    display: flex;
-    width: 13rem;
-    height: 2.5rem;
-    border-radius: 0.5rem;
-    align-items: center;
-    padding: 0.625rem 0.75rem;
-    gap: 0.5rem;
-    color: #2f69fe;
-    background: linear-gradient(0deg, rgba(47, 105, 254, 0.12), rgba(47, 105, 254, 0.12)), #ffffff;
-    border: 1px solid rgba(47, 105, 254, 0.12);
-    cursor: pointer;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  .top {
+    padding: 16px;
+    .createBtn {
+      margin-top: 1.25rem;
+      display: flex;
+      width: 13rem;
+      height: 2.5rem;
+      border-radius: 0.5rem;
+      align-items: center;
+      padding: 0.625rem 0.75rem;
+      gap: 0.5rem;
+      color: #2f69fe;
+      background: linear-gradient(0deg, rgba(47, 105, 254, 0.12), rgba(47, 105, 254, 0.12)), #ffffff;
+      border: 1px solid rgba(47, 105, 254, 0.12);
+      cursor: pointer;
+    }
   }
 
   .chatListWrapper {
-    margin-top: 1.25rem;
-    height: calc(100% - 1.25rem - 2rem - 2.5rem - 1.25rem);
-
+    height: 100%;
+    padding: 0 16px 16px 16px;
+    overflow: auto;
     .chatItem {
       position: relative;
       width: 13rem;

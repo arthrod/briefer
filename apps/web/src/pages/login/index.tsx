@@ -103,14 +103,7 @@ export default function Login() {
          * the left.
          */}
           <div>
-            <div className={clsx(auth.error ? 'visible' : 'hidden', 'py-8', 'flex')}>
-              <div className="bg-ceramic-50 rounded-sm border border-red-300 py-4 sm:w-[380px] lg:w-[480px]">
-                <div className="text-md text-center text-red-700">
-                  {auth.error === 'unexpected' && 'Something went wrong. Please contact support.'}
-                  {auth.error === 'invalid-creds' && '用户名或密码错误'}
-                </div>
-              </div>
-            </div>
+
 
             <div
               className={clsx(
@@ -167,19 +160,25 @@ export default function Login() {
                         styles.checkbox
 
                       )}>
-                      记住密码
+                      记住用户名
                     </label>
                   </div>
-                  <div className={clsx('mt-[44px]')}>
+                  <div className={clsx('visible', 'flex', 'mt-[10px]', styles.errorHint)}>
+                    <div className={styles.errorText}>
+                      {auth.error === 'unexpected' && '出现了未知问题. 请联系运维人员.'}
+                      {auth.error === 'invalid-creds' && '用户名或密码错误'}
+                    </div>
+                  </div>
+                  <div className={clsx('mt-[12px]')}>
                     <button
                       type="submit"
                       disabled={auth.data !== undefined || auth.loading}
                       className={clsx(
                         styles.botton,
-                        'flex w-full items-center justify-center rounded-sm px-6 py-3 text-sm font-medium shadow-sm disabled:bg-gray-200 disabled:hover:cursor-not-allowed'
+                        'flex w-full items-center justify-center rounded-sm px-6 py-3 text-sm font-medium shadow-sm disabled:bg-gray-200 disabled:hover:cursor-not-allowed h-[60px]'
                       )}>
                       <span>登录</span>
-                      {auth.loading && <Spin wrapperClassName="pl-2" />}
+                      {<Spin wrapperClassName="pl-2" />}
                     </button>
                   </div>
                 </div>
@@ -208,7 +207,7 @@ export default function Login() {
         </div>
       </div>
       <div className={styles.copyright}>
-      Copyright © 2024 mindflow.cn All Rights Reserved 创意之海版权所有
+        Copyright © 2024 mindflow.cn All Rights Reserved 创意之海版权所有
       </div>
     </div>
   )
