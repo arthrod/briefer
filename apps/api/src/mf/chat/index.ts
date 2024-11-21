@@ -345,7 +345,7 @@ const sendSSEError = async (res: Response, error: unknown, updateTarget?: Update
   })
   res.write('\n') // 表示该消息结束
   res.write('data: [DONE]\n\n')
-  res.end()
+  // res.end() // 统一不关闭
 }
 
 // 定义更新类型
