@@ -48,6 +48,9 @@ const ChatInput = forwardRef(({ className, isUpload, send, stop }: IProps, ref) 
     }
   }
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (isLoading) {
+      return
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault() // 防止默认的换行行为
       if (send) {
@@ -100,7 +103,7 @@ const ChatInput = forwardRef(({ className, isUpload, send, stop }: IProps, ref) 
         </PopoverTrigger>
         <button
           className={clsx(styles.sendBtn,
-            question ? styles.activate : '',
+            question ? isLoading ? '' : isDisabled ? '' : styles.activate : '',
             isDisabled ? styles.disabled : '',
             isLoading ? styles.loading : '')}
           onClick={(e) => {

@@ -22,6 +22,7 @@ type ChatRound = {
   timeoutId: number
 }
 const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
+  const { getScope } = useChatLayout()
   const [list, setList] = useState<MessageContent[]>([])
   const [chatSession, setChatSession] = useState<ChatSession | null>(null)
   const [chatRound, setChatRound] = useState<ChatRound>({ data: null, timeoutId: -1 })
@@ -234,6 +235,10 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
       if (data) {
         data.messages.unshift({ id: '', role: 'system', content: defaultMsg, status: 'success' })
         setList(data.messages);
+        const msg = getScope()
+        if (msg) {
+          addSendMsg(msg)
+        }
       }
     })
   }

@@ -16,7 +16,7 @@ function HomePage() {
   const [fileId, setFileId] = useState<string>('')
   const [{ createChat }] = useCreateChat()
   const router = useRouter()
-  const { newChat, refreshChatList, getScope } = useChatLayout()
+  const { newChat } = useChatLayout()
   const chatInput = useRef<{
     openLoading: () => void
     closeLoading: () => void

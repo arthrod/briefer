@@ -21,7 +21,6 @@ export const useRagDetailLayout = () => {
   return context
 }
 function RagDetail() {
-  const { getScope } = useChatLayout()
   const chatInput = useRef<{
     openLoading: () => void,
     closeLoading: () => void
@@ -36,10 +35,6 @@ function RagDetail() {
   }>(null)
   const router = useRouter()
   const chatId = router.query.chatId
-  useEffect(() => {
-    const scope = getScope();
-    send(scope);
-  }, [chatDetail])
   const disableInput = useCallback(() => {
     chatInput.current?.disableInput()
   }, [])
