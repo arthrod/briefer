@@ -3,7 +3,6 @@ import React, { createContext, forwardRef, useCallback, useContext, useEffect, u
 import { clsx } from 'clsx'
 import { useRouter } from 'next/router'
 import { useWorkspaces } from '@/hooks/useWorkspaces'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { NoData } from '@/components/mf/NoData'
 
 import styles from './index.module.scss'
@@ -11,7 +10,13 @@ import ScrollBar from '@/components/ScrollBar'
 
 import Logo from '../../../icons/mind-flow.svg'
 import { useSession } from '@/hooks/useAuth'
-import { Portal } from '@radix-ui/react-popover'
+import { Popover, PopoverButton, PopoverPanel } from '@headlessui/react'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger
+} from '@/components/Dialog'
+import { useDeleteChat } from '@/hooks/mf/chat/useChatDelete'
+import { showToast } from '../Toast'
 interface Item {
   type: string
   label: string
@@ -40,31 +45,77 @@ export const useChatLayout = () => {
 }
 const MoreBtn = (props: IMoreBtnProps) => {
   const { items, onItemClick } = props;
+  const [isOpen, setIsOpen] = useState(false)
+  const closePopover = () => {
+    setIsOpen(false) // 手动关闭 Popover
+  }
   return (
-    <Popover>
-      <PopoverTrigger
-        className={styles.moreOpt}
-        asChild
-        onClick={(e) => {
-          e.stopPropagation()
-        }}>
-        <img src="/icons/more.svg" width={16} />
-      </PopoverTrigger>
-      <PopoverContent>
-        <div className={styles.moreBtnLayout}>
-          {items.map((item, index) => (
-            <div
-              className={styles.moreBtn}
-              key={index}
-              onClick={() => {
-                onItemClick && onItemClick(item.type);
-              }}
-            >
-              {item.label}
+    <Popover className="relative">
+      {({ open, close }) => (
+        <>
+          <PopoverButton as='div' className={styles.moreOpt}
+            onClick={() => setIsOpen(!open)}
+          >
+            <img src="/icons/more.svg" width={16} />
+          </PopoverButton>
+          <PopoverPanel
+            anchor="bottom"
+            className={clsx('shadow-lg', styles.morePopoverLayout)}
+            style={{ marginTop: '8px' }}
+          >
+            <div className={styles.moreBtnLayout}>
+              {items.map((item, index) => (
+                item.type === 'del' ?
+                  <AlertDialog key={index}>
+                    <AlertDialogTrigger className='w-[100%]'
+                    onClick={(e) => e.stopPropagation()}
+                    >
+                      <div
+                        className={styles.moreBtn}
+                        key={index}
+                      >
+                        {item.label}
+                      </div>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>删除对话</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          确定删除该对话么？
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel onClick={(e) => {
+                          e.stopPropagation()
+                          e.preventDefault();
+                          close()
+                        }}>取消</AlertDialogCancel>
+                        <AlertDialogAction onClick={(e) => {
+                          e.stopPropagation()
+                          e.preventDefault();
+                          close()
+                          onItemClick && onItemClick(item.type);
+                        }}>确定</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog> :
+                  <div
+                    className={styles.moreBtn}
+                    key={index}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      e.preventDefault();
+                      close()
+                      onItemClick && onItemClick(item.type);
+                    }}
+                  >
+                    {item.label}
+                  </div>
+              ))}
             </div>
-          ))}
-        </div>
-      </PopoverContent>
+          </PopoverPanel>
+        </>
+      )}
     </Popover>
   )
 }
@@ -94,10 +145,10 @@ export default function ChatLayout({ children }: Props) {
   const [updateTitleEvent, setUpdateTitleEvent] = useState<EventSource | null>(null)
   const lastedEvent = useRef<EventSource | null>(updateTitleEvent)
   const [eventTimeoutId, setEventTimeoutId] = useState<number>(-1)
+  const [chatId, setChatId] = useState('')
   const lastedTimeoutId = useRef<number>(eventTimeoutId)
   const [cache, setCache] = useState<string>('')
   const router = useRouter()
-  const chatId = router.query.chatId // 获取当前路由的 chatId
   const session = useSession()
   const firstLetter = session.data?.loginName.charAt(0).toUpperCase(); // 获取用户名的第一个字母并转为大写
 
@@ -177,6 +228,7 @@ export default function ChatLayout({ children }: Props) {
 
   const [{ getChatList }] = useChatList()
   useEffect(() => {
+    setChatId(String(router.query.chatId))
     handleUpdate()
     titleUpdate();
     return () => {
@@ -185,6 +237,9 @@ export default function ChatLayout({ children }: Props) {
       }
     }
   }, [])
+  useEffect(() => {
+    setChatId(String(router.query.chatId))
+  }, [router])
   useEffect(() => {
     lastedTimeoutId.current = eventTimeoutId;
   }, [eventTimeoutId])
@@ -234,6 +289,19 @@ export default function ChatLayout({ children }: Props) {
       setChatList(data.list)
     })
   }
+
+  const [{ deleteChat }] = useDeleteChat();
+  const deleteChatById = useCallback((id: string) => {
+    deleteChat(id).then(() => {
+      setChatList((prevChatList) =>
+        prevChatList.filter(chat => chat.id !== id)
+      );
+      showToast('删除成功', '', 'success')
+      if (chatId === id) {
+        router.replace('/home')
+      }
+    })
+  }, [chatId, chatList])
   return (
     <ChatLayoutContext.Provider value={{
       newChat,
@@ -277,50 +345,24 @@ export default function ChatLayout({ children }: Props) {
                         router.push(`/rag/${item.id}`)
                       }
                     }}>
-                    <div className={'w-[85%] overflow-hidden text-ellipsis text-nowrap break-keep'}>
+                    <div className={
+                      styles.itemTitle
+                    }>
                       {item.title}
                     </div>
-                    <Popover>
-                      <PopoverTrigger
-                        className={styles.moreOpt}
-                        asChild
-                        onClick={(e) => {
-                          e.stopPropagation()
-                        }}>
-                        <img src="/icons/more.svg" width={16} />
-                      </PopoverTrigger>
-                      <Portal container={document.body}>
-                        <PopoverContent
-                          side="bottom"
-                          sideOffset={5}
-                          align="center" // 固定对齐方式
-                          collisionPadding={0} // 关闭碰撞检测
-                        >
-                          <div className={styles.moreBtnLayout}>
-                            {[
-                              { type: 'edit', label: '编辑标题' },
-                              { type: 'del', label: '删除' },
-                            ].map((item, index) => (
-                              <div
-                                className={styles.moreBtn}
-                                key={index}
-                                onClick={() => {
-                                  // onItemClick && onItemClick(item.type);
-                                }}
-                              >
-                                {item.label}
-                              </div>
-                            ))}
-                          </div>
-                        </PopoverContent>
-                      </Portal>
-                    </Popover>
-                    {/* <MoreBtn
-
+                    <MoreBtn
+                      items={[
+                        { type: 'edit', label: '编辑标题' },
+                        { type: 'del', label: '删除' },
+                      ]}
                       onItemClick={(type) => {
-                        console.log(type)
+                        if (type === 'del') {
+                          deleteChatById(item.id)
+                        } else if (type === 'edit') {
+
+                        }
                       }}
-                    /> */}
+                    />
                   </div>
                 )
               })

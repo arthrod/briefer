@@ -247,6 +247,11 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
     if (chatId) {
       loadDetail().then(() => {
         watchStatus(true)
+      }).catch((e) => {
+          const res = JSON.parse(e.message)
+          if (res.code === 403) {
+            router.replace('/home')
+          }
       });
     }
   }, [chatId, router])

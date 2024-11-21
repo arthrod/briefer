@@ -4,9 +4,11 @@
   font-size: 0.875rem;
   width: 100%;
 }
+
 .logo_icon {
   cursor: pointer;
 }
+
 .left {
   background-color: #f4f7fe;
   height: 100%;
@@ -14,9 +16,11 @@
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
+
   .top {
     padding: 16px;
     flex-shrink: 0;
+
     .createBtn {
       margin-top: 1.25rem;
       display: flex;
@@ -38,19 +42,35 @@
     padding: 0 16px 16px 16px;
     flex-grow: 1;
     overflow: auto;
+
     .chatItem {
       position: relative;
       width: 13rem;
-      padding: 0.75rem;
       border-radius: 0.5rem;
       cursor: pointer;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+
+      .itemTitle {
+        padding: 12px;
+        text-overflow: ellipsis;
+        overflow: hidden;
+        white-space: nowrap;
+        flex-grow: 1;
+        max-width: 152px;
+      }
 
       .moreOpt {
-        display: none;
-        position: absolute;
-        top: 50%;
-        transform: translateY(-50%);
-        right: 1.25rem;
+        margin-left: 16px;
+        padding: 12px;
+        flex-shrink: 0;
+        visibility: hidden;
+        // display: none;
+        // position: absolute;
+        // top: 50%;
+        // transform: translateY(-50%);
+        // right: 1.25rem;
       }
 
       &:hover {
@@ -58,7 +78,7 @@
         background: rgb(220, 230, 250, 0.5);
 
         .moreOpt {
-          display: block;
+          visibility: visible;
         }
       }
     }
@@ -83,12 +103,14 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+
   .title {
     padding-top: 20px;
     display: flex;
     flex-direction: row-reverse;
     align-items: center;
     padding-bottom: 24px;
+
     .userAvatar {
       width: 40px; // 设置宽度
       height: 40px; // 设置高度
@@ -105,15 +127,31 @@
     }
   }
 }
-.moreBtnLayout {
+
+.morePopoverLayout {
   border-radius: 8px;
+  background: #FFFFFF;
+  font-size: 14px;
+}
+
+.moreBtnLayout {
+  padding: 4px;
+  text-align: center;
   .moreBtn {
-    width: fit-content;
+    border-radius: 4px;
+    padding: 8px 12px;
+    cursor: pointer;
+
+    &:hover {
+      color: #2F69FE;
+      background: #EDF2FC;
+    }
   }
 }
+
 .popoverContent {
   position: absolute;
   top: 100%; // 根据触发点的位置调整
-  left: 0;    // 或其他合理位置
+  left: 0; // 或其他合理位置
   z-index: 999; // 保证显示在其他元素之上
 }
