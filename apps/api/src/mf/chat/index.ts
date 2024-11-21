@@ -590,8 +590,8 @@ async function handleStreamResponse(
       const now = new Date()
       if (updateTarget.type === 'chat_record' && updateTarget.roundId) {
         // 确保消息末尾有 [DONE] 标识
-        const finalMessage = completeMessage.includes('[DONE]') 
-          ? completeMessage 
+        const finalMessage = completeMessage.includes('[DONE]')
+          ? completeMessage
           : completeMessage.trim() + '\n[DONE]'
 
         await prisma().$transaction([
@@ -610,7 +610,7 @@ async function handleStreamResponse(
           })
         ])
       }
-      
+
       if (!res.writableEnded) {
         res.write('data: [DONE]\n\n')
         res.end()
@@ -1390,16 +1390,71 @@ router.get('/completions',
             '```'
           ];
 
-          // 更新 ChatRecord 状态为结束，并存储错误信息
-          await prisma().chatRecord.update({
-            where: { id: roundId },
-            data: {
-              status: CONFIG.CHAT_STATUS.COMPLETED, // 结束状态
-              answer: Buffer.from(errorMessage.join('\n')),
-              speakerType: 'assistant',
-              updateTime: new Date()
+          const userInput = chatRecord.question;
+          const title = userInput.slice(0, 15); // 截取前15个字
+
+          try {
+            // 更新 ChatRecord 状态为结束，并存储错误信息和标题
+            await prisma().$transaction([
+              // 更新 ChatRecord
+              prisma().chatRecord.update({
+                where: { id: roundId },
+                data: {
+                  status: CONFIG.CHAT_STATUS.COMPLETED, // 结束状态
+                  answer: Buffer.from(errorMessage.join('\n')),
+                  speakerType: 'assistant',
+                  updateTime: new Date()
+                }
+              }),
+              // 更新 Chat 的标题和 isTitleSet 字段
+              prisma().chat.update({
+                where: { id: chatId },
+                data: {
+                  title: title,
+                  isTitleSet: true,
+                  updateTime: new Date()
+                }
+              })
+            ]);
+
+            // 发送标题更新事件
+            const updateData = {
+              chatId: chatId,
+              title: title
             }
-          })
+
+            logger().info({
+              msg: 'Emitting title update event for unrelated content',
+              data: updateData
+            })
+
+            titleUpdateEmitter.emit('titleUpdate', updateData)
+
+            logger().info({
+              msg: 'Title update event emitted for unrelated content',
+              data: {
+                chatId,
+                listenerCount: titleUpdateEmitter.listenerCount('titleUpdate')
+              }
+            })
+
+          } catch (dbError) {
+            logger().error({
+              msg: 'Failed to update database for unrelated content',
+              data: {
+                error: dbError instanceof Error ? dbError.message : 'Unknown error',
+                chatId,
+                roundId
+              }
+            })
+            // 使用sendSSEError处理数据库错误
+            await sendSSEError(res, dbError, {
+              type: 'chat_record',
+              chatId,
+              roundId
+            });
+            return;
+          }
 
           errorMessage.forEach(line => {
             res.write(`data: ${line}\n`);
@@ -1712,8 +1767,8 @@ router.post('/stop', authMiddleware, async (req: Request, res: Response) => {
 
     // 更新对话状态为完成
     const currentAnswer = chatRecord.answer.toString()
-    const updatedAnswer = currentAnswer.includes('[DONE]') 
-      ? currentAnswer 
+    const updatedAnswer = currentAnswer.includes('[DONE]')
+      ? currentAnswer
       : `${currentAnswer}\n[DONE]`
 
     await prisma().$transaction([
@@ -1763,7 +1818,7 @@ router.get('/title/update', authMiddleware, async (req: Request, res: Response) 
 
     logger().info({
       msg: 'Title update SSE connection established',
-      data: { 
+      data: {
         userId,
         currentListeners: titleUpdateEmitter.listenerCount('titleUpdate')
       }
@@ -1797,7 +1852,7 @@ router.get('/title/update', authMiddleware, async (req: Request, res: Response) 
             chatId: data.chatId,
             title: data.title
           })
-          
+
           logger().info({
             msg: 'Sending title update via SSE',
             data: {
@@ -1841,10 +1896,10 @@ router.get('/title/update', authMiddleware, async (req: Request, res: Response) 
 
     // 注册事件监听器
     titleUpdateEmitter.on('titleUpdate', handleTitleUpdate)
-    
+
     logger().info({
       msg: 'Title update event listener registered',
-      data: { 
+      data: {
         userId,
         totalListeners: titleUpdateEmitter.listenerCount('titleUpdate')
       }
@@ -1856,10 +1911,10 @@ router.get('/title/update', authMiddleware, async (req: Request, res: Response) 
     // 当客户端断开连接时清理
     req.on('close', () => {
       titleUpdateEmitter.off('titleUpdate', handleTitleUpdate)
-      
+
       logger().info({
         msg: 'Title update SSE connection closed',
-        data: { 
+        data: {
           userId,
           remainingListeners: titleUpdateEmitter.listenerCount('titleUpdate')
         }
