@@ -37,6 +37,9 @@ export async function summarizeUntitledChats() {
         records: {
           none: {
             status: CHAT_STATUS.CHATTING
+          },
+          some: {
+            status: CHAT_STATUS.COMPLETED
           }
         }
       },
@@ -45,7 +48,10 @@ export async function summarizeUntitledChats() {
           orderBy: {
             createdTime: 'asc'
           },
-          take: 5
+          take: 5,
+          where: {
+            status: CHAT_STATUS.COMPLETED
+          }
         }
       }
     })
