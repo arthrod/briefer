@@ -138,9 +138,9 @@ export function showToast(title: string, description: string,
 
   // Automatically unmount and remove the container after the toast disappears
   setTimeout(() => {
-    root.unmount()
-    document.body.removeChild(toastContainer)
-  }, 3000) // Close after 3 seconds
+    // root.unmount()
+    // document.body.removeChild(toastContainer)
+  }, 30000000) // Close after 3 seconds
 }
 
 export {

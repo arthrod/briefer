@@ -311,7 +311,7 @@ export default function ChatLayout({ children }: Props) {
   const commitTitle = (id: string, title: string) => {
     setIsCommit(true)
     return editTitle(id, title).then(() => {
-      showToast('对话更新成功', '', 'error')
+      showToast('对话更新成功', '', 'success')
     }).finally(() => {
       setCurrentTitle('')
       setIsCommit(false)
