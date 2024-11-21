@@ -11,6 +11,7 @@ import ScrollBar from '@/components/ScrollBar'
 
 import Logo from '../../../icons/mind-flow.svg'
 import { useSession } from '@/hooks/useAuth'
+import { Portal } from '@radix-ui/react-popover'
 interface Item {
   type: string
   label: string
@@ -24,7 +25,7 @@ interface IMoreBtnProps {
 interface ChatLayoutContextType {
   newChat: (chat: HistoryChat, msg: string) => void
   refreshChatList: () => void
-  getScope: () => string
+  getCache: () => string
   startRound: (chatId: string, roundId: string) => ChatSession
   getRound: (roundId: string) => ChatSession | undefined
   endRound: (roundId: string) => void;
@@ -38,7 +39,7 @@ export const useChatLayout = () => {
   return context
 }
 const MoreBtn = (props: IMoreBtnProps) => {
-  const { items, onItemClick } = props
+  const { items, onItemClick } = props;
   return (
     <Popover>
       <PopoverTrigger
@@ -53,11 +54,12 @@ const MoreBtn = (props: IMoreBtnProps) => {
         <div className={styles.moreBtnLayout}>
           {items.map((item, index) => (
             <div
-            className={styles.moreBtn}
+              className={styles.moreBtn}
               key={index}
               onClick={() => {
-                onItemClick && onItemClick(item.type)
-              }}>
+                onItemClick && onItemClick(item.type);
+              }}
+            >
               {item.label}
             </div>
           ))}
@@ -93,22 +95,21 @@ export default function ChatLayout({ children }: Props) {
   const lastedEvent = useRef<EventSource | null>(updateTitleEvent)
   const [eventTimeoutId, setEventTimeoutId] = useState<number>(-1)
   const lastedTimeoutId = useRef<number>(eventTimeoutId)
-
+  const [cache, setCache] = useState<string>('')
   const router = useRouter()
   const chatId = router.query.chatId // 获取当前路由的 chatId
-  let scope = '';
   const session = useSession()
   const firstLetter = session.data?.loginName.charAt(0).toUpperCase(); // 获取用户名的第一个字母并转为大写
 
   const newChat = useCallback((chat: HistoryChat, msg: string) => {
     setChatList((prevChatList) => [chat, ...prevChatList]);
-    scope = msg;
-  }, [])
-  const getScope = useCallback(() => {
-    const msg = scope;
-    scope = '';
+    setCache(msg);
+  }, [cache])
+  const getCache = useCallback(() => {
+    const msg = cache;
+    setCache('')
     return msg;
-  }, [])
+  }, [cache])
   const refreshChatList = useCallback(() => {
     handleUpdate();
   }, [])
@@ -237,7 +238,7 @@ export default function ChatLayout({ children }: Props) {
     <ChatLayoutContext.Provider value={{
       newChat,
       refreshChatList,
-      getScope,
+      getCache,
       getRound,
       endRound,
       startRound
@@ -279,15 +280,47 @@ export default function ChatLayout({ children }: Props) {
                     <div className={'w-[85%] overflow-hidden text-ellipsis text-nowrap break-keep'}>
                       {item.title}
                     </div>
-                    <MoreBtn
-                      items={[
-                        { type: 'edit', label: '编辑标题' },
-                        { type: 'del', label: '删除' },
-                      ]}
+                    <Popover>
+                      <PopoverTrigger
+                        className={styles.moreOpt}
+                        asChild
+                        onClick={(e) => {
+                          e.stopPropagation()
+                        }}>
+                        <img src="/icons/more.svg" width={16} />
+                      </PopoverTrigger>
+                      <Portal container={document.body}>
+                        <PopoverContent
+                          side="bottom"
+                          sideOffset={5}
+                          align="center" // 固定对齐方式
+                          collisionPadding={0} // 关闭碰撞检测
+                        >
+                          <div className={styles.moreBtnLayout}>
+                            {[
+                              { type: 'edit', label: '编辑标题' },
+                              { type: 'del', label: '删除' },
+                            ].map((item, index) => (
+                              <div
+                                className={styles.moreBtn}
+                                key={index}
+                                onClick={() => {
+                                  // onItemClick && onItemClick(item.type);
+                                }}
+                              >
+                                {item.label}
+                              </div>
+                            ))}
+                          </div>
+                        </PopoverContent>
+                      </Portal>
+                    </Popover>
+                    {/* <MoreBtn
+
                       onItemClick={(type) => {
                         console.log(type)
                       }}
-                    />
+                    /> */}
                   </div>
                 )
               })

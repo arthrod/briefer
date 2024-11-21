@@ -22,7 +22,7 @@ type ChatRound = {
   timeoutId: number
 }
 const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
-  const { getScope } = useChatLayout()
+  const { getCache } = useChatLayout()
   const [list, setList] = useState<MessageContent[]>([])
   const [chatSession, setChatSession] = useState<ChatSession | null>(null)
   const [chatRound, setChatRound] = useState<ChatRound>({ data: null, timeoutId: -1 })
@@ -235,7 +235,8 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
       if (data) {
         data.messages.unshift({ id: '', role: 'system', content: defaultMsg, status: 'success' })
         setList(data.messages);
-        const msg = getScope()
+        const msg = getCache()
+        console.log('当前是否有缓存的用户问题内存，如果有就直接发送：' + msg)
         if (msg) {
           addSendMsg(msg)
         }

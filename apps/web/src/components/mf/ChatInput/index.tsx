@@ -69,7 +69,6 @@ const ChatInput = forwardRef(({ className, isUpload, send, stop }: IProps, ref) 
   } else {
     prefixClassName = clsx(styles.prefix, styles.hiddenPrefix)
   }
-  console.log(isLoading)
   return (
     <div className={clsx(styles.chatInput, className)}>
       <Popover open={isOpen}>
