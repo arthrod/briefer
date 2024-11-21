@@ -8,12 +8,12 @@
   cursor: pointer;
 }
 .left {
-  width: 15rem;
   background-color: #f4f7fe;
   height: 100%;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
   .top {
     padding: 16px;
     flex-shrink: 0;
@@ -75,7 +75,7 @@
 }
 
 .main {
-  flex: 1;
+  flex-grow: 1;
   background-image: url('/images/homeBg.png');
   background-repeat: no-repeat;
   background-position: right bottom;
