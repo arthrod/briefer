@@ -60,6 +60,32 @@
         flex-grow: 1;
         max-width: 152px;
       }
+      .itemTitleInputLayout {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding-right: 12px;
+        width: 100%;
+        padding-top: 2px;
+        padding-bottom: 2px;
+        .itemTitleInput {
+          font-size: 14px;
+          border-radius: 8px;
+          background-color: transparent;
+          box-sizing: border-box;
+          border: none;
+          box-shadow: none;
+          flex-shrink: 0;
+        }
+        .loadingIcon {
+          flex-grow: 1;
+          margin-right: 12px;
+          visibility: visible;
+        }
+        .loadingIconHidden {
+          visibility: hidden;
+        }
+      }
 
       .moreOpt {
         margin-left: 16px;
@@ -137,6 +163,7 @@
 .moreBtnLayout {
   padding: 4px;
   text-align: center;
+
   .moreBtn {
     border-radius: 4px;
     padding: 8px 12px;

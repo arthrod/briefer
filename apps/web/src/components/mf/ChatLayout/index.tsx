@@ -17,6 +17,8 @@ import {
 } from '@/components/Dialog'
 import { useDeleteChat } from '@/hooks/mf/chat/useChatDelete'
 import { showToast } from '../Toast'
+import { useChatEdit } from '@/hooks/mf/chat/useChatEdit'
+import Spin from '@/components/Spin'
 interface Item {
   type: string
   label: string
@@ -68,7 +70,7 @@ const MoreBtn = (props: IMoreBtnProps) => {
                 item.type === 'del' ?
                   <AlertDialog key={index}>
                     <AlertDialogTrigger className='w-[100%]'
-                    onClick={(e) => e.stopPropagation()}
+                      onClick={(e) => e.stopPropagation()}
                     >
                       <div
                         className={styles.moreBtn}
@@ -148,6 +150,8 @@ export default function ChatLayout({ children }: Props) {
   const [chatId, setChatId] = useState('')
   const lastedTimeoutId = useRef<number>(eventTimeoutId)
   const [cache, setCache] = useState<string>('')
+  const [currentTitle, setCurrentTitle] = useState<string>('')
+  const [isCommit, setIsCommit] = useState<boolean>(false)
   const router = useRouter()
   const session = useSession()
   const firstLetter = session.data?.loginName.charAt(0).toUpperCase(); // 获取用户名的第一个字母并转为大写
@@ -291,7 +295,7 @@ export default function ChatLayout({ children }: Props) {
   }
 
   const [{ deleteChat }] = useDeleteChat();
-  const deleteChatById = useCallback((id: string) => {
+  const deleteChatById = (id: string) => {
     deleteChat(id).then(() => {
       setChatList((prevChatList) =>
         prevChatList.filter(chat => chat.id !== id)
@@ -301,7 +305,35 @@ export default function ChatLayout({ children }: Props) {
         router.replace('/home')
       }
     })
-  }, [chatId, chatList])
+  }
+
+  const [{ editTitle }] = useChatEdit();
+  const commitTitle = (id: string, title: string) => {
+    setIsCommit(true)
+    return editTitle(id, title).then(() => {
+      showToast('对话更新成功', '', 'error')
+    }).finally(() => {
+      setCurrentTitle('')
+      setIsCommit(false)
+    })
+  }
+
+  const updateChat = (chat: HistoryChat) => {
+    let newChat = chat;
+    if (chat.title !== currentTitle) {
+      commitTitle(chat.id, currentTitle).then(() => {
+        newChat.title = currentTitle;
+      }).finally(() => {
+        newChat.isEditing = false;
+        setChatList(prevItems =>
+          prevItems.map(item =>
+            item.id === chat.id ? { ...item, newChat } : item
+          )
+        );
+      })
+    }
+  }
+
   return (
     <ChatLayoutContext.Provider value={{
       newChat,
@@ -330,26 +362,59 @@ export default function ChatLayout({ children }: Props) {
           </div>
           <ScrollBar className={styles.chatListWrapper}>
             {chatList.length ? (
-              chatList.map((item) => {
-                const isActive = item.id === chatId // 判断是否是当前选中项
+              chatList.map((chat) => {
+                const isActive = chat.id === chatId // 判断是否是当前选中项
                 return (
                   <div
-                    key={item.id}
+                    key={chat.id}
                     className={clsx(styles.chatItem, {
                       [styles.chatItem_active]: isActive // 添加选中样式
                     })}
                     onClick={() => {
-                      if (item.type === 'report') {
+                      if (chat.type === 'report') {
                         router.replace(`/workspaces/${workspaces.data[0].id}/documents`)
                       } else {
-                        router.push(`/rag/${item.id}`)
+                        router.push(`/rag/${chat.id}`)
                       }
                     }}>
-                    <div className={
-                      styles.itemTitle
-                    }>
-                      {item.title}
-                    </div>
+                    {
+                      chat.isEditing ?
+                        <div className={styles.itemTitleInputLayout}>
+                          <input
+                            type="text"
+                            className={
+                              styles.itemTitleInput
+                            }
+                            onChange={(e) => {
+                              setCurrentTitle(e.target.value)
+                            }}
+                            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                              if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault() // 防止默认的换行行为
+                                updateChat(chat)
+                              }
+                            }}
+                            value={currentTitle}
+                            onBlur={() => {
+                              let newChat = chat;
+                              updateChat(chat)
+                            }}
+                            autoFocus
+                          />
+                          <div
+                            className={isCommit ? styles.loadingIcon : styles.loadingIconHidden}
+                          >
+                            <Spin
+                              color='#2F69FE'
+                              wrapperClassName="pl-2" />
+                          </div>
+                        </div>
+                        : <div className={
+                          styles.itemTitle
+                        }>
+                          {chat.title}
+                        </div>
+                    }
                     <MoreBtn
                       items={[
                         { type: 'edit', label: '编辑标题' },
@@ -357,9 +422,14 @@ export default function ChatLayout({ children }: Props) {
                       ]}
                       onItemClick={(type) => {
                         if (type === 'del') {
-                          deleteChatById(item.id)
+                          deleteChatById(chat.id)
                         } else if (type === 'edit') {
-
+                          setCurrentTitle(chat.title)
+                          setChatList(prevItems =>
+                            prevItems.map(item =>
+                              item.id === chat.id ? { ...item, isEditing: true } : item
+                            )
+                          );
                         }
                       }}
                     />

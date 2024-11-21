@@ -12,6 +12,7 @@ export type HistoryChat = {
   type: ChatType
   createdTime: string
   documentId?: string
+  isEditing?: boolean
 }
 
 export const useChatList = () => {
