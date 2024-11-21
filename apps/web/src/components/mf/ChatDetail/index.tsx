@@ -12,8 +12,6 @@ import { useSession } from '@/hooks/useAuth'
 import RobotMessage from './RobotMessage'
 import { ChatStatus, useChatStatus } from '@/hooks/mf/chat/useChatStatus'
 import { useChatStop } from '@/hooks/mf/chat/useChatStop'
-import { clearTimeout } from 'timers'
-import { time } from 'console'
 const defaultMsg = "``` content\n我是你的AI小助手\n```"
 export interface ChatDetailProps {
   listChange?: () => void
@@ -27,6 +25,7 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
   const [list, setList] = useState<MessageContent[]>([])
   const [chatSession, setChatSession] = useState<ChatSession | null>(null)
   const [chatRound, setChatRound] = useState<ChatRound>({ data: null, timeoutId: -1 })
+  const [waiting, setWating] = useState<boolean>(false)
   const latestChatRound = useRef(chatRound);
   const [{ createChatSession }] = useChatSession()
   const { startRound } = useChatLayout();
@@ -43,7 +42,6 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
   const session = useSession()
   const firstLetter = session.data?.loginName.charAt(0).toUpperCase(); // 获取用户名的第一个字母并转为大写
 
-  let waiting = false;
   const [{ getChatDetail }] = useChatDetail()
   const router = useRouter()
   const chatId = router.query.chatId
@@ -77,8 +75,7 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
   const addSendMsg = useCallback((msg: string): void => {
     if (msg && !waiting) {
       openLoading()
-      waiting = true;
-      console.log('start')
+      setWating(true)
       createChatSession(msg, String(chatId)).then((data: ChatSessionData) => {
         const msgId = uuidv4()
         const msgContent: MessageContent = { id: msgId, role: 'user', content: msg, status: 'success' };
@@ -88,21 +85,20 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
         waitingReceive(receiveMsg.id, data.id)
       }).catch((e) => {
         showToast('消息发送失败，请检查网络', '', 'error');
-        waiting = false
+        setWating(false)
       })
     }
-  }, [list])
+  }, [waiting, list])
+
   const waitingReceive = (msgId: string, roundId: string) => {
     const chatSession = startRound(String(chatId), roundId)
     setChatSession(chatSession)
-    const index = list.length + 1;
-    console.log(index)
     chatSession.listener.onopen = () => {
       openLoading();
     }
     chatSession.listener.onerror = (error) => {
       updateMsg(msgId, '服务错误', true)
-      waiting = true
+      setWating(true)
       disableInput();
       closeLoading();
     }
@@ -121,11 +117,12 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
       });
     }
     chatSession.listener.close = () => {
-      console.log('close:')
+      setWating(false)
       updateMsgStatus(msgId, 'success')
       closeLoading();
     }
   }
+
   const addReceiveMsg = (msg: string, status: MessageStatus): MessageContent => {
     const msgId = uuidv4()
     const msgContent: MessageContent = {
@@ -135,7 +132,6 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
       roundId: '',
       status: status
     };
-    console.log('addReceive:' + status)
     setList((messageList) => [...messageList, msgContent])
     return msgContent
   }
@@ -177,7 +173,6 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
     }
   }
   const getSuccessElm = (message: MessageContent, index: number) => {
-    console.log(message.status)
     return message.isError ? ((<div className={styles.errorContent}>
       <div>发生错误。服务器发生错误，或者在处理您的请求时出现了其他问题</div>
       <div className={styles.buttonWrapper}>
@@ -239,7 +234,6 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
       if (data) {
         data.messages.unshift({ id: '', role: 'system', content: defaultMsg, status: 'success' })
         setList(data.messages);
-        console.log('loadDetail')
       }
     })
   }
