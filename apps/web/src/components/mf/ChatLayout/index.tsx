@@ -50,9 +50,10 @@ const MoreBtn = (props: IMoreBtnProps) => {
         <img src="/icons/more.svg" width={16} />
       </PopoverTrigger>
       <PopoverContent>
-        <div>
+        <div className={styles.moreBtnLayout}>
           {items.map((item, index) => (
             <div
+            className={styles.moreBtn}
               key={index}
               onClick={() => {
                 onItemClick && onItemClick(item.type)

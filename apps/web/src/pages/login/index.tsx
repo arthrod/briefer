@@ -2,12 +2,10 @@ import { ChangeEventHandler, FormEventHandler, useCallback, useEffect, useState 
 import clsx from 'clsx'
 import { useRouter } from 'next/router'
 import { useLogin, useSession } from '@/hooks/useAuth'
-import Link from 'next/link'
 import Spin from '@/components/Spin'
 import Cookies from 'js-cookie'
 import useProperties from '@/hooks/useProperties'
 import styles from './index.module.scss'
-import { Icon } from 'lucide-react'
 import AccountSvg from '../../icons/login_account.svg'
 import PwdSvg from '../../icons/logn_pwd.svg'
 import MindFlowSvg from '../../icons/mind-flow.svg'
@@ -163,7 +161,7 @@ export default function Login() {
                       记住用户名
                     </label>
                   </div>
-                  <div className={clsx('visible', 'flex', 'mt-[10px]', styles.errorHint)}>
+                  <div className={clsx(auth.error ? 'visible' : 'hidden', 'flex', 'mt-[10px]', styles.errorHint)}>
                     <div className={styles.errorText}>
                       {auth.error === 'unexpected' && '出现了未知问题. 请联系运维人员.'}
                       {auth.error === 'invalid-creds' && '用户名或密码错误'}
@@ -175,10 +173,10 @@ export default function Login() {
                       disabled={auth.data !== undefined || auth.loading}
                       className={clsx(
                         styles.botton,
-                        'flex w-full items-center justify-center rounded-sm px-6 py-3 text-sm font-medium shadow-sm disabled:bg-gray-200 disabled:hover:cursor-not-allowed h-[60px]'
+                        'flex w-full items-center justify-center rounded-sm px-6 py-3 text-sm font-medium shadow-sm disabled:bg-gray-200 disabled:hover:cursor-not-allowed'
                       )}>
                       <span>登录</span>
-                      {<Spin wrapperClassName="pl-2" />}
+                      {auth.loading && <Spin color='#ffffff' wrapperClassName="pl-2" />}
                     </button>
                   </div>
                 </div>
