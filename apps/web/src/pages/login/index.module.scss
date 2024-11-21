@@ -91,10 +91,19 @@
         background: #2F69FE;
         color: white;
     }
-
+    .botton:hover {
+        background-color: #1F55E0; /* hover时颜色稍微变深 */
+      }
+    
+      /* 禁用状态 */
+      .botton:disabled {
+        background-color: #B0C4DE; /* 设置禁用状态的背景颜色 */
+        color: #FFFFFF; /* 设置禁用状态的文字颜色 */
+        cursor: not-allowed; /* 设置鼠标样式为禁止状态 */
+        opacity: 0.7; /* 添加透明效果 */
+      }
     .checkbox {
         color: #2F69FE;
     }
 
-    .botton:hover {}
 }
