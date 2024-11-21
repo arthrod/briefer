@@ -83,11 +83,9 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
         const msgId = uuidv4()
         const msgContent: MessageContent = { id: msgId, role: 'user', content: msg, status: 'success' };
         setList((messageList) => [...messageList, msgContent])
-        setTimeout(() => {
-          const receiveMsg = addReceiveMsg('', 'chatting');
-          receiveMsg.roundId = data.id;
-          waitingReceive(receiveMsg.id, data.id)
-        })
+        const receiveMsg = addReceiveMsg('', 'chatting');
+        receiveMsg.roundId = data.id;
+        waitingReceive(receiveMsg.id, data.id)
       }).catch((e) => {
         showToast('消息发送失败，请检查网络', '', 'error');
         waiting = false
@@ -284,7 +282,7 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
               timeoutId: timeoutId
             }
           )
-        } else if(!isFirst) {
+        } else if (!isFirst) {
           loadDetail();
           stopWatchStatus();
         }
