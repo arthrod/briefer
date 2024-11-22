@@ -52,7 +52,7 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
         chatSession.eventSource.close()
         chatSession.listener.close()
       }).catch(() => {
-        showToast('停止失败', '请重试', 'error')
+        showToast('停止失败，请重试', 'error')
       })
     } else if (chatRound &&
       chatRound.data &&
@@ -65,10 +65,10 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
             watchStatus(true)
           });
         }).catch(() => {
-          showToast('停止失败', '请重试', 'error')
+          showToast('停止失败，请重试', 'error')
         })
       } else {
-        showToast('停止失败', '请重试', 'error')
+        showToast('停止失败，请重试', 'error')
       }
     }
   }, [list, chatRound]);
@@ -85,7 +85,8 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
         receiveMsg.roundId = data.id;
         waitingReceive(receiveMsg.id, data.id)
       }).catch((e) => {
-        showToast('消息发送失败，请检查网络', '', 'error');
+        showToast('消息发送失败，请检查网络', 'error');
+        closeLoading()
         setWating(false)
       })
     }
@@ -248,10 +249,10 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
       loadDetail().then(() => {
         watchStatus(true)
       }).catch((e) => {
-          const res = JSON.parse(e.message)
-          if (res.code === 403) {
-            router.replace('/home')
-          }
+        const res = JSON.parse(e.message)
+        if (res.code === 403) {
+          router.replace('/home')
+        }
       });
     }
   }, [chatId, router])

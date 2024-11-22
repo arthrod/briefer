@@ -300,7 +300,7 @@ export default function ChatLayout({ children }: Props) {
       setChatList((prevChatList) =>
         prevChatList.filter(chat => chat.id !== id)
       );
-      showToast('删除成功', '', 'success')
+      showToast('删除成功', 'success')
       if (chatId === id) {
         router.replace('/home')
       }
@@ -311,7 +311,7 @@ export default function ChatLayout({ children }: Props) {
   const commitTitle = (id: string, title: string) => {
     setIsCommit(true)
     return editTitle(id, title).then(() => {
-      showToast('对话更新成功', '', 'success')
+      showToast('对话更新成功', 'success')
     }).finally(() => {
       setCurrentTitle('')
       setIsCommit(false)
