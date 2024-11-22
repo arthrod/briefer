@@ -100,8 +100,9 @@ export default function getRouter<H extends ApiUser>(
           data: {
             email,
             name: payload.data.name,
+            loginName: payload.data.name,
             passwordDigest: await hashPassword(password),
-          },
+          }
         })
 
         const workspace = await createWorkspace(
@@ -142,10 +143,18 @@ export default function getRouter<H extends ApiUser>(
     const decryptedPassword = AesTools.decrypt(password)
 
     const user = await prisma().user.findFirst({
-      where: { loginName },
-      select: { id: true, email: true, passwordDigest: true },
+      where: { 
+        loginName,
+        isDeleted: false
+      },
+      select: { 
+        id: true, 
+        email: true, 
+        passwordDigest: true,
+        status: true
+      },
     })
-    if (!user || !user.passwordDigest) {
+    if (!user || !user.passwordDigest || user.status === 0) {
       res.status(400).end()
       return
     }
