@@ -6,7 +6,6 @@ import DeleteIcon from '../../../icons/delete.svg'
 import { ChangeEvent, forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import clsx from 'clsx'
-import Spinner from '../Spinner'
 
 interface IProps {
   className?: string
@@ -21,26 +20,23 @@ const ChatInput = forwardRef(({ className, isUpload, send, stop }: IProps, ref) 
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const [isOpen, setIsOpen] = useState(false)
   const [isDisabled, setIsDisabled] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
   const questionRef = useRef<HTMLInputElement>(null)
+
   useImperativeHandle(ref, () => ({
-    openLoading: openLoading,
-    closeLoading: closeLoading,
-    disableInput: disableInput,
-    enableInput: enableInput
+    openLoading: () => {
+      setIsLoading(true)
+    },
+    closeLoading: () => {
+      setIsLoading(false)
+    },
+    disableInput: () => {
+      setIsDisabled(true)
+    },
+    enableInput: () => {
+      setIsDisabled(false)
+    },
   }))
-  const disableInput = () => {
-    setIsDisabled(true)
-  }
-  const enableInput = () => {
-    setIsDisabled(false)
-  }
-  const openLoading = () => {
-    setIsLoading(true)
-  }
-  const closeLoading = () => {
-    setIsLoading(false)
-  }
+
   const handleFileChangeEvent = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       //todo 添加上传文件获取服务端返回的id并赋值给fileId
@@ -62,29 +58,18 @@ const ChatInput = forwardRef(({ className, isUpload, send, stop }: IProps, ref) 
       }
     }
   }
-  useEffect(() => { }, [])
-  let prefixClassName = ''
-  if (isUpload) {
-    prefixClassName = clsx(styles.prefix)
-  } else {
-    prefixClassName = clsx(styles.prefix, styles.hiddenPrefix)
-  }
+
   return (
     <div className={clsx(styles.chatInput, className)}>
       <Popover open={isOpen}>
         <input
-          ref={inputRef}
           type="file"
           onChange={(e) => {
             handleFileChangeEvent(e)
           }}
           hidden
         />
-        <span
-          className={prefixClassName}
-          onClick={() => {
-            inputRef.current?.click()
-          }}>
+        <span className={clsx(styles.prefix, !isUpload ? styles.hiddenPrefix : null)}>
           <UploadIcon />
         </span>
         <PopoverTrigger asChild>
@@ -101,18 +86,20 @@ const ChatInput = forwardRef(({ className, isUpload, send, stop }: IProps, ref) 
           />
         </PopoverTrigger>
         <button
-          className={clsx(styles.sendBtn,
-            question ? isLoading ? '' : isDisabled ? '' : styles.activate : '',
+          className={clsx(
+            styles.sendBtn,
+            question ? (isLoading ? '' : isDisabled ? '' : styles.activate) : '',
             isDisabled ? styles.disabled : '',
-            isLoading ? styles.loading : '')}
+            isLoading ? styles.loading : ''
+          )}
           onClick={(e) => {
             if (isLoading) {
               if (stop) {
-                stop();
+                stop()
               }
             } else {
               if (send) {
-                send(question, fileId);
+                send(question, fileId)
                 setQuestion('')
                 if (questionRef.current) {
                   questionRef.current.value = ''
@@ -120,13 +107,8 @@ const ChatInput = forwardRef(({ className, isUpload, send, stop }: IProps, ref) 
               }
             }
           }}
-          disabled={isDisabled}
-        >
-          {isLoading ? (
-            <div className={styles.stopSquare}></div>
-          ) : (
-            <SendIcon />
-          )}
+          disabled={isDisabled}>
+          {isLoading ? <div className={styles.stopSquare}></div> : <SendIcon />}
         </button>
 
         <PopoverContent asChild>

@@ -29,5 +29,5 @@ export const useChatList = () => {
     // }
     return getData<ChatList>(res)
   }, [])
-  return useMemo(() => [{ getChatList }], [getChatList])
+  return getChatList
 }
