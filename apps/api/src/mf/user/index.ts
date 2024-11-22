@@ -9,17 +9,22 @@ import { sessionFromCookies, authenticationMiddleware } from '../../auth/token.j
 
 const userRouter = Router({ mergeParams: true })
 
+const DEFAULT_EMAIL_DOMAIN = 'mindflow.ai'
+
+const emptyStringToUndefined = (value: unknown) => 
+  value === '' ? undefined : value
+
 // Schema 定义
 const userSchema = z.object({
   name: z.string().min(1, "用户名不能为空"),
   password: z.string().min(6, "密码长度至少6位"),
   phone: z.string().regex(/^1[3-9]\d{9}$/, "请输入有效的手机号"),
-  email: z.string().email("请输入有效的邮箱").optional(),
+  email: z.preprocess(
+    emptyStringToUndefined,
+    z.string().email("请输入有效的邮箱").optional()
+  ),
   nickname: z.string().optional()
 })
-
-const emptyStringToUndefined = (value: unknown) => 
-  value === '' ? undefined : value
 
 const userEditSchema = z.object({
   uid: z.string().min(1, "用户ID不能为空"),
@@ -67,7 +72,8 @@ userRouter.post('/add', async (req, res) => {
     }
 
     const passwordDigest = await hashPassword(password)
-    const user = await addUserByAPI(name, passwordDigest, phone, nickname ?? '', email ?? '')
+    const defaultEmail = `${name}@${DEFAULT_EMAIL_DOMAIN}`
+    const user = await addUserByAPI(name, passwordDigest, phone, nickname ?? '', email ?? defaultEmail)
 
     Logger.info('用户创建成功', { userId: user.id })
     return sendResponse(res, success({ uid: user.id }, '创建成功'))
