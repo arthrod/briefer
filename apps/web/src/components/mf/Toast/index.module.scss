@@ -1,6 +1,11 @@
-.mfToastViewPort {
+.mfToastViewPortTop {
     top: 88px;
-
+}
+.mfToastViewPortDown {
+    bottom: 104px;
+}
+.mfToastViewPort {
+    
     .mfToast {
         display: flex;
         flex-direction: row;
