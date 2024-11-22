@@ -12,7 +12,7 @@ const userRouter = Router({ mergeParams: true })
 const DEFAULT_EMAIL_DOMAIN = 'mindflow.ai'
 
 const emptyStringToUndefined = (value: unknown) => 
-  value === '' ? undefined : value
+  value === '' || value === null ? undefined : value
 
 // Schema 定义
 const userSchema = z.object({
@@ -65,7 +65,12 @@ userRouter.post('/add', async (req, res) => {
     const { name, password, phone, email, nickname } = result.data
     Logger.info('尝试创建用户', { name, email, phone })
 
-    const existingUser = await prisma().user.findFirst({ where: { name } })
+    const existingUser = await prisma().user.findFirst({ 
+      where: { 
+        name,
+        isDeleted: false 
+      } 
+    })
     if (existingUser) {
       Logger.warn('用户名已存在', { name })
       return sendResponse(res, fail(ErrorCode.USER_EXISTS, '用户名已存在'))
@@ -99,7 +104,10 @@ userRouter.post('/edit', async (req, res) => {
     if (nickname !== undefined) updateData.nickname = nickname
 
     const updatedUser = await prisma().user.update({
-      where: { id: uid },
+      where: { 
+        id: uid,
+        isDeleted: false 
+      },
       data: updateData
     })
 
@@ -129,21 +137,18 @@ userRouter.post('/delete', async (req, res) => {
 
     const session = await sessionFromCookies(req.cookies)
     const isLoggedInUser = session?.user.id === uid
-    const deletedUsername = `${user.name}_deleted*!~!*`
 
-    await prisma().$transaction(async (tx) => {
-      await tx.user.update({
-        where: { id: uid },
-        data: {
-          name: deletedUsername,
-          passwordDigest: null
-        }
-      })
+    await prisma().user.update({
+      where: { id: uid },
+      data: {
+        isDeleted: true,
+        passwordDigest: null
+      }
     })
 
     Logger.info('用户删除成功', {
       userId: uid,
-      originalUsername: user.name,
+      username: user.name,
       wasLoggedIn: isLoggedInUser
     })
 
@@ -168,7 +173,12 @@ userRouter.post('/disable', async (req, res) => {
     const { uid } = result.data
     Logger.info('尝试禁用用户', { uid })
 
-    const user = await prisma().user.findUnique({ where: { id: uid } })
+    const user = await prisma().user.findUnique({ 
+      where: { 
+        id: uid,
+        isDeleted: false 
+      } 
+    })
     if (!user) {
       Logger.warn('用户不存在', { uid })
       return sendResponse(res, fail(ErrorCode.USER_NOT_EXISTS, '用户不存在'))
@@ -202,7 +212,12 @@ userRouter.post('/enable', async (req, res) => {
     const { uid } = result.data
     Logger.info('尝试启用用户', { uid })
 
-    const user = await prisma().user.findUnique({ where: { id: uid } })
+    const user = await prisma().user.findUnique({ 
+      where: { 
+        id: uid,
+        isDeleted: false 
+      } 
+    })
     if (!user) {
       Logger.warn('用户不存在', { uid })
       return sendResponse(res, fail(ErrorCode.USER_NOT_EXISTS, '用户不存在'))
@@ -231,7 +246,12 @@ userRouter.post('/pwd/reset', async (req, res) => {
     const { uid, pwd } = result.data
     Logger.info('尝试重置用户密码', { uid })
 
-    const user = await prisma().user.findUnique({ where: { id: uid } })
+    const user = await prisma().user.findUnique({ 
+      where: { 
+        id: uid,
+        isDeleted: false 
+      } 
+    })
     if (!user) {
       Logger.warn('用户不存在', { uid })
       return sendResponse(res, fail(ErrorCode.USER_NOT_EXISTS, '用户不存在'))
@@ -256,7 +276,10 @@ userRouter.get('/profile', authenticationMiddleware, async (req, res) => {
     Logger.info('尝试获取用户信息', { userId: req.session.user.id })
 
     const user = await prisma().user.findUnique({
-      where: { id: req.session.user.id }
+      where: { 
+        id: req.session.user.id,
+        isDeleted: false 
+      }
     })
 
     if (!user) {

@@ -19,6 +19,7 @@ const userSelect = {
   picture: true,
   createdAt: true,
   updatedAt: true,
+  isDeleted: true,
 }
 
 export async function createUser(
@@ -29,6 +30,7 @@ export async function createUser(
   return prisma().user.create({
     data: {
       name: name ?? email,
+      loginName: name ?? email,
       email,
       passwordDigest,
       status: 1,
@@ -121,6 +123,7 @@ export async function getUserByEmail(email: string): Promise<ApiUser | null> {
   const user = await prisma().user.findFirst({
     where: {
       email,
+      isDeleted: false
     },
     select: userSelect,
   })
@@ -130,7 +133,12 @@ export async function getUserByEmail(email: string): Promise<ApiUser | null> {
 
 export async function listWorkspaceUsers(workspaceId: string): Promise<WorkspaceUser[]> {
   const users = await prisma().userWorkspace.findMany({
-    where: { workspaceId },
+    where: {
+      workspaceId,
+      user: {
+        isDeleted: false
+      }
+    },
     select: {
       user: {
         select: userSelect,

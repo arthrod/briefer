@@ -8,7 +8,6 @@ import { Logger } from '../../utils/logger.js'
 import { success, fail, handleError, sendResponse } from '../../utils/response.js'
 import { ErrorCode } from '../../constants/errorcode.js'
 import { authenticationMiddleware } from '../../auth/token.js'
-import { z } from 'zod'
 import rateLimit from 'express-rate-limit'
 
 const uploadRouter = Router()
@@ -37,6 +36,7 @@ function getMockSession() {
       nickname: '',
       createdAt: new Date(),
       updatedAt: new Date(),
+      isDeleted: false
     },
     userWorkspaces: {}
   }

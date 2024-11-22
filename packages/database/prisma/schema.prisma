@@ -288,8 +288,8 @@ model TrinoDataSource {
 
 model User {
   id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name           String   @unique
-  loginName      String   @unique @default("")
+  name           String   
+  loginName      String   
   email          String   @default("")
   picture        String?
   passwordDigest String?
@@ -297,6 +297,7 @@ model User {
   nickname       String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @default(now()) @updatedAt
+  isDeleted      Boolean  @default(false)  // 是否删除，true表示删除，false表示未删除
 
   workspacesInvitees UserWorkspace[] @relation("UserWorkspaceInviter")
   workspaces         UserWorkspace[] @relation("UserWorkspaceUser")
