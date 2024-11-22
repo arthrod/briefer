@@ -5,64 +5,95 @@
   position: relative;
   padding-top: 16.625rem;
   height: 100%;
-}
-.title {
-  text-align: center;
-  font-size: 2rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  .cursor {
-    display: inline-block;
-    width: 3px;
-    height: 3rem;
-    background-color: black; // or any color that suits your design
-    animation: blink 1s step-end infinite;
-  }
-  .disableCursor {
-    display: none;
+
+  &.changePage {
+    .title {
+      opacity: 0;
+      transform: translateY(-30px);
+    }
+
+    .suggestions {
+      opacity: 0;
+      // transform: translateY(30px);
+    }
   }
 
-  @keyframes blink {
-    from,
-    to {
-      background-color: transparent;
-    }
-    50% {
-      background-color: black;
-    }
-  }
-}
-.input {
-  margin-top: 2.5rem;
-}
-.chat_input {
-  width: 720px;
-  transform: translateY(0px);
-  transition: transform 0.3s ease-in-out;
-}
-.suggestions {
-  display: flex;
-  margin-top: 1.5rem;
-  width: 720px;
-  margin-bottom: 84px;
-  .item {
+
+
+  .title {
+    text-align: center;
+    font-size: 2rem;
     display: flex;
     align-items: center;
-    gap: 0.25rem;
-    border-radius: 2.5rem;
-    padding: 0.5rem 1rem;
-    background: #fafafa;
-    border: 1px solid rgba(0, 0, 0, 0.06);
-    cursor: pointer;
-    &:hover {
-      border-color: #2f69fe;
+    justify-content: center;
+    opacity: 1;
+    transition: all 0.3s cubic-bezier(0, 0, 0.2, 1);
+
+    .cursor {
+      display: inline-block;
+      width: 3px;
+      height: 3rem;
+      background-color: black; // or any color that suits your design
+      animation: blink 1s step-end infinite;
+    }
+
+    .disableCursor {
+      display: none;
+    }
+
+    @keyframes blink {
+
+      from,
+      to {
+        background-color: transparent;
+      }
+
+      50% {
+        background-color: black;
+      }
     }
   }
-  .item_active {
-    border: 1px solid #2f69fe;
+
+  .input {
+    margin-top: 2.5rem;
   }
-  .report_margin {
-    margin-left: 16px;
+
+  .chat_input {
+    width: 720px;
+    transform: translateY(0px);
+    transition: all 0.3s cubic-bezier(0, 0, 0.2, 1);
+    ;
+  }
+
+  .suggestions {
+    display: flex;
+    margin-top: 1.5rem;
+    width: 720px;
+    margin-bottom: 84px;
+    opacity: 1;
+    transition: all 0.3s cubic-bezier(0, 0, 0.2, 1);
+    transform: translateY(0px);
+    .item {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      border-radius: 2.5rem;
+      padding: 0.5rem 1rem;
+      background: #fafafa;
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      cursor: pointer;
+
+      &:hover {
+        border-color: #2f69fe;
+      }
+    }
+
+    .item_active {
+      border: 1px solid #2f69fe;
+    }
+
+    .report_margin {
+      margin-left: 16px;
+    }
   }
 }
