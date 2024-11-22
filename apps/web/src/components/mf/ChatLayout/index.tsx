@@ -64,7 +64,11 @@ export const useChatLayout = () => {
 const MoreBtn = (props: IMoreBtnProps) => {
   const { items, onItemClick } = props
   const [isOpen, setIsOpen] = useState(false)
+  const [isDialogOpen, setDialogOpen] = useState(false)
 
+  const handleDialogClose = () => {
+    setDialogOpen(false)
+  }
   return (
     <Popover className="relative">
       {({ open, close }) => (
@@ -79,11 +83,13 @@ const MoreBtn = (props: IMoreBtnProps) => {
             <div className={styles.moreBtnLayout}>
               {items.map((item, index) =>
                 item.type === 'del' ? (
-                  <AlertDialog key={index}>
+                  <AlertDialog key={index} open={isDialogOpen} onOpenChange={setDialogOpen}>
                     <AlertDialogTrigger
                       className="w-[100%]"
                       onClick={(e) => {
+                        e.preventDefault()
                         e.stopPropagation()
+                        setDialogOpen(true)
                       }}>
                       <div className={styles.moreBtn} key={index}>
                         {item.label}
@@ -100,6 +106,7 @@ const MoreBtn = (props: IMoreBtnProps) => {
                             e.stopPropagation()
                             e.preventDefault()
                             close()
+                            handleDialogClose()
                           }}>
                           取消
                         </AlertDialogCancel>
@@ -108,6 +115,7 @@ const MoreBtn = (props: IMoreBtnProps) => {
                             e.stopPropagation()
                             e.preventDefault()
                             close()
+                            handleDialogClose()
                             onItemClick && onItemClick(item.type)
                           }}>
                           确定
