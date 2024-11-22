@@ -3,39 +3,31 @@ import UploadIcon from '../../../icons/upload.svg'
 import SendIcon from '../../../icons/send.svg'
 import FileIcon from '../../../icons/file.svg'
 import DeleteIcon from '../../../icons/delete.svg'
-import { ChangeEvent, forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
+import { ChangeEvent, useMemo, useRef, useState } from 'react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import clsx from 'clsx'
 
 interface IProps {
   className?: string
   isUpload: boolean
+  loading?: boolean
+  disabled?: boolean
   send?: (question: string, fileId?: string) => void
   stop?: () => void
 }
 
-const ChatInput = forwardRef(({ className, isUpload, send, stop }: IProps, ref) => {
+const ChatInput = ({
+  className,
+  isUpload,
+  loading = false,
+  disabled = false,
+  send,
+  stop,
+}: IProps) => {
   const [question, setQuestion] = useState('')
   const [fileId, setFileId] = useState('')
-  const [isLoading, setIsLoading] = useState<boolean>(false)
   const [isOpen, setIsOpen] = useState(false)
-  const [isDisabled, setIsDisabled] = useState(false)
   const questionRef = useRef<HTMLInputElement>(null)
-
-  useImperativeHandle(ref, () => ({
-    openLoading: () => {
-      setIsLoading(true)
-    },
-    closeLoading: () => {
-      setIsLoading(false)
-    },
-    disableInput: () => {
-      setIsDisabled(true)
-    },
-    enableInput: () => {
-      setIsDisabled(false)
-    },
-  }))
 
   const handleFileChangeEvent = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -44,7 +36,7 @@ const ChatInput = forwardRef(({ className, isUpload, send, stop }: IProps, ref) 
     }
   }
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (isLoading) {
+    if (loading) {
       return
     }
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -58,6 +50,12 @@ const ChatInput = forwardRef(({ className, isUpload, send, stop }: IProps, ref) 
       }
     }
   }
+
+  const disableClass = useMemo(() => {
+    console.log(question && !loading && !disabled)
+
+    return question && !loading && !disabled ? styles.activate : ''
+  }, [question, loading, disabled])
 
   return (
     <div className={clsx(styles.chatInput, className)}>
@@ -76,24 +74,19 @@ const ChatInput = forwardRef(({ className, isUpload, send, stop }: IProps, ref) 
           <input
             ref={questionRef}
             type="text"
-            className={clsx(styles.input, { [styles.disabled]: isDisabled })}
+            className={clsx(styles.input, disabled ? styles.disabled : '')}
             placeholder="向AI助手描述需求"
             onChange={(e) => {
               setQuestion(e.target.value)
             }}
             onKeyDown={handleKeyDown}
-            disabled={isDisabled || isLoading}
+            disabled={disabled || loading}
           />
         </PopoverTrigger>
         <button
-          className={clsx(
-            styles.sendBtn,
-            question ? (isLoading ? '' : isDisabled ? '' : styles.activate) : '',
-            isDisabled ? styles.disabled : '',
-            isLoading ? styles.loading : ''
-          )}
+          className={clsx(styles.sendBtn, disableClass)}
           onClick={(e) => {
-            if (isLoading) {
+            if (loading) {
               if (stop) {
                 stop()
               }
@@ -107,8 +100,8 @@ const ChatInput = forwardRef(({ className, isUpload, send, stop }: IProps, ref) 
               }
             }
           }}
-          disabled={isDisabled}>
-          {isLoading ? <div className={styles.stopSquare}></div> : <SendIcon />}
+          disabled={disabled}>
+          {loading ? <div className={styles.stopSquare}></div> : <SendIcon />}
         </button>
 
         <PopoverContent asChild>
@@ -132,6 +125,6 @@ const ChatInput = forwardRef(({ className, isUpload, send, stop }: IProps, ref) 
       </Popover>
     </div>
   )
-})
+}
 
 export default ChatInput

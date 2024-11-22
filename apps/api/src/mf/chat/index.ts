@@ -40,8 +40,8 @@ const CONFIG = {
     START: 1,
     CHATTING: 2,
     COMPLETED: 3,
-    FAILED: 4
-  }
+    FAILED: 4,
+  },
 } as const
 
 // 2. 速率限制器配置
@@ -116,40 +116,40 @@ interface ErrorResponse {
 // 4. Schema 定义
 
 // 基础类型定义
-const baseId = z.string().min(1, "ID不能为空")
+const baseId = z.string().min(1, 'ID不能为空')
 
 // 基础 Schema
 const baseChatSchema = {
-  chatId: baseId.describe("对话ID")
+  chatId: baseId.describe('对话ID'),
 }
 
 const baseRoundSchema = {
   ...baseChatSchema,
-  roundId: baseId.describe("对话轮次ID")
+  roundId: baseId.describe('对话轮次ID'),
 }
 
 // 具体业务 Schema
 const createChatSchema = z.object({
   type: z.enum(['rag', 'report']),
-  fileId: z.string()
+  fileId: z.string(),
 })
 
 const updateChatSchema = z.object({
-  id: baseId.describe("对话ID"),
-  title: z.string().min(1, "标题不能为空"),
+  id: baseId.describe('对话ID'),
+  title: z.string().min(1, '标题不能为空'),
 })
 
 const deleteChatSchema = z.object({
-  id: baseId.describe("对话ID"),
+  id: baseId.describe('对话ID'),
 })
 
 const createChatRoundSchema = z.object({
-  question: z.string().min(1, "问题不能为空"),
+  question: z.string().min(1, '问题不能为空'),
   ...baseChatSchema,
 })
 
 const getChatDetailSchema = z.object({
-  id: baseId.describe("对话ID"),
+  id: baseId.describe('对话ID'),
 })
 
 const chatCompletionsSchema = z.object(baseRoundSchema)
@@ -158,7 +158,7 @@ const getChatStatusSchema = z.object(baseChatSchema)
 
 // 在 Schema 定义部分添加
 const stopChatSchema = z.object({
-  roundId: baseId.describe("对话轮次ID")
+  roundId: baseId.describe('对话轮次ID'),
 })
 
 // 5. 错误类
@@ -197,7 +197,7 @@ const formatDate = (date: Date): string => {
 
 const validateEnvVars = () => {
   const requiredEnvVars = ['AI_AGENT_URL']
-  const missingVars = requiredEnvVars.filter(varName => !process.env[varName])
+  const missingVars = requiredEnvVars.filter((varName) => !process.env[varName])
   if (missingVars.length > 0) {
     throw new Error(`Missing required environment variables: ${missingVars.join(', ')}`)
   }
@@ -206,7 +206,7 @@ const validateEnvVars = () => {
 const createErrorResponse = (code: number, message: string): ErrorResponse => ({
   code,
   msg: message,
-  data: null
+  data: null,
 })
 
 // 7. 测试用户数据
@@ -223,7 +223,7 @@ function getMockSession() {
       nickname: '',
       createdAt: new Date(),
       updatedAt: new Date(),
-      isDeleted: false
+      isDeleted: false,
     },
     userWorkspaces: {
       default: {
@@ -232,19 +232,19 @@ function getMockSession() {
         createdAt: new Date(),
         updatedAt: new Date(),
         inviterId: null,
-        role: UserWorkspaceRole.admin
-      }
-    }
+        role: UserWorkspaceRole.admin,
+      },
+    },
   }
 }
 
 // 8. 中间件
 const authMiddleware = CONFIG.USE_TEST_AUTH
-  ? ((req: Request, res: Response, next: NextFunction) => {
-    req.session = getMockSession();
-    next();
-  })
-  : authenticationMiddleware;
+  ? (req: Request, res: Response, next: NextFunction) => {
+      req.session = getMockSession()
+      next()
+    }
+  : authenticationMiddleware
 
 const handleError = (err: unknown, req: Request, res: Response, operation: string) => {
   logger().error({
@@ -254,14 +254,14 @@ const handleError = (err: unknown, req: Request, res: Response, operation: strin
       errorMessage: err instanceof Error ? err.message : '未知错误',
       errorStack: err instanceof Error ? err.stack : undefined,
       requestData: req.body || req.query,
-      userId: req.session?.user?.id
-    }
+      userId: req.session?.user?.id,
+    },
   })
 
   return res.status(500).json({
     code: 500,
     msg: '服务器内部错误',
-    data: null
+    data: null,
   })
 }
 
@@ -271,12 +271,12 @@ const validateSchema = <T>(schema: z.ZodSchema<T>, data: unknown, operation: str
     logger().error({
       msg: `Invalid ${operation} input`,
       data: {
-        errors: result.error.errors.map(err => ({
+        errors: result.error.errors.map((err) => ({
           path: err.path.join('.'),
-          message: err.message
+          message: err.message,
         })),
-        requestData: data
-      }
+        requestData: data,
+      },
     })
     return null
   }
@@ -288,7 +288,7 @@ function setupSSEConnection(res: Response) {
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache',
-    'Connection': 'keep-alive'
+    Connection: 'keep-alive',
   })
 }
 
@@ -299,14 +299,14 @@ const formatErrorMessage = (error: unknown): string => {
     msg: 'Error details',
     data: {
       error: error instanceof Error ? error.message : '未知错误',
-      stack: error instanceof Error ? error.stack : undefined
-    }
+      stack: error instanceof Error ? error.stack : undefined,
+    },
   })
 
   return [
     '```error',
     '抱歉，操作未能成功，请稍后再试。如果问题持续，请联系我们的支持团队！ 🙏',
-    '```'
+    '```',
   ].join('\n')
 }
 
@@ -324,24 +324,24 @@ const sendSSEError = async (res: Response, error: unknown, updateTarget?: Update
             answer: Buffer.from(formattedError),
             speakerType: 'assistant',
             status: CONFIG.CHAT_STATUS.FAILED,
-            updateTime: new Date()
-          }
+            updateTime: new Date(),
+          },
         }),
         prisma().chat.update({
           where: { id: updateTarget.chatId },
-          data: { updateTime: new Date() }
-        })
+          data: { updateTime: new Date() },
+        }),
       ])
     } catch (dbError) {
       logger().error({
         msg: 'Failed to save error message to database',
-        data: { error: dbError }
+        data: { error: dbError },
       })
     }
   }
 
   // 分行发送错误消息，确保格式正确
-  formattedError.split('\n').forEach(line => {
+  formattedError.split('\n').forEach((line) => {
     res.write(`data: ${line}\n`)
   })
   res.write('\n') // 表示该消息结束
@@ -351,13 +351,13 @@ const sendSSEError = async (res: Response, error: unknown, updateTarget?: Update
 
 // 定义更新类型
 type UpdateTarget = {
-  type: 'chat_record' | 'chat_title';
-  chatId: string;
-  roundId?: string;
+  type: 'chat_record' | 'chat_title'
+  chatId: string
+  roundId?: string
 }
 
 // 在全局范围内添加一个 Map 来存储活跃的请求控制器
-const activeRequests = new Map<string, AbortController>();
+const activeRequests = new Map<string, AbortController>()
 
 async function handleStreamResponse(
   response: FetchResponse,
@@ -371,7 +371,7 @@ async function handleStreamResponse(
 
   if (controller) {
     // 存储控制器
-    activeRequests.set(updateTarget.roundId!, controller);
+    activeRequests.set(updateTarget.roundId!, controller)
   }
 
   const stream = response.body
@@ -391,12 +391,12 @@ async function handleStreamResponse(
     if (updateTarget.type === 'chat_record' && updateTarget.roundId) {
       await prisma().chatRecord.update({
         where: { id: updateTarget.roundId },
-        data: { status: CONFIG.CHAT_STATUS.CHATTING } // 聊天中状态
+        data: { status: CONFIG.CHAT_STATUS.CHATTING }, // 聊天中状态
       })
 
       logger().info({
         msg: 'Chat status updated to CHATTING',
-        data: { roundId: updateTarget.roundId, status: CONFIG.CHAT_STATUS.CHATTING }
+        data: { roundId: updateTarget.roundId, status: CONFIG.CHAT_STATUS.CHATTING },
       })
     }
 
@@ -405,9 +405,9 @@ async function handleStreamResponse(
       if (controller?.signal.aborted) {
         logger().info({
           msg: 'Stream processing aborted',
-          data: { roundId: updateTarget.roundId }
-        });
-        break;
+          data: { roundId: updateTarget.roundId },
+        })
+        break
       }
 
       buffer += textDecoder.decode(chunk as Buffer, { stream: true })
@@ -427,8 +427,8 @@ async function handleStreamResponse(
             data: {
               rawData: data,
               updateTarget,
-              timestamp: new Date().toISOString()
-            }
+              timestamp: new Date().toISOString(),
+            },
           })
 
           if (data.includes('[DONE]')) {
@@ -447,18 +447,18 @@ async function handleStreamResponse(
                       answer: Buffer.from(completeMessage),
                       speakerType: 'assistant',
                       status: CONFIG.CHAT_STATUS.COMPLETED,
-                      updateTime: now
-                    }
+                      updateTime: now,
+                    },
                   }),
                   // 同时更新对应的 Chat
                   prisma().chat.update({
                     where: {
-                      id: updateTarget.chatId // 确保 chatId 也传入了
+                      id: updateTarget.chatId, // 确保 chatId 也传入了
                     },
                     data: {
-                      updateTime: now
-                    }
-                  })
+                      updateTime: now,
+                    },
+                  }),
                 ])
 
                 logger().info({
@@ -467,16 +467,16 @@ async function handleStreamResponse(
                     roundId: updateTarget.roundId,
                     chatId: updateTarget.chatId,
                     messageLength: completeMessage.length,
-                    updateTime: now
-                  }
+                    updateTime: now,
+                  },
                 })
               } else if (updateTarget.type === 'chat_title' && updateTarget.chatId) {
                 await prisma().chat.update({
                   where: { id: updateTarget.chatId },
                   data: {
                     title: completeMessage.trim(),
-                    updateTime: now
-                  }
+                    updateTime: now,
+                  },
                 })
 
                 logger().info({
@@ -484,8 +484,8 @@ async function handleStreamResponse(
                   data: {
                     chatId: updateTarget.chatId,
                     newTitle: completeMessage.trim(),
-                    updateTime: now
-                  }
+                    updateTime: now,
+                  },
                 })
               }
             } catch (dbError) {
@@ -493,12 +493,12 @@ async function handleStreamResponse(
                 msg: 'Failed to update database',
                 data: {
                   updateTarget,
-                  error: dbError instanceof Error ? dbError.message : 'Unknown error'
-                }
+                  error: dbError instanceof Error ? dbError.message : 'Unknown error',
+                },
               })
               // 使用sendSSEError处理数据库错误
-              await sendSSEError(res, dbError, updateTarget);
-              return;
+              await sendSSEError(res, dbError, updateTarget)
+              return
             }
 
             await fs.writeFile(logFilePath, completeMessage, 'utf-8')
@@ -522,8 +522,8 @@ async function handleStreamResponse(
                   content,
                   currentLength: completeMessage.length,
                   updateTarget,
-                  timestamp: new Date().toISOString()
-                }
+                  timestamp: new Date().toISOString(),
+                },
               })
 
               // 添加中断检查
@@ -536,14 +536,14 @@ async function handleStreamResponse(
               msg: 'Failed to parse SSE data',
               data: {
                 rawData: data,
-                error: jsonError instanceof Error ? jsonError.message : 'Unknown error'
-              }
+                error: jsonError instanceof Error ? jsonError.message : 'Unknown error',
+              },
             })
 
             // 使用sendSSEError处理JSON解析错误
             if (updateTarget.type === 'chat_record' && updateTarget.roundId) {
-              await sendSSEError(res, new Error('解析响应数据失败，请重试'), updateTarget);
-              return;
+              await sendSSEError(res, new Error('解析响应数据失败，请重试'), updateTarget)
+              return
             }
           }
         }
@@ -558,8 +558,8 @@ async function handleStreamResponse(
         data: {
           buffer: buffer.trim(),
           updateTarget,
-          timestamp: new Date().toISOString()
-        }
+          timestamp: new Date().toISOString(),
+        },
       })
 
       const data = buffer.trim()
@@ -579,8 +579,8 @@ async function handleStreamResponse(
             msg: 'Failed to parse final buffer JSON data',
             data: {
               rawData: data,
-              error: parseError instanceof Error ? parseError.message : 'Unknown error'
-            }
+              error: parseError instanceof Error ? parseError.message : 'Unknown error',
+            },
           })
         }
       }
@@ -602,13 +602,13 @@ async function handleStreamResponse(
               answer: Buffer.from(finalMessage), // 使用添加了 [DONE] 的消息
               speakerType: 'assistant',
               status: CONFIG.CHAT_STATUS.COMPLETED,
-              updateTime: now
-            }
+              updateTime: now,
+            },
           }),
           prisma().chat.update({
             where: { id: updateTarget.chatId },
-            data: { updateTime: now }
-          })
+            data: { updateTime: now },
+          }),
         ])
       }
 
@@ -626,12 +626,11 @@ async function handleStreamResponse(
         completeMessage,
         messageLength: completeMessage.length,
         updateTarget,
-        timestamp: new Date().toISOString()
-      }
+        timestamp: new Date().toISOString(),
+      },
     })
 
     await fs.writeFile(logFilePath, completeMessage, 'utf-8')
-
   } catch (error) {
     logger().error({
       msg: 'SSE stream error',
@@ -639,8 +638,8 @@ async function handleStreamResponse(
         error: error instanceof Error ? error.message : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined,
         updateTarget,
-        filePath: logFilePath
-      }
+        filePath: logFilePath,
+      },
     })
 
     // 格式化错误消息
@@ -648,9 +647,9 @@ async function handleStreamResponse(
 
     // 组合已接收的消息和错误信息
     const finalMessage = [
-      completeMessage.trim(),  // 已接收的消息
-      '',  // 空行分隔
-      errorMessage  // 错误信息
+      completeMessage.trim(), // 已接收的消息
+      '', // 空行分隔
+      errorMessage, // 错误信息
     ].join('\n')
 
     try {
@@ -664,17 +663,17 @@ async function handleStreamResponse(
               answer: Buffer.from(finalMessage),
               speakerType: 'assistant',
               status: CONFIG.CHAT_STATUS.FAILED,
-              updateTime: now
-            }
+              updateTime: now,
+            },
           }),
           prisma().chat.update({
             where: {
-              id: updateTarget.chatId
+              id: updateTarget.chatId,
             },
             data: {
-              updateTime: now
-            }
-          })
+              updateTime: now,
+            },
+          }),
         ])
       }
     } catch (dbError) {
@@ -682,19 +681,19 @@ async function handleStreamResponse(
         msg: 'Failed to update database after error',
         data: {
           updateTarget,
-          error: dbError instanceof Error ? dbError.message : 'Unknown error'
-        }
+          error: dbError instanceof Error ? dbError.message : 'Unknown error',
+        },
       })
       // 使用sendSSEError处理数据库错误
-      await sendSSEError(res, dbError, updateTarget);
-      return;
+      await sendSSEError(res, dbError, updateTarget)
+      return
     }
 
     throw error // 继续抛出错误以触发外层错误处理
   } finally {
     // 清理控制器
     if (updateTarget.roundId) {
-      activeRequests.delete(updateTarget.roundId);
+      activeRequests.delete(updateTarget.roundId)
     }
   }
 }
@@ -732,7 +731,7 @@ async function fetchWithTimeout(
   try {
     const response = await fetch(url, {
       ...options,
-      signal: controller.signal
+      signal: controller.signal,
     })
     clearTimeout(id)
     return response
@@ -747,7 +746,8 @@ const router = Router({ mergeParams: true })
 // router.use(apiLimiter)
 
 // Chat 创建路由
-router.post('/create',
+router.post(
+  '/create',
   authMiddleware,
   // createChatLimiter,
   async (req: Request, res: Response) => {
@@ -764,16 +764,16 @@ router.post('/create',
 
       logger().info({
         msg: 'Attempting to create chat',
-        data: { type, fileId, userId }
+        data: { type, fileId, userId },
       })
 
       if (type === 'report' && fileId) {
         const userFile = await prisma().userFile.findFirst({
           where: {
             fileId,
-            createdUserId: userId
+            createdUserId: userId,
           },
-          select: { fileId: true }
+          select: { fileId: true },
         })
 
         if (!userFile) {
@@ -786,55 +786,58 @@ router.post('/create',
         throw new ValidationError('未找到有效的工作区')
       }
 
-      const response = await prisma().$transaction(async (tx) => {
-        const chat = await tx.chat.create({
-          data: {
-            id: chatId,
-            userId,
-            title,
-            type: type === 'rag' ? 1 : 2
-          }
-        })
-
-        let documentId = null
-        if (type === 'report') {
-          const doc = await tx.document.create({
+      const response = await prisma().$transaction(
+        async (tx) => {
+          const chat = await tx.chat.create({
             data: {
-              id: uuidv4(),
-              title: sanitizeInput('新的报告'),
-              workspaceId: workspace.workspaceId,
-              icon: 'DocumentIcon',
-              orderIndex: -1
-            }
+              id: chatId,
+              userId,
+              title,
+              type: type === 'rag' ? 1 : 2,
+            },
           })
-          documentId = doc.id
 
-          await Promise.all([
-            tx.chatDocumentRelation.create({
+          let documentId = null
+          if (type === 'report') {
+            const doc = await tx.document.create({
               data: {
-                chatId: chat.id,
-                documentId: doc.id
-              }
-            }),
-            tx.chatFileRelation.create({
-              data: {
-                chatId: chat.id,
-                fileId
-              }
+                id: uuidv4(),
+                title: sanitizeInput('新的报告'),
+                workspaceId: workspace.workspaceId,
+                icon: 'DocumentIcon',
+                orderIndex: -1,
+              },
             })
-          ])
-        }
+            documentId = doc.id
 
-        return {
-          chatId: chat.id,
-          documentId,
-          title: chat.title,
-          type: type,
-          createdTime: formatDate(chat.createdTime)
+            await Promise.all([
+              tx.chatDocumentRelation.create({
+                data: {
+                  chatId: chat.id,
+                  documentId: doc.id,
+                },
+              }),
+              tx.chatFileRelation.create({
+                data: {
+                  chatId: chat.id,
+                  fileId,
+                },
+              }),
+            ])
+          }
+
+          return {
+            chatId: chat.id,
+            documentId,
+            title: chat.title,
+            type: type,
+            createdTime: formatDate(chat.createdTime),
+          }
+        },
+        {
+          timeout: 5000,
         }
-      }, {
-        timeout: 5000
-      })
+      )
 
       logger().info({
         msg: 'Chat created successfully',
@@ -844,8 +847,8 @@ router.post('/create',
           title: response.title,
           type: response.type,
           createdTime: response.createdTime,
-          userId
-        }
+          userId,
+        },
       })
 
       return res.json({
@@ -855,11 +858,10 @@ router.post('/create',
           documentId: response.documentId,
           title: response.title,
           type: response.type,
-          createdTime: response.createdTime
+          createdTime: response.createdTime,
         },
-        msg: '创建成功'
+        msg: '创建成功',
       })
-
     } catch (err) {
       if (err instanceof AuthorizationError) {
         return res.status(403).json(createErrorResponse(403, err.message))
@@ -869,7 +871,8 @@ router.post('/create',
       }
       return handleError(err, req, res, 'create chat')
     }
-  })
+  }
+)
 
 // Chat 列表路由
 // router.get('/list', authMiddleware, cacheMiddleware(60), async (req, res) => {
@@ -878,13 +881,13 @@ router.get('/list', authMiddleware, async (req, res) => {
     logger().info({
       msg: 'Attempting to fetch chat list',
       data: {
-        userId: req.session.user.id
-      }
+        userId: req.session.user.id,
+      },
     })
 
     const chats = await prisma().chat.findMany({
       where: {
-        userId: req.session.user.id
+        userId: req.session.user.id,
       },
       select: {
         id: true,
@@ -893,39 +896,38 @@ router.get('/list', authMiddleware, async (req, res) => {
         createdTime: true,
         documentRelations: {
           select: {
-            documentId: true
-          }
-        }
+            documentId: true,
+          },
+        },
       },
       orderBy: {
-        createdTime: 'desc'
-      }
+        createdTime: 'desc',
+      },
     })
 
-    const chatList = chats.map(chat => ({
+    const chatList = chats.map((chat) => ({
       id: chat.id,
       documentId: chat.documentRelations[0]?.documentId || null,
       title: sanitizeInput(chat.title),
       type: chat.type === 1 ? 'rag' : 'report',
-      createdTime: formatDate(chat.createdTime)
+      createdTime: formatDate(chat.createdTime),
     }))
 
     logger().info({
       msg: 'Chat list fetched successfully',
       data: {
         userId: req.session.user.id,
-        count: chatList.length
-      }
+        count: chatList.length,
+      },
     })
 
     return res.json({
       code: 0,
       data: {
-        list: chatList
+        list: chatList,
       },
-      msg: '获取成功'
+      msg: '获取成功',
     })
-
   } catch (err) {
     return handleError(err, req, res, 'fetch chat list')
   }
@@ -946,15 +948,15 @@ router.post('/update', authMiddleware, async (req, res) => {
       data: {
         chatId: id,
         newTitle: title,
-        userId: req.session.user.id
-      }
+        userId: req.session.user.id,
+      },
     })
 
     const chat = await prisma().chat.findFirst({
       where: {
         id,
-        userId: req.session.user.id
-      }
+        userId: req.session.user.id,
+      },
     })
 
     if (!chat) {
@@ -965,7 +967,7 @@ router.post('/update', authMiddleware, async (req, res) => {
 
     await prisma().chat.update({
       where: { id },
-      data: { title: sanitizedTitle }
+      data: { title: sanitizedTitle },
     })
 
     logger().info({
@@ -973,16 +975,15 @@ router.post('/update', authMiddleware, async (req, res) => {
       data: {
         chatId: id,
         newTitle: sanitizedTitle,
-        userId: req.session.user.id
-      }
+        userId: req.session.user.id,
+      },
     })
 
     return res.json({
       code: 0,
       data: {},
-      msg: '更新成功'
+      msg: '更新成功',
     })
-
   } catch (err) {
     if (err instanceof AuthorizationError) {
       return res.status(403).json(createErrorResponse(403, err.message))
@@ -1008,23 +1009,23 @@ router.post('/delete', authMiddleware, async (req, res) => {
       msg: 'Attempting to delete chat',
       data: {
         chatId: id,
-        userId: req.session.user.id
-      }
+        userId: req.session.user.id,
+      },
     })
 
     const chat = await prisma().chat.findFirst({
       where: {
         id,
-        userId: req.session.user.id
+        userId: req.session.user.id,
       },
       select: {
         id: true,
         documentRelations: {
           select: {
-            documentId: true
-          }
-        }
-      }
+            documentId: true,
+          },
+        },
+      },
     })
 
     if (!chat) {
@@ -1036,14 +1037,14 @@ router.post('/delete', authMiddleware, async (req, res) => {
         await tx.document.deleteMany({
           where: {
             id: {
-              in: chat.documentRelations.map(r => r.documentId)
-            }
-          }
+              in: chat.documentRelations.map((r) => r.documentId),
+            },
+          },
         })
       }
 
       await tx.chat.delete({
-        where: { id }
+        where: { id },
       })
     })
 
@@ -1052,16 +1053,15 @@ router.post('/delete', authMiddleware, async (req, res) => {
       data: {
         chatId: id,
         userId: req.session.user.id,
-        documentCount: chat.documentRelations?.length || 0
-      }
+        documentCount: chat.documentRelations?.length || 0,
+      },
     })
 
     return res.json({
       code: 0,
       data: {},
-      msg: '删除成功'
+      msg: '删除成功',
     })
-
   } catch (err) {
     if (err instanceof AuthorizationError) {
       return res.status(403).json(createErrorResponse(403, err.message))
@@ -1084,15 +1084,15 @@ router.post('/round/create', authMiddleware, async (req, res) => {
       msg: 'Attempting to create chat round',
       data: {
         chatId,
-        userId: req.session.user.id
-      }
+        userId: req.session.user.id,
+      },
     })
 
     const chat = await prisma().chat.findFirst({
       where: {
         id: chatId,
-        userId: req.session.user.id
-      }
+        userId: req.session.user.id,
+      },
     })
 
     if (!chat) {
@@ -1106,8 +1106,8 @@ router.post('/round/create', authMiddleware, async (req, res) => {
         chatId,
         question: sanitizedQuestion,
         answer: Buffer.from(''),
-        speakerType: 'user'
-      }
+        speakerType: 'user',
+      },
     })
 
     logger().info({
@@ -1115,18 +1115,17 @@ router.post('/round/create', authMiddleware, async (req, res) => {
       data: {
         recordId: chatRecord.id,
         chatId,
-        userId: req.session.user.id
-      }
+        userId: req.session.user.id,
+      },
     })
 
     return res.json({
       code: 0,
       data: {
-        id: chatRecord.id
+        id: chatRecord.id,
       },
-      msg: '创建成功'
+      msg: '创建成功',
     })
-
   } catch (err) {
     if (err instanceof AuthorizationError) {
       return res.status(403).json(createErrorResponse(403, err.message))
@@ -1139,7 +1138,8 @@ router.post('/round/create', authMiddleware, async (req, res) => {
 })
 
 // Chat 详情路由
-router.post('/detail',
+router.post(
+  '/detail',
   authMiddleware,
   // cacheMiddleware(CONFIG.CHAT_DETAIL_CACHE_DURATION),
   async (req: Request, res: Response) => {
@@ -1154,20 +1154,20 @@ router.post('/detail',
 
       logger().info({
         msg: 'Attempting to get chat detail',
-        data: { chatId: id, userId }
+        data: { chatId: id, userId },
       })
 
       const chat = await prisma().chat.findFirst({
         where: {
           id,
-          userId
+          userId,
         },
         select: {
           id: true,
           type: true,
           records: {
             orderBy: {
-              createdTime: 'asc'
+              createdTime: 'asc',
             },
             select: {
               id: true,
@@ -1175,42 +1175,42 @@ router.post('/detail',
               speakerType: true,
               answer: true,
               status: true,
-              createdTime: true
-            }
+              createdTime: true,
+            },
           },
           documentRelations: {
             select: {
               document: {
                 select: {
                   id: true,
-                  title: true
-                }
-              }
-            }
+                  title: true,
+                },
+              },
+            },
           },
           fileRelations: {
             select: {
               userFile: {
                 select: {
                   fileId: true,
-                  fileName: true
-                }
-              }
-            }
-          }
-        }
+                  fileName: true,
+                },
+              },
+            },
+          },
+        },
       })
 
       if (!chat) {
         throw new AuthorizationError('聊天记录不存在或无权访问')
       }
 
-      const messages = chat.records.flatMap(record => [
+      const messages = chat.records.flatMap((record) => [
         {
           id: record.id,
           role: 'user',
           content: sanitizeInput(record.question),
-          status: 'success'
+          status: 'success',
         },
         {
           id: record.id,
@@ -1227,16 +1227,16 @@ router.post('/detail',
               default:
                 return 'success'
             }
-          })()
-        }
-      ]);
+          })(),
+        },
+      ])
 
       const responseData: ChatDetailResponse = {
         type: chat.type === 1 ? 'rag' : 'report',
         messages,
         documentId: null,
-        file: null
-      };
+        file: null,
+      }
 
       if (chat.type === 2) {
         const documentRelation = chat.documentRelations[0]
@@ -1250,7 +1250,7 @@ router.post('/detail',
           responseData.file = {
             id: fileRelation.userFile.fileId,
             name: sanitizeInput(fileRelation.userFile.fileName),
-            type: fileRelation.userFile.fileName.split('.').pop() || ''
+            type: fileRelation.userFile.fileName.split('.').pop() || '',
           }
         }
       }
@@ -1261,33 +1261,34 @@ router.post('/detail',
           chatId: id,
           userId,
           type: responseData.type,
-          messageCount: messages.length
-        }
+          messageCount: messages.length,
+        },
       })
 
       return res.json({
         code: 0,
         data: responseData,
-        msg: '获取成功'
+        msg: '获取成功',
       })
-
     } catch (err) {
       if (err instanceof AuthorizationError) {
         return res.status(403).json(createErrorResponse(403, err.message))
       }
       return handleError(err, req, res, 'get chat detail')
     }
-  })
+  }
+)
 
 // Chat Completions 路由
-router.get('/completions',
+router.get(
+  '/completions',
   authMiddleware,
   // completionsLimiter,
   async (req, res) => {
     // 在路由开始就建立 SSE 连接
     setupSSEConnection(res)
 
-    const controller = new AbortController();
+    const controller = new AbortController()
 
     try {
       const validatedData = validateSchema(chatCompletionsSchema, req.query, 'chat completions')
@@ -1295,7 +1296,7 @@ router.get('/completions',
         await sendSSEError(res, new ValidationError('参数校验失败'), {
           type: 'chat_record',
           chatId: req.query['chatId'] as string,
-          roundId: req.query['roundId'] as string
+          roundId: req.query['roundId'] as string,
         })
         return
       }
@@ -1309,8 +1310,8 @@ router.get('/completions',
           id: roundId,
           chatId: chatId,
           chat: {
-            userId: req.session.user.id
-          }
+            userId: req.session.user.id,
+          },
         },
         select: {
           id: true,
@@ -1318,26 +1319,28 @@ router.get('/completions',
           speakerType: true,
           chat: {
             select: {
-              id: true
-            }
-          }
-        }
+              id: true,
+            },
+          },
+        },
       })
 
       if (!chatRecord) {
         await sendSSEError(res, new AuthorizationError('对话记录不存在或无权访问'), {
           type: 'chat_record',
           chatId,
-          roundId
+          roundId,
         })
         return
       }
 
-      const messages: Message[] = [{
-        id: chatRecord.id,
-        role: 'user',
-        content: sanitizeInput(chatRecord.question)
-      }]
+      const messages: Message[] = [
+        {
+          id: chatRecord.id,
+          role: 'user',
+          content: sanitizeInput(chatRecord.question),
+        },
+      ]
 
       try {
         // 先打印请求参数日志
@@ -1348,8 +1351,8 @@ router.get('/completions',
             requestBody: { messages },
             chatId,
             roundId,
-            userId: req.session.user.id
-          }
+            userId: req.session.user.id,
+          },
         })
 
         const relationCheckResponse = await fetchWithTimeout(
@@ -1357,7 +1360,7 @@ router.get('/completions',
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ messages })
+            body: JSON.stringify({ messages }),
           },
           5000
         )
@@ -1375,24 +1378,24 @@ router.get('/completions',
             response: relationResult,
             chatId,
             roundId,
-            userId: req.session.user.id
-          }
+            userId: req.session.user.id,
+          },
         })
 
         if (relationResult.code !== 0 || !relationResult.data.related) {
           logger().info({
             msg: 'Chat content not related',
-            data: { roundId, chatId }
+            data: { roundId, chatId },
           })
 
           const errorMessage = [
             '```content',
             '抱歉，我目前无法回答与查找数据无关的内容。如果您有查找数据需求，请随时告诉我！',
-            '```'
-          ];
+            '```',
+          ]
 
-          const userInput = chatRecord.question;
-          const title = userInput.slice(0, 15); // 截取前15个字
+          const userInput = chatRecord.question
+          const title = userInput.slice(0, 15) // 截取前15个字
 
           try {
             // 更新 ChatRecord 状态为结束，并存储错误信息和标题
@@ -1404,8 +1407,8 @@ router.get('/completions',
                   status: CONFIG.CHAT_STATUS.COMPLETED, // 结束状态
                   answer: Buffer.from(errorMessage.join('\n')),
                   speakerType: 'assistant',
-                  updateTime: new Date()
-                }
+                  updateTime: new Date(),
+                },
               }),
               // 更新 Chat 的标题和 isTitleSet 字段
               prisma().chat.update({
@@ -1413,20 +1416,20 @@ router.get('/completions',
                 data: {
                   title: title,
                   isTitleSet: true,
-                  updateTime: new Date()
-                }
-              })
-            ]);
+                  updateTime: new Date(),
+                },
+              }),
+            ])
 
             // 发送标题更新事件
             const updateData = {
               chatId: chatId,
-              title: title
+              title: title,
             }
 
             logger().info({
               msg: 'Emitting title update event for unrelated content',
-              data: updateData
+              data: updateData,
             })
 
             titleUpdateEmitter.emit('titleUpdate', updateData)
@@ -1435,82 +1438,86 @@ router.get('/completions',
               msg: 'Title update event emitted for unrelated content',
               data: {
                 chatId,
-                listenerCount: titleUpdateEmitter.listenerCount('titleUpdate')
-              }
+                listenerCount: titleUpdateEmitter.listenerCount('titleUpdate'),
+              },
             })
-
           } catch (dbError) {
             logger().error({
               msg: 'Failed to update database for unrelated content',
               data: {
                 error: dbError instanceof Error ? dbError.message : 'Unknown error',
                 chatId,
-                roundId
-              }
+                roundId,
+              },
             })
             // 使用sendSSEError处理数据库错误
             await sendSSEError(res, dbError, {
               type: 'chat_record',
               chatId,
-              roundId
-            });
-            return;
+              roundId,
+            })
+            return
           }
 
-          errorMessage.forEach(line => {
-            res.write(`data: ${line}\n`);
-          });
-          res.write('\n'); // 表示该消息结束
+          errorMessage.forEach((line) => {
+            res.write(`data: ${line}\n`)
+          })
+          res.write('\n') // 表示该消息结束
           res.write(`data: [DONE]\n\n`)
           return
         }
 
-        const response = await fetchWithTimeout(
+        const response = (await fetchWithTimeout(
           `${CONFIG.AI_AGENT_URL}/v1/ai/chat/data/completions`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              user_input: chatRecord.question
+              user_input: chatRecord.question,
             }),
-            signal: controller.signal // 添加 signal
+            signal: controller.signal, // 添加 signal
           },
           30000
-        ) as FetchResponse
+        )) as FetchResponse
 
         if (!response.ok) {
           throw new Error(`AI 对话请求失败: ${response.status}`)
         }
 
-        await handleStreamResponse(response, res, {
-          type: 'chat_record',
-          chatId: chatId,
-          roundId: roundId
-        }, controller) // 传入 controller
-
+        await handleStreamResponse(
+          response,
+          res,
+          {
+            type: 'chat_record',
+            chatId: chatId,
+            roundId: roundId,
+          },
+          controller
+        ) // 传入 controller
       } catch (error) {
         logger().error({
           msg: 'AI service error',
-          data: { error }
+          data: { error },
         })
         await sendSSEError(res, error, {
           type: 'chat_record',
           chatId,
-          roundId
+          roundId,
         })
       }
-
     } catch (err) {
       await sendSSEError(res, err, {
         type: 'chat_record',
         chatId: req.query['chatId'] as string,
-        roundId: req.query['roundId'] as string
+        roundId: req.query['roundId'] as string,
       })
     }
-  })
+  }
+)
 
 // Chat 总结路由
-router.get('/summarize',
+router.get(
+  '/summarize',
   authMiddleware,
   // summarizeLimiter,
   async (req, res) => {
@@ -1522,7 +1529,7 @@ router.get('/summarize',
       if (!validatedData) {
         await sendSSEError(res, new ValidationError('参数校验失败'), {
           type: 'chat_title',
-          chatId: req.query['chatId'] as string
+          chatId: req.query['chatId'] as string,
         })
         return
       }
@@ -1536,21 +1543,21 @@ router.get('/summarize',
           id: roundId,
           chatId,
           chat: {
-            userId: req.session.user.id
-          }
+            userId: req.session.user.id,
+          },
         },
         select: {
           id: true,
           question: true,
           answer: true,
-          speakerType: true
-        }
+          speakerType: true,
+        },
       })
 
       if (!chatRecord) {
         await sendSSEError(res, new AuthorizationError('对话记录不存在或无权访问'), {
           type: 'chat_title',
-          chatId
+          chatId,
         })
         return
       }
@@ -1560,13 +1567,13 @@ router.get('/summarize',
           {
             id: chatRecord.id,
             role: 'user',
-            content: sanitizeInput(chatRecord.question)
+            content: sanitizeInput(chatRecord.question),
           },
           {
             id: chatRecord.id,
             role: 'assistant',
-            content: chatRecord.answer.toString()
-          }
+            content: chatRecord.answer.toString(),
+          },
         ]
 
         // 添加请求参数日志
@@ -1576,26 +1583,26 @@ router.get('/summarize',
             url: `${CONFIG.AI_AGENT_URL}/v1/ai/chat/summarize`,
             requestBody: {
               messages,
-              temperature: 0
+              temperature: 0,
             },
             chatId,
             roundId,
-            userId: req.session.user.id
-          }
+            userId: req.session.user.id,
+          },
         })
 
-        const response = await fetchWithTimeout(
+        const response = (await fetchWithTimeout(
           `${CONFIG.AI_AGENT_URL}/v1/ai/chat/summarize`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               messages,
-              temperature: 0
-            })
+              temperature: 0,
+            }),
           },
           10000
-        ) as FetchResponse
+        )) as FetchResponse
 
         if (!response.ok) {
           throw new Error(`AI 总结请求失败: ${response.status}`)
@@ -1609,33 +1616,32 @@ router.get('/summarize',
             statusText: response.statusText,
             chatId,
             roundId,
-            userId: req.session.user.id
-          }
+            userId: req.session.user.id,
+          },
         })
 
         await handleStreamResponse(response, res, {
           type: 'chat_title',
-          chatId: chatId
+          chatId: chatId,
         })
-
       } catch (error) {
         logger().error({
           msg: 'AI summarization error',
-          data: { error }
+          data: { error },
         })
         await sendSSEError(res, error, {
           type: 'chat_title',
-          chatId
+          chatId,
         })
       }
-
     } catch (err) {
       await sendSSEError(res, err, {
         type: 'chat_title',
-        chatId: req.query['chatId'] as string
+        chatId: req.query['chatId'] as string,
       })
     }
-  })
+  }
+)
 
 // Chat 状态查询路由
 router.post('/status', authMiddleware, async (req, res) => {
@@ -1650,27 +1656,27 @@ router.post('/status', authMiddleware, async (req, res) => {
 
     logger().info({
       msg: 'Attempting to get chat status',
-      data: { chatId, userId }
+      data: { chatId, userId },
     })
 
     const chat = await prisma().chat.findFirst({
       where: {
         id: chatId,
-        userId
+        userId,
       },
       select: {
         id: true,
         records: {
           orderBy: {
-            createdTime: 'desc'
+            createdTime: 'desc',
           },
           take: 1,
           select: {
             status: true,
-            id: true
-          }
-        }
-      }
+            id: true,
+          },
+        },
+      },
     })
 
     if (!chat) {
@@ -1686,19 +1692,18 @@ router.post('/status', authMiddleware, async (req, res) => {
         chatId,
         userId,
         status,
-        roundId
-      }
+        roundId,
+      },
     })
 
     return res.json({
       code: 0,
       data: {
         status,
-        roundId
+        roundId,
       },
-      msg: '获取成功'
+      msg: '获取成功',
     })
-
   } catch (err) {
     if (err instanceof AuthorizationError) {
       return res.status(403).json(createErrorResponse(403, err.message))
@@ -1720,7 +1725,7 @@ router.post('/stop', authMiddleware, async (req: Request, res: Response) => {
 
     logger().info({
       msg: 'Attempting to stop chat',
-      data: { roundId, userId }
+      data: { roundId, userId },
     })
 
     // 查找对话记录并验证权限
@@ -1728,15 +1733,15 @@ router.post('/stop', authMiddleware, async (req: Request, res: Response) => {
       where: {
         id: roundId,
         chat: {
-          userId
-        }
+          userId,
+        },
       },
       select: {
         id: true,
         chatId: true,
         status: true,
-        answer: true
-      }
+        answer: true,
+      },
     })
 
     if (!chatRecord) {
@@ -1746,12 +1751,12 @@ router.post('/stop', authMiddleware, async (req: Request, res: Response) => {
     if (chatRecord.status !== CONFIG.CHAT_STATUS.CHATTING) {
       logger().info({
         msg: 'Chat already stopped or completed',
-        data: { roundId, status: chatRecord.status }
+        data: { roundId, status: chatRecord.status },
       })
       return res.json({
         code: 0,
         data: {},
-        msg: '对话已经停止或完成'
+        msg: '对话已经停止或完成',
       })
     }
 
@@ -1760,7 +1765,7 @@ router.post('/stop', authMiddleware, async (req: Request, res: Response) => {
     if (controller) {
       logger().info({
         msg: 'Aborting active request',
-        data: { roundId }
+        data: { roundId },
       })
       controller.abort()
       activeRequests.delete(roundId)
@@ -1778,15 +1783,15 @@ router.post('/stop', authMiddleware, async (req: Request, res: Response) => {
         data: {
           status: CONFIG.CHAT_STATUS.COMPLETED,
           answer: Buffer.from(updatedAnswer),
-          updateTime: new Date()
-        }
+          updateTime: new Date(),
+        },
       }),
       prisma().chat.update({
         where: { id: chatRecord.chatId },
         data: {
-          updateTime: new Date()
-        }
-      })
+          updateTime: new Date(),
+        },
+      }),
     ])
 
     logger().info({
@@ -1794,16 +1799,15 @@ router.post('/stop', authMiddleware, async (req: Request, res: Response) => {
       data: {
         roundId,
         chatId: chatRecord.chatId,
-        userId
-      }
+        userId,
+      },
     })
 
     return res.json({
       code: 0,
       data: {},
-      msg: '停止成功'
+      msg: '停止成功',
     })
-
   } catch (err) {
     if (err instanceof AuthorizationError) {
       return res.status(403).json(createErrorResponse(403, err.message))
@@ -1821,22 +1825,22 @@ router.get('/title/update', authMiddleware, async (req: Request, res: Response) 
       msg: 'Title update SSE connection established',
       data: {
         userId,
-        currentListeners: titleUpdateEmitter.listenerCount('titleUpdate')
-      }
+        currentListeners: titleUpdateEmitter.listenerCount('titleUpdate'),
+      },
     })
 
     // 设置 SSE 头部
     setupSSEConnection(res)
 
     // 创建标题更新处理函数
-    const handleTitleUpdate = async (data: { chatId: string, title: string }) => {
+    const handleTitleUpdate = async (data: { chatId: string; title: string }) => {
       logger().info({
         msg: 'Received title update event',
         data: {
           userId,
           chatId: data.chatId,
-          title: data.title
-        }
+          title: data.title,
+        },
       })
 
       try {
@@ -1844,14 +1848,14 @@ router.get('/title/update', authMiddleware, async (req: Request, res: Response) 
         const chat = await prisma().chat.findFirst({
           where: {
             id: data.chatId,
-            userId: userId
-          }
+            userId: userId,
+          },
         })
 
         if (chat) {
           const message = JSON.stringify({
             chatId: data.chatId,
-            title: data.title
+            title: data.title,
           })
 
           logger().info({
@@ -1860,8 +1864,8 @@ router.get('/title/update', authMiddleware, async (req: Request, res: Response) 
               userId,
               chatId: data.chatId,
               title: data.title,
-              messageContent: message
-            }
+              messageContent: message,
+            },
           })
 
           // 确保连接仍然打开
@@ -1870,7 +1874,7 @@ router.get('/title/update', authMiddleware, async (req: Request, res: Response) 
           } else {
             logger().warn({
               msg: 'SSE connection already closed',
-              data: { userId, chatId: data.chatId }
+              data: { userId, chatId: data.chatId },
             })
           }
         } else {
@@ -1878,8 +1882,8 @@ router.get('/title/update', authMiddleware, async (req: Request, res: Response) 
             msg: 'Attempted to send title update for unauthorized chat',
             data: {
               userId,
-              chatId: data.chatId
-            }
+              chatId: data.chatId,
+            },
           })
         }
       } catch (error) {
@@ -1889,8 +1893,8 @@ router.get('/title/update', authMiddleware, async (req: Request, res: Response) 
             error: error instanceof Error ? error.message : 'Unknown error',
             stack: error instanceof Error ? error.stack : undefined,
             userId,
-            chatId: data.chatId
-          }
+            chatId: data.chatId,
+          },
         })
       }
     }
@@ -1902,8 +1906,8 @@ router.get('/title/update', authMiddleware, async (req: Request, res: Response) 
       msg: 'Title update event listener registered',
       data: {
         userId,
-        totalListeners: titleUpdateEmitter.listenerCount('titleUpdate')
-      }
+        totalListeners: titleUpdateEmitter.listenerCount('titleUpdate'),
+      },
     })
 
     // 发送初始连接成功消息
@@ -1917,8 +1921,8 @@ router.get('/title/update', authMiddleware, async (req: Request, res: Response) 
         msg: 'Title update SSE connection closed',
         data: {
           userId,
-          remainingListeners: titleUpdateEmitter.listenerCount('titleUpdate')
-        }
+          remainingListeners: titleUpdateEmitter.listenerCount('titleUpdate'),
+        },
       })
 
       // 确保连接被正确关闭
@@ -1926,15 +1930,14 @@ router.get('/title/update', authMiddleware, async (req: Request, res: Response) 
         res.end()
       }
     })
-
   } catch (err) {
     logger().error({
       msg: 'Title update SSE error',
       data: {
         error: err instanceof Error ? err.message : 'Unknown error',
         stack: err instanceof Error ? err.stack : undefined,
-        userId: req.session.user.id
-      }
+        userId: req.session.user.id,
+      },
     })
     if (!res.writableEnded) {
       res.end()

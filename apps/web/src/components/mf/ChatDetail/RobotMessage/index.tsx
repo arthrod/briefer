@@ -15,6 +15,7 @@ const RobotMessage = forwardRef((props: IProps, ref) => {
   let state = { currentType: null, currentContent: [] }
   const [length, setLength] = useState<number>(0)
   let jsonNumber = 0
+
   const handleSSEMessage = useCallback((data: string) => {
     // 解析 SSE 流
     parseSSEStream(
@@ -50,6 +51,7 @@ const RobotMessage = forwardRef((props: IProps, ref) => {
       state
     )
   }, [])
+
   const getTableDes = (jsonData: any) => {
     const tableNameCN = jsonData.tableNameCN
     const totalColumnsCount = jsonData.totalColumnsCount || 0

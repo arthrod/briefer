@@ -35,7 +35,7 @@
 
     .content {
       white-space: pre-wrap;
-      color: #272A33;
+      color: #272a33;
       margin: 0 4px;
       padding: 8px;
       border-radius: 0px 12px 12px 12px;
@@ -62,30 +62,32 @@
         display: flex;
         gap: 5px;
       }
-      
+
       .robotTyping span {
         display: block;
         width: 4px;
         height: 4px;
-        background-color:#2F69FE;
+        background-color: #2f69fe;
         border-radius: 50%;
         animation: typing 1.5s infinite ease-in-out;
       }
-      
+
       .robotTyping span:nth-child(1) {
         animation-delay: 0s;
       }
-      
+
       .robotTyping span:nth-child(2) {
         animation-delay: 0.2s;
       }
-      
+
       .robotTyping span:nth-child(3) {
         animation-delay: 0.4s;
       }
-      
+
       @keyframes typing {
-        0%, 80%, 100% {
+        0%,
+        80%,
+        100% {
           transform: scale(0);
           opacity: 0.5;
         }
@@ -94,7 +96,6 @@
           opacity: 1;
         }
       }
-      
     }
 
     .errorContent {
@@ -102,7 +103,7 @@
       border-width: 1px;
       border-color: rgba(255, 59, 82, 0.5);
       padding: 20px;
-      color: #272A33;
+      color: #272a33;
       border-radius: 8px;
       margin-top: 24px;
       margin-left: 4px;
@@ -110,7 +111,7 @@
       align-items: flex-start;
       flex-direction: column;
 
-      >div:first-child {
+      > div:first-child {
         // 错误信息文本
         width: 100%;
         text-align: left; // 文本左对齐
@@ -174,11 +175,10 @@
       }
 
       .userAvatar {
-
         min-width: 24px; // 设置宽度
         height: 24px; // 设置高度
         border-radius: 60%; // 设置为圆形
-        background-color: #2F69FE; // 设置背景颜色
+        background-color: #2f69fe; // 设置背景颜色
         color: white; // 设置字体颜色
         display: flex; // 使用 flexbox 进行居中
         align-items: center; // 垂直居中

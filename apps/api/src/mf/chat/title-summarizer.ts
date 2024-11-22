@@ -24,7 +24,7 @@ const CHAT_STATUS = {
   START: 1,
   CHATTING: 2,
   COMPLETED: 3,
-  FAILED: 4
+  FAILED: 4,
 } as const
 
 export async function summarizeUntitledChats() {
@@ -36,24 +36,24 @@ export async function summarizeUntitledChats() {
         isTitleSet: false,
         records: {
           none: {
-            status: CHAT_STATUS.CHATTING
+            status: CHAT_STATUS.CHATTING,
           },
           some: {
-            status: CHAT_STATUS.COMPLETED
-          }
-        }
+            status: CHAT_STATUS.COMPLETED,
+          },
+        },
       },
       include: {
         records: {
           orderBy: {
-            createdTime: 'asc'
+            createdTime: 'asc',
           },
           take: 5,
           where: {
-            status: CHAT_STATUS.COMPLETED
-          }
-        }
-      }
+            status: CHAT_STATUS.COMPLETED,
+          },
+        },
+      },
     })
 
     logger().info(`Found ${untitledChats.length} untitled chats`)
@@ -66,18 +66,20 @@ export async function summarizeUntitledChats() {
         // }
 
         // 构造消息格式，包含 id
-        const messages = chat.records.map(record => [
-          {
-            id: record.id,
-            role: 'user',
-            content: sanitizeInput(record.question)
-          },
-          {
-            id: record.id,
-            role: 'assistant',
-            content: record.answer.toString()
-          }
-        ]).flat()
+        const messages = chat.records
+          .map((record) => [
+            {
+              id: record.id,
+              role: 'user',
+              content: sanitizeInput(record.question),
+            },
+            {
+              id: record.id,
+              role: 'assistant',
+              content: record.answer.toString(),
+            },
+          ])
+          .flat()
 
         // 调用AI生成标题
         logger().info({
@@ -86,22 +88,19 @@ export async function summarizeUntitledChats() {
             url: `${process.env['AI_AGENT_URL']}/v1/ai/chat/summarize`,
             body: {
               messages,
-              temperature: 0
-            }
-          }
+              temperature: 0,
+            },
+          },
         })
-        
-        const response = await fetch(
-          `${process.env['AI_AGENT_URL']}/v1/ai/chat/summarize`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              messages,
-              temperature: 0
-            })
-          }
-        )
+
+        const response = await fetch(`${process.env['AI_AGENT_URL']}/v1/ai/chat/summarize`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages,
+            temperature: 0,
+          }),
+        })
 
         if (!response.ok || !response.body) {
           logger().error(`Failed to get title for chat ${chat.id}: ${response.statusText}`)
@@ -121,36 +120,36 @@ export async function summarizeUntitledChats() {
             for (const line of lines) {
               if (line.startsWith('data:')) {
                 const data = line.slice(5).trim()
-                
+
                 if (data === '[DONE]') {
                   // 标题生成完成
                   await prisma().chat.update({
                     where: { id: chat.id },
-                    data: { 
+                    data: {
                       title: completeTitle.trim(),
                       isTitleSet: true,
-                      updateTime: new Date()
-                    }
+                      updateTime: new Date(),
+                    },
                   })
-                  
+
                   logger().info({
                     msg: 'Chat title updated successfully',
                     data: {
                       chatId: chat.id,
                       newTitle: completeTitle.trim(),
-                      messageCount: messages.length
-                    }
+                      messageCount: messages.length,
+                    },
                   })
 
                   // 发送标题更新事件
                   const updateData = {
                     chatId: chat.id,
-                    title: completeTitle.trim()
+                    title: completeTitle.trim(),
                   }
 
                   logger().info({
                     msg: 'Emitting title update event',
-                    data: updateData
+                    data: updateData,
                   })
 
                   titleUpdateEmitter.emit('titleUpdate', updateData)
@@ -159,8 +158,8 @@ export async function summarizeUntitledChats() {
                     msg: 'Title update event emitted',
                     data: {
                       chatId: chat.id,
-                      listenerCount: titleUpdateEmitter.listenerCount('titleUpdate')
-                    }
+                      listenerCount: titleUpdateEmitter.listenerCount('titleUpdate'),
+                    },
                   })
 
                   break
@@ -178,8 +177,8 @@ export async function summarizeUntitledChats() {
                     data: {
                       chatId: chat.id,
                       rawData: data,
-                      error: error instanceof Error ? error.message : 'Unknown error'
-                    }
+                      error: error instanceof Error ? error.message : 'Unknown error',
+                    },
                   })
                 }
               }
@@ -191,19 +190,18 @@ export async function summarizeUntitledChats() {
             data: {
               chatId: chat.id,
               error: streamError instanceof Error ? streamError.message : 'Unknown error',
-              stack: streamError instanceof Error ? streamError.stack : undefined
-            }
+              stack: streamError instanceof Error ? streamError.stack : undefined,
+            },
           })
         }
-
       } catch (error) {
         logger().error({
           msg: 'Chat summarization error',
           data: {
             chatId: chat.id,
             error: error instanceof Error ? error.message : 'Unknown error',
-            stack: error instanceof Error ? error.stack : undefined
-          }
+            stack: error instanceof Error ? error.stack : undefined,
+          },
         })
       }
     }
@@ -212,8 +210,8 @@ export async function summarizeUntitledChats() {
       msg: 'Untitled chats summarization task error',
       data: {
         error: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined
-      }
+        stack: error instanceof Error ? error.stack : undefined,
+      },
     })
     throw error
   }

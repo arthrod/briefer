@@ -64,9 +64,7 @@ export const useChatLayout = () => {
 const MoreBtn = (props: IMoreBtnProps) => {
   const { items, onItemClick } = props
   const [isOpen, setIsOpen] = useState(false)
-  const closePopover = () => {
-    setIsOpen(false) // 手动关闭 Popover
-  }
+
   return (
     <Popover className="relative">
       {({ open, close }) => (
@@ -181,11 +179,13 @@ export default function ChatLayout({ children }: Props) {
     },
     [cache]
   )
+
   const getCache = useCallback(() => {
     const msg = cache
     setCache('')
     return msg
   }, [cache])
+
   const refreshChatList = useCallback(() => {
     handleUpdate()
   }, [])
@@ -202,7 +202,8 @@ export default function ChatLayout({ children }: Props) {
       chatSession.eventSource.close()
     }
   }, [])
-  const startRound = useCallback((chatId: string, roundId: string) => {
+
+  const startRound = (chatId: string, roundId: string) => {
     const eventSource = new EventSource(
       `${process.env.NEXT_PUBLIC_API_URL}/v1/mf/chat/completions?chatId=${chatId}&roundId=${roundId}`,
       {
@@ -248,7 +249,7 @@ export default function ChatLayout({ children }: Props) {
     })
 
     return chatSession
-  }, [])
+  }
 
   useEffect(() => {
     setChatId(String(router.query.chatId))
@@ -268,10 +269,6 @@ export default function ChatLayout({ children }: Props) {
   useEffect(() => {
     lastedTimeoutId.current = eventTimeoutId
   }, [eventTimeoutId])
-
-  useEffect(() => {
-    lastedEvent.current = updateTitleEvent
-  }, [updateTitleEvent])
 
   useEffect(() => {
     lastedEvent.current = updateTitleEvent

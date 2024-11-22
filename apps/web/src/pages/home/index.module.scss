@@ -2,9 +2,9 @@
   display: flex;
   align-items: center;
   flex-direction: column;
-  justify-content: center;
-  height: 100%;
   position: relative;
+  padding-top: 16.625rem;
+  height: 100%;
 }
 .title {
   text-align: center;
@@ -22,16 +22,16 @@
   .disableCursor {
     display: none;
   }
-  
+
   @keyframes blink {
-    from, to {
+    from,
+    to {
       background-color: transparent;
     }
     50% {
       background-color: black;
     }
   }
-  
 }
 .input {
   margin-top: 2.5rem;
@@ -60,9 +60,9 @@
     }
   }
   .item_active {
-    border: 1px solid #2F69FE;
+    border: 1px solid #2f69fe;
   }
-  .report_margin{
+  .report_margin {
     margin-left: 16px;
   }
 }

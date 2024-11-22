@@ -8,54 +8,36 @@ import ReportIcon from '../../icons/report.svg'
 import ChatLayout, { useChatLayout } from '@/components/mf/ChatLayout'
 import clsx from 'clsx'
 import { useCreateChat } from '@/hooks/mf/chat/useCreateChat'
-import { ChatType, HistoryChat } from '@/hooks/mf/chat/useChatList'
+import { ChatType } from '@/hooks/mf/chat/useChatList'
 import { useRouter } from 'next/router'
 
 function HomePage() {
   const [type, setType] = useState<ChatType>('rag')
-  const [fileId, setFileId] = useState<string>('')
-  const createChat = useCreateChat()
-  const router = useRouter()
-  const { newChat } = useChatLayout()
-  const chatInput = useRef<{
-    openLoading: () => void
-    closeLoading: () => void
-    refreshChatList: () => void
-  }>(null)
-  const [translateY, setTranslateY] = useState<number>(0) // State to control translation
-
-  const setRagType = useCallback(() => {
-    setType('rag')
-  }, [])
-
-  const setReportType = useCallback(() => {
-    setType('report')
-  }, [])
-
-  const send = useCallback(
-    (msg: string) => {
-      chatInput.current?.openLoading()
-      try {
-        createChat(type, fileId).then((data) => {
-          router.push(`/rag/${data.id}`, undefined, { shallow: true })
-          newChat(data, msg)
-        })
-      } finally {
-        chatInput.current?.closeLoading()
-      }
-    },
-    [type]
-  )
-
-  const classNames = {
-    rag: clsx(styles.item, { [styles.item_active]: type === 'rag' }),
-    report: clsx(styles.report_margin, styles.item, { [styles.item_active]: type === 'report' }),
-  }
-
+  const [fileId, setFileId] = useState('')
   // 逐字动画逻辑
-  const fullText = '我能帮你做点什么？'
-  const [displayText, setDisplayText] = useState<string>('') // 当前显示的文字
-  const [disableCursor, setDisableCursor] = useState<boolean>(false)
+  const fullText = '我能帮你做点儿什么？'
+  const [displayText, setDisplayText] = useState('') // 当前显示的文字
+  const [disableCursor, setDisableCursor] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [disabled, setDisabled] = useState(false)
+  const router = useRouter()
+  const createChat = useCreateChat()
+  const { newChat } = useChatLayout()
+
+  const send = (msg: string) => {
+    if (loading) {
+      return
+    }
+    setLoading(true)
+    try {
+      createChat(type, fileId).then((data) => {
+        router.push(`/rag/${data.id}`, undefined, { shallow: true })
+        newChat(data, msg)
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
     let index = 0
@@ -85,22 +67,35 @@ function HomePage() {
     <div className={styles.container}>
       <div className={styles.title}>
         <div>{displayText}</div>
-        <span className={clsx(styles.cursor, disableCursor ? styles.disableCursor : '')} />
+        <span className={clsx(styles.cursor, disableCursor ? styles.disableCursor : null)} />
       </div>
       <div className={styles.chat_input}>
         <ChatInput
           className={styles.input}
           isUpload={type === 'report'}
+          loading={loading}
+          disabled={disabled}
           send={send}
-          ref={chatInput}
         />
       </div>
       <div className={styles.suggestions}>
-        <div className={classNames.rag} onClick={setRagType}>
+        <div
+          className={clsx(styles.item, type === 'rag' ? styles.item_active : null)}
+          onClick={() => {
+            setType('rag')
+          }}>
           <RagIcon />
           根据需求查找数据
         </div>
-        <div className={classNames.report} onClick={setReportType}>
+        <div
+          className={clsx(
+            styles.report_margin,
+            styles.item,
+            type === 'report' ? styles.item_active : null
+          )}
+          onClick={() => {
+            setType('report')
+          }}>
           <ReportIcon />
           撰写数据分析报告
         </div>

@@ -118,11 +118,11 @@ export default function Layout({ children, pagePath, topBarClassname, topBarCont
           AI助手
         </div>
         <div className={styles.middle}>
-          <ChatDetail></ChatDetail>
+          {/* <ChatDetail></ChatDetail> */}
         </div>
         <div className={styles.bottom}>
           <div className={styles.chatArea}>
-            <ChatInput isUpload={true}/>
+            <ChatInput isUpload={true} />
           </div>
         </div>
       </div>
@@ -138,7 +138,7 @@ export default function Layout({ children, pagePath, topBarClassname, topBarCont
             !isSideBarOpen && 'hidden',
             'bg-ceramic-50 hover:bg-ceramic-100 absolute left-0 top-[50%] z-20 flex h-7 w-7 -translate-x-1/2 items-center justify-center rounded-full border border-gray-200 px-0 text-gray-400 hover:cursor-pointer hover:text-gray-600'
           )}
-        onClick={toggleSideBar(false)}>
+          onClick={toggleSideBar(false)}>
           <ToggleIcon className="h-4 w-4" />
         </span>
         <div

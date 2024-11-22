@@ -20,32 +20,41 @@ import { ChatSessionData, useChatSession } from '@/hooks/mf/chat/useChatSession'
 import { ChatSession, useChatLayout } from '../ChatLayout'
 import { v4 as uuidv4 } from 'uuid'
 import { showToast } from '../Toast'
-import { useRagDetailLayout } from '@/pages/rag/[chatId]'
 import { useSession } from '@/hooks/useAuth'
 import RobotMessage from './RobotMessage'
 import { ChatStatus, useChatStatus } from '@/hooks/mf/chat/useChatStatus'
 import { useChatStop } from '@/hooks/mf/chat/useChatStop'
 const defaultMsg = '``` content\n我是你的AI小助手\n```'
 export interface ChatDetailProps {
+  loading: boolean
+  openLoading: () => void
+  closeLoading: () => void
+  disableInput: () => void
+  enableInput: () => void
   listChange?: () => void
   receiveMsgDone?: () => void
 }
+
 type ChatRound = {
   data: ChatStatus | null
   timeoutId: number
 }
+
 const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
   const { getCache } = useChatLayout()
   const [list, setList] = useState<MessageContent[]>([])
   const [chatSession, setChatSession] = useState<ChatSession | null>(null)
   const [chatRound, setChatRound] = useState<ChatRound>({ data: null, timeoutId: -1 })
-  const [waiting, setWating] = useState<boolean>(false)
+
+  const [waiting, setWaiting] = useState<boolean>(false)
+
   const latestChatRound = useRef(chatRound)
   const [{ createChatSession }] = useChatSession()
   const { startRound } = useChatLayout()
   const [{ getChatStatus }] = useChatStatus()
   const [{ stopChat }] = useChatStop()
-  const { disableInput, enableInput, openLoading, closeLoading } = useRagDetailLayout()
+  const { openLoading, closeLoading, disableInput, enableInput, listChange, receiveMsgDone } = props
+
   const scrollRef = useRef<HTMLDivElement>(null)
   useImperativeHandle(ref, () => ({
     addSendMsg: addSendMsg,
@@ -92,7 +101,7 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
     (msg: string): void => {
       if (msg && !waiting) {
         openLoading()
-        setWating(true)
+        setWaiting(true)
         createChatSession(msg, String(chatId))
           .then((data: ChatSessionData) => {
             const msgId = uuidv4()
@@ -110,7 +119,7 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
           .catch((e) => {
             showToast('消息发送失败，请检查网络', 'error')
             closeLoading()
-            setWating(false)
+            setWaiting(false)
           })
       }
     },
@@ -125,35 +134,35 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
     }
     chatSession.listener.onerror = (error) => {
       updateMsg(msgId, '服务错误', true)
-      setWating(true)
+      setWaiting(true)
       disableInput()
       closeLoading()
     }
+
     chatSession.listener.onmessage = (event) => {
       const data = event.data + '\n'
       setList((prevList) => {
         const lastIndex = prevList.length - 1 // 获取最后一条消息的索引
         const updatedList = [...prevList]
-        if (lastIndex >= 0) {
-          updatedList[lastIndex] = {
-            ...updatedList[lastIndex],
-            content: (updatedList[lastIndex].content += data), // 将新内容追加到最后一条消息
-          }
+        if (lastIndex >= 0 && updatedList[lastIndex]) {
+          const lastItem = updatedList[lastIndex]
+          console.log(lastItem.content)
+          lastItem.content += data
         }
         return updatedList
       })
     }
+
     chatSession.listener.close = () => {
-      setWating(false)
+      setWaiting(false)
       updateMsgStatus(msgId, 'success')
       closeLoading()
     }
   }
 
   const addReceiveMsg = (msg: string, status: MessageStatus): MessageContent => {
-    const msgId = uuidv4()
     const msgContent: MessageContent = {
-      id: msgId,
+      id: uuidv4(),
       role: 'assistant',
       content: msg,
       roundId: '',
@@ -193,12 +202,12 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
     }
   }
 
-  const receiveMsgDone = () => {
+  const _receiveMsgDone = () => {
     chatSession?.eventSource.close()
     chatSession?.listener.close()
     setChatSession(null)
-    if (props.receiveMsgDone) {
-      props.receiveMsgDone()
+    if (receiveMsgDone) {
+      receiveMsgDone()
     }
   }
   const getSuccessElm = (message: MessageContent, index: number) => {
@@ -213,11 +222,12 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
       </div>
     ) : (
       <div className={styles.content} key={index}>
-        <RobotMessage content={message.content} receiveMsgDone={receiveMsgDone} />
+        <RobotMessage content={message.content} receiveMsgDone={_receiveMsgDone} />
         {getChatting(message, index)}
       </div>
     )
   }
+
   const getChatting = (message: MessageContent, index: number) => {
     return message.status === 'chatting' ? (
       <div className={styles.chattingContent} key={index}>
@@ -229,6 +239,7 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
       </div>
     ) : null
   }
+
   const getMessageElm = useCallback(
     (message: MessageContent, index: number) => {
       if (message.role === 'system' || message.role === 'assistant') {
@@ -251,11 +262,12 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
         )
       }
     },
-    [handleRegenerate]
+    [list]
   )
+
   useEffect(() => {
-    if (props.listChange) {
-      props.listChange()
+    if (listChange) {
+      listChange()
     }
   }, [list])
 
