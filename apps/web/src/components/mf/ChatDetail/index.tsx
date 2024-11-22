@@ -85,7 +85,8 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
         receiveMsg.roundId = data.id;
         waitingReceive(receiveMsg.id, data.id)
       }).catch((e) => {
-        showToast('消息发送失败，请检查网络', '', 'error');
+        showToast('消息发送失败，请检查网络', 'error');
+        closeLoading()
         setWating(false)
       })
     }
