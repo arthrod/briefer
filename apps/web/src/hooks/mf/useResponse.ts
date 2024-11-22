@@ -18,6 +18,6 @@ export const getData = async <T> (res: Response): Promise<T> => {
     if (data.code === 0) {
         return data.data as T;
     }
-    showToast("错误", data.msg, 'error');
+    showToast(data.msg, 'error');
     throw new Error(JSON.stringify(data))
 }

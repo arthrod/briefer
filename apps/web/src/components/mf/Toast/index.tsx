@@ -6,7 +6,10 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { X } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
-
+import styles from './index.module.scss'
+import ErrorIcon from '../../../icons/toast-error.svg'
+import SuccessIcon from '../../../icons/toast-success.svg'
+import CommonIcon from '../../../icons/toast-common.svg'
 const ToastProvider = ToastPrimitives.Provider
 
 const ToastViewport = React.forwardRef<
@@ -16,8 +19,9 @@ const ToastViewport = React.forwardRef<
   <ToastPrimitives.Viewport
     ref={ref}
     className={cn(
-      'fixed left-1/2 top-4 z-[100] flex max-h-screen w-full max-w-md -translate-x-1/2 transform flex-col-reverse p-4',
-      className
+      'fixed left-1/2 z-[100] flex max-w-md transform flex-col-reverse',
+      className,
+      styles.mfToastViewPort
     )}
     {...props}
   />
@@ -118,8 +122,8 @@ type ToastActionElement = React.ReactElement<typeof ToastAction>
 
 import { createRoot } from 'react-dom/client'
 
-export function showToast(title: string, description: string,
-    variant: "success" | "error" | "warning" | "default" = "default"
+export function showToast(description: string,
+  variant: "success" | "error" | "warning" | "default" = "default"
 ) {
   const toastContainer = document.createElement('div')
   document.body.appendChild(toastContainer)
@@ -127,20 +131,26 @@ export function showToast(title: string, description: string,
   const root = createRoot(toastContainer) // Using createRoot instead of ReactDOM.render
 
   root.render(
-    <ToastProvider>
-      <Toast variant={variant}>
-        <ToastTitle>{title}</ToastTitle>
-        <ToastDescription>{description}</ToastDescription>
+    <ToastProvider duration={3000}>
+      <Toast className={styles.mfToast}>
+        <div className={styles.mfToastLayout}>
+          <div className={styles.mfToastIcon}>{
+            variant === 'error' ? <ErrorIcon></ErrorIcon> :
+              variant === 'success' ? <SuccessIcon></SuccessIcon> :
+                <CommonIcon></CommonIcon>
+          }</div>
+          <div className={styles.mfToastDes}>{description}</div>
+        </div>
       </Toast>
       <ToastViewport />
     </ToastProvider>
   )
 
   // Automatically unmount and remove the container after the toast disappears
-  setTimeout(() => {
-    // root.unmount()
-    // document.body.removeChild(toastContainer)
-  }, 30000000) // Close after 3 seconds
+  // setTimeout(() => {
+  //   root.unmount()
+  //   document.body.removeChild(toastContainer)
+  // }, 3000) // Close after 3 seconds
 }
 
 export {
