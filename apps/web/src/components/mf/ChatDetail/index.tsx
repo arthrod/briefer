@@ -109,6 +109,7 @@ const ChatDetail = forwardRef((props: ChatDetailProps, ref) => {
           })
           .catch((e) => {
             showToast('消息发送失败，请检查网络', 'error')
+            closeLoading()
             setWating(false)
           })
       }

@@ -82,7 +82,11 @@ const MoreBtn = (props: IMoreBtnProps) => {
               {items.map((item, index) =>
                 item.type === 'del' ? (
                   <AlertDialog key={index}>
-                    <AlertDialogTrigger className="w-[100%]" onClick={(e) => e.stopPropagation()}>
+                    <AlertDialogTrigger
+                      className="w-[100%]"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                      }}>
                       <div className={styles.moreBtn} key={index}>
                         {item.label}
                       </div>

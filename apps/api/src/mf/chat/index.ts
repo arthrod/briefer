@@ -223,6 +223,7 @@ function getMockSession() {
       nickname: '',
       createdAt: new Date(),
       updatedAt: new Date(),
+      isDeleted: false
     },
     userWorkspaces: {
       default: {

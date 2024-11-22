@@ -4,21 +4,48 @@
   flex-direction: column;
   justify-content: center;
   height: 100%;
+  position: relative;
 }
 .title {
   text-align: center;
   font-size: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  .cursor {
+    display: inline-block;
+    width: 3px;
+    height: 3rem;
+    background-color: black; // or any color that suits your design
+    animation: blink 1s step-end infinite;
+  }
+  .disableCursor {
+    display: none;
+  }
+  
+  @keyframes blink {
+    from, to {
+      background-color: transparent;
+    }
+    50% {
+      background-color: black;
+    }
+  }
+  
 }
 .input {
   margin-top: 2.5rem;
 }
 .chat_input {
   width: 720px;
+  transform: translateY(0px);
+  transition: transform 0.3s ease-in-out;
 }
 .suggestions {
   display: flex;
   margin-top: 1.5rem;
   width: 720px;
+  margin-bottom: 84px;
   .item {
     display: flex;
     align-items: center;

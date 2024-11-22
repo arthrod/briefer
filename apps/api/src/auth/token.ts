@@ -117,6 +117,7 @@ export async function sessionFromCookies(
       updatedAt: true,
       workspaces: true,
       status: true,
+      isDeleted: true,
     },
   })
   if (!user) {
@@ -140,6 +141,7 @@ export async function sessionFromCookies(
       status: user.status,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
+      isDeleted: user.isDeleted,
     },
     userWorkspaces,
   }
@@ -159,10 +161,13 @@ export async function authenticationMiddleware(
 
     // 检查用户状态
     const user = await prisma().user.findUnique({
-      where: { id: session.user.id }
+      where: { 
+        id: session.user.id,
+        isDeleted: false
+      }
     })
 
-    if (!user || user.status === 0) {
+    if (!user || user.status === 0 || user.isDeleted) {
       res.clearCookie('token')
       res.status(403).json({
         code: 403,
