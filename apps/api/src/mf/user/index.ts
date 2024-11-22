@@ -12,7 +12,7 @@ const userRouter = Router({ mergeParams: true })
 const DEFAULT_EMAIL_DOMAIN = 'mindflow.ai'
 
 const emptyStringToUndefined = (value: unknown) => 
-  value === '' ? undefined : value
+  value === '' || value === null ? undefined : value
 
 // Schema 定义
 const userSchema = z.object({
