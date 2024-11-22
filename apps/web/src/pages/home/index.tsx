@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useRef, useState } from 'react'
 
 import styles from './index.module.scss'
 import ChatInput from '@/components/mf/ChatInput'
@@ -8,13 +8,13 @@ import ReportIcon from '../../icons/report.svg'
 import ChatLayout, { useChatLayout } from '@/components/mf/ChatLayout'
 import clsx from 'clsx'
 import { useCreateChat } from '@/hooks/mf/chat/useCreateChat'
-import { ChatType, HistoryChat } from '@/hooks/mf/chat/useChatList'
+import { ChatType } from '@/hooks/mf/chat/useChatList'
 import { useRouter } from 'next/router'
 
 function HomePage() {
   const [type, setType] = useState<ChatType>('rag')
   const [fileId, setFileId] = useState<string>('')
-  const [{ createChat }] = useCreateChat()
+  const createChat = useCreateChat()
   const router = useRouter()
   const { newChat } = useChatLayout()
   const chatInput = useRef<{
@@ -28,17 +28,22 @@ function HomePage() {
   const setReportType = useCallback(() => {
     setType('report')
   }, [])
-  const send = useCallback((msg: string) => {
-    chatInput.current?.openLoading()
-    try {
-      createChat(type, fileId).then((data) => {
-        router.push(`/rag/${data.id}`, undefined, { shallow: true })
-        newChat(data, msg);
-      })
-    } finally {
-      chatInput.current?.closeLoading()
-    }
-  }, [])
+
+  const send = useCallback(
+    (msg: string) => {
+      chatInput.current?.openLoading()
+      try {
+        createChat(type, fileId).then((data) => {
+          router.push(`/rag/${data.id}`, undefined, { shallow: true })
+          newChat(data, msg)
+        })
+      } finally {
+        chatInput.current?.closeLoading()
+      }
+    },
+    [type]
+  )
+
   const classNames = {
     rag: clsx(styles.item, { [styles.item_active]: type === 'rag' }),
     report: clsx(styles.report_margin, styles.item, { [styles.item_active]: type === 'report' }),

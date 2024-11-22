@@ -5,43 +5,43 @@ RUN echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bookworm main contrib
     echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bookworm-backports main contrib non-free non-free-firmware" >> /etc/apt/sources.list && \
     echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian-security bookworm-security main contrib non-free non-free-firmware" >> /etc/apt/sources.list && \
     rm -rf /etc/apt/sources.list.d/*
-    
+
 WORKDIR /usr/src/app
 
 RUN apt-get update && \
     apt-get install -y \
-        libpq-dev \
-        r-base \
-        python3-dev \
-        graphviz \
-        libgraphviz-dev \
-        default-libmysqlclient-dev \
-        build-essential \
-        pkg-config \
-        jq \
-        git \
-        gdal-bin \
-        libgdal-dev \
-        curl \
-        libaio1 \
-        alien \
-        && rm -rf /var/lib/apt/lists/*
+    libpq-dev \
+    r-base \
+    python3-dev \
+    graphviz \
+    libgraphviz-dev \
+    default-libmysqlclient-dev \
+    build-essential \
+    pkg-config \
+    jq \
+    git \
+    gdal-bin \
+    libgdal-dev \
+    curl \
+    libaio1 \
+    alien \
+    && rm -rf /var/lib/apt/lists/*
 
 #### ORACLE INSTANT CLIENT ####
 ARG TARGETARCH
 
 # Download Oracle Instant Client RPM, convert to DEB, and install
 RUN if [ "$TARGETARCH" = "arm64" ]; then \
-        curl -o /tmp/oracle-instantclient-basiclite.rpm https://download.oracle.com/otn_software/linux/instantclient/1924000/oracle-instantclient19.24-basiclite-19.24.0.0.0-1.aarch64.rpm && \
-        alien -i /tmp/oracle-instantclient-basiclite.rpm && \
-        rm /tmp/oracle-instantclient-basiclite.rpm; \
+    curl -o /tmp/oracle-instantclient-basiclite.rpm https://download.oracle.com/otn_software/linux/instantclient/1924000/oracle-instantclient19.24-basiclite-19.24.0.0.0-1.aarch64.rpm && \
+    alien -i /tmp/oracle-instantclient-basiclite.rpm && \
+    rm /tmp/oracle-instantclient-basiclite.rpm; \
     elif [ "$TARGETARCH" = "amd64" ]; then \
-        curl -o /tmp/oracle-instantclient-basiclite.rpm https://download.oracle.com/otn_software/linux/instantclient/2340000/oracle-instantclient-basic-23.4.0.24.05-1.el8.x86_64.rpm && \
-        alien -i /tmp/oracle-instantclient-basiclite.rpm && \
-        rm /tmp/oracle-instantclient-basiclite.rpm; \
+    curl -o /tmp/oracle-instantclient-basiclite.rpm https://download.oracle.com/otn_software/linux/instantclient/2340000/oracle-instantclient-basic-23.4.0.24.05-1.el8.x86_64.rpm && \
+    alien -i /tmp/oracle-instantclient-basiclite.rpm && \
+    rm /tmp/oracle-instantclient-basiclite.rpm; \
     else \
-        echo "Unsupported architecture: $TARGETARCH"; \
-        exit 1; \
+    echo "Unsupported architecture: $TARGETARCH"; \
+    exit 1; \
     fi
 
 # Set environment variables for Oracle Instant Client

@@ -22,14 +22,14 @@ export const useRagDetailLayout = () => {
 }
 function RagDetail() {
   const chatInput = useRef<{
-    openLoading: () => void,
+    openLoading: () => void
     closeLoading: () => void
-    disableInput: () => void,
+    disableInput: () => void
     enableInput: () => void
   }>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const chatDetail = useRef<{
-    addSendMsg: (msg: string) => Promise<ChatSessionData>,
+    addSendMsg: (msg: string) => Promise<ChatSessionData>
     addReceiveMsg: (msg: string) => string
     stopSendMsg: () => void
   }>(null)
@@ -61,7 +61,7 @@ function RagDetail() {
       const targetScrollTop = scrollElement.scrollHeight
       const currentScrollTop = scrollElement.scrollTop
       const distance = targetScrollTop - currentScrollTop
-      const duration = 300; // 设置滚动持续时间（毫秒）
+      const duration = 300 // 设置滚动持续时间（毫秒）
       const startTime = performance.now()
 
       const animateScroll = (currentTime: number) => {
@@ -87,16 +87,18 @@ function RagDetail() {
     setTimeout(scrollToBottom, 100)
   }, [])
   const receiveMsgDone = useCallback(() => {
-    closeLoading();
+    closeLoading()
   }, [])
   return (
-    <RagDetailLayoutContext.Provider value={{ disableInput, enableInput, openLoading, closeLoading }}>
+    <RagDetailLayoutContext.Provider
+      value={{ disableInput, enableInput, openLoading, closeLoading }}>
       <div className={styles.rag_layout}>
         <ScrollBar className={styles.chat_detail} ref={scrollRef}>
-          <ChatDetail ref={chatDetail} key={String(chatId)}
+          <ChatDetail
+            ref={chatDetail}
+            key={String(chatId)}
             listChange={listChange}
-            receiveMsgDone={receiveMsgDone}
-          ></ChatDetail>
+            receiveMsgDone={receiveMsgDone}></ChatDetail>
         </ScrollBar>
         <div className={styles.chat_input}>
           <ChatInput isUpload={false} send={send} stop={stop} ref={chatInput} />
