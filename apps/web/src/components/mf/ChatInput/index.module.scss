@@ -1,6 +1,7 @@
 .chatInput {
   position: relative;
   width: 100%;
+
   .prefix {
     position: absolute;
     top: 50%;
@@ -8,13 +9,14 @@
     transform: translateY(-50%);
     color: #8792a4;
     cursor: pointer;
+    opacity: 1;
+    transition: all 0.15s ease-out;
+
     &:hover {
       color: #2f69fe;
     }
   }
-  .hiddenPrefix {
-    visibility: hidden;
-  }
+
   .input {
     padding-left: 2.875rem;
     width: 100%;
@@ -24,6 +26,7 @@
     border-radius: 1.75rem;
     background: #edf2fc;
     color: #272a33;
+    transition: all 0.3s ease-out;
   }
   .sendBtn {
     position: absolute;
@@ -36,16 +39,16 @@
     width: 2.5rem;
     height: 2.5rem;
     border-radius: 50%;
-    cursor: pointer;
     color: #2f69fe;
     background: rgba(47, 105, 254, 0.12);
+    cursor: not-allowed;
+
     &.activate {
       color: #fff;
       background-color: #2f69fe;
+      cursor: pointer;
     }
-    &.disabled {
-      cursor: not-allowed;
-    }
+
     .loading {
       background-color: #f0f0f0;
       color: #a0a0a0;
@@ -57,6 +60,15 @@
       background-color: #2f69fe;
       display: inline-block;
       border-radius: 4px;
+    }
+  }
+  &.hiddenPrefix {
+    .prefix {
+      opacity: 0;
+      visibility: hidden;
+    }
+    .input {
+      padding-left: 1.875rem;
     }
   }
   .disabled {

@@ -53,11 +53,8 @@ export const useChatDetail = () => {
         id: id,
       }),
     })
-    // if (res.status > 299) {
-    //   throw new Error(`Unexpected status ${res.status}`)
-    // }
 
     return getData<T>(res) as T
   }, [])
-  return useMemo(() => [{ getChatDetail }], [getChatDetail])
+  return getChatDetail
 }

@@ -4,19 +4,6 @@
   height: 100%;
   width: 100%;
 
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background-color: rgba(0, 0, 0, 0.2);
-    border-radius: 3px;
-  }
-
   .chatItem {
     display: flex;
     margin-bottom: 24px;
@@ -46,56 +33,10 @@
       /* 兼容性处理 */
     }
 
-    .content * {
+    .content {
       white-space: pre-wrap;
-      /* 对所有子元素生效 */
       word-wrap: break-word;
-      /* 兼容性更好的自动换行 */
       overflow-wrap: break-word;
-      /* 确保长单词换行 */
-    }
-
-    .chattingContent {
-      margin-top: 8px;
-      margin-left: 12px;
-      .robotTyping {
-        display: flex;
-        gap: 5px;
-      }
-
-      .robotTyping span {
-        display: block;
-        width: 4px;
-        height: 4px;
-        background-color: #2f69fe;
-        border-radius: 50%;
-        animation: typing 1.5s infinite ease-in-out;
-      }
-
-      .robotTyping span:nth-child(1) {
-        animation-delay: 0s;
-      }
-
-      .robotTyping span:nth-child(2) {
-        animation-delay: 0.2s;
-      }
-
-      .robotTyping span:nth-child(3) {
-        animation-delay: 0.4s;
-      }
-
-      @keyframes typing {
-        0%,
-        80%,
-        100% {
-          transform: scale(0);
-          opacity: 0.5;
-        }
-        40% {
-          transform: scale(1);
-          opacity: 1;
-        }
-      }
     }
 
     .errorContent {

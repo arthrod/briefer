@@ -1,21 +1,24 @@
 .spinner_container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh; /* 全屏高度，可以根据需要调整 */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh; /* 全屏高度，可以根据需要调整 */
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 6px solid #f3f3f3; /* 灰色背景 */
+  border-top: 6px solid #2f69fe; /* 蓝色前景 */
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
   }
-  
-  .spinner {
-    width: 50px;
-    height: 50px;
-    border: 6px solid #f3f3f3; /* 灰色背景 */
-    border-top: 6px solid #2F69FE; /* 蓝色前景 */
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
+  100% {
+    transform: rotate(360deg);
   }
-  
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-  
+}

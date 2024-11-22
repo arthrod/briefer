@@ -52,22 +52,13 @@ const ChatInput = ({
   }
 
   const disableClass = useMemo(() => {
-    console.log(question && !loading && !disabled)
-
     return question && !loading && !disabled ? styles.activate : ''
   }, [question, loading, disabled])
 
   return (
-    <div className={clsx(styles.chatInput, className)}>
+    <div className={clsx(styles.chatInput, className, !isUpload ? styles.hiddenPrefix : null)}>
       <Popover open={isOpen}>
-        <input
-          type="file"
-          onChange={(e) => {
-            handleFileChangeEvent(e)
-          }}
-          hidden
-        />
-        <span className={clsx(styles.prefix, !isUpload ? styles.hiddenPrefix : null)}>
+        <span className={clsx(styles.prefix)}>
           <UploadIcon />
         </span>
         <PopoverTrigger asChild>
@@ -123,6 +114,13 @@ const ChatInput = ({
           </div>
         </PopoverContent>
       </Popover>
+      <input
+        type="file"
+        onChange={(e) => {
+          handleFileChangeEvent(e)
+        }}
+        hidden
+      />
     </div>
   )
 }

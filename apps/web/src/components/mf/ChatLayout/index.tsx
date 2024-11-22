@@ -61,8 +61,7 @@ export const useChatLayout = () => {
   }
   return context
 }
-const MoreBtn = (props: IMoreBtnProps) => {
-  const { items, onItemClick } = props
+const MoreBtn = ({ items, onItemClick }: IMoreBtnProps) => {
   const [isOpen, setIsOpen] = useState(false)
   const [isDialogOpen, setDialogOpen] = useState(false)
 
