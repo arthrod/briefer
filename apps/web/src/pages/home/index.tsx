@@ -1,56 +1,95 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
-import styles from './index.module.scss'
-import ChatInput from '@/components/mf/ChatInput'
+import styles from './index.module.scss';
+import ChatInput from '@/components/mf/ChatInput';
 
-import RagIcon from '../../icons/rag.svg'
-import ReportIcon from '../../icons/report.svg'
-import ChatLayout, { useChatLayout } from '@/components/mf/ChatLayout'
-import clsx from 'clsx'
-import { useCreateChat } from '@/hooks/mf/chat/useCreateChat'
-import { ChatType, HistoryChat } from '@/hooks/mf/chat/useChatList'
-import { useRouter } from 'next/router'
+import RagIcon from '../../icons/rag.svg';
+import ReportIcon from '../../icons/report.svg';
+import ChatLayout, { useChatLayout } from '@/components/mf/ChatLayout';
+import clsx from 'clsx';
+import { useCreateChat } from '@/hooks/mf/chat/useCreateChat';
+import { ChatType, HistoryChat } from '@/hooks/mf/chat/useChatList';
+import { useRouter } from 'next/router';
 
 function HomePage() {
-  const [type, setType] = useState<ChatType>('rag')
-  const [fileId, setFileId] = useState<string>('')
-  const [{ createChat }] = useCreateChat()
-  const router = useRouter()
-  const { newChat } = useChatLayout()
+  const [type, setType] = useState<ChatType>('rag');
+  const [fileId, setFileId] = useState<string>('');
+  const [{ createChat }] = useCreateChat();
+  const router = useRouter();
+  const { newChat } = useChatLayout();
   const chatInput = useRef<{
-    openLoading: () => void
-    closeLoading: () => void
-    refreshChatList: () => void
-  }>(null)
+    openLoading: () => void;
+    closeLoading: () => void;
+    refreshChatList: () => void;
+  }>(null);
+  const [translateY, setTranslateY] = useState<number>(0); // State to control translation
+
   const setRagType = useCallback(() => {
-    setType('rag')
-  }, [])
+    setType('rag');
+  }, []);
+
   const setReportType = useCallback(() => {
-    setType('report')
-  }, [])
+    setType('report');
+  }, []);
+
   const send = useCallback((msg: string) => {
-    chatInput.current?.openLoading()
+    chatInput.current?.openLoading();
     try {
       createChat(type, fileId).then((data) => {
-        router.push(`/rag/${data.id}`, undefined, { shallow: true })
+        router.push(`/rag/${data.id}`, undefined, { shallow: true });
         newChat(data, msg);
-      })
+      });
     } finally {
-      chatInput.current?.closeLoading()
+      chatInput.current?.closeLoading();
     }
-  }, [])
+  }, [createChat, fileId, newChat, router, type]);
+
   const classNames = {
     rag: clsx(styles.item, { [styles.item_active]: type === 'rag' }),
     report: clsx(styles.report_margin, styles.item, { [styles.item_active]: type === 'report' }),
-  }
+  };
+
+  // 逐字动画逻辑
+  const fullText = '我能帮你做点什么？';
+  const [displayText, setDisplayText] = useState<string>(''); // 当前显示的文字
+  const [disableCursor, setDisableCursor] = useState<boolean>(false);
+  
+  useEffect(() => {
+    let index = 0;
+    setDisplayText('');
+    setDisableCursor(false);
+    let intervalId = -1;
+    setTimeout(() => {
+      intervalId = window.setInterval(() => {
+        if (index < fullText.length) {
+          setDisplayText((prev) => {
+            const result = prev + fullText.charAt(index);
+            index++;
+            return result;
+          }); // 添加当前索引字符
+        } else {
+          setDisableCursor(true);
+          window.clearInterval(intervalId); // Clear the interval when done
+        }
+      }, 50);
+    }, 300);
+    return () => {
+      window.clearInterval(intervalId); // 清理逻辑：组件卸载时停止动画
+    };
+  }, []);
 
   return (
     <div className={styles.container}>
-      <div className={styles.title}>我能帮你做点儿什么？</div>
-      <div className={styles.chat_input}>
+      <div className={styles.title}>
+        <div>{displayText}</div>
+        <span className={clsx(styles.cursor, disableCursor ? styles.disableCursor : '')} />
+      </div>
+      <div
+        className={styles.chat_input}
+      >
         <ChatInput
           className={styles.input}
-          isUpload={type == 'report'}
+          isUpload={type === 'report'}
           send={send}
           ref={chatInput}
         />
@@ -66,9 +105,9 @@ function HomePage() {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
-HomePage.layout = ChatLayout
+HomePage.layout = ChatLayout;
 
-export default HomePage
+export default HomePage;

@@ -70,7 +70,9 @@ const MoreBtn = (props: IMoreBtnProps) => {
                 item.type === 'del' ?
                   <AlertDialog key={index}>
                     <AlertDialogTrigger className='w-[100%]'
-                      onClick={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                      }}
                     >
                       <div
                         className={styles.moreBtn}
@@ -117,8 +119,9 @@ const MoreBtn = (props: IMoreBtnProps) => {
             </div>
           </PopoverPanel>
         </>
-      )}
-    </Popover>
+      )
+      }
+    </Popover >
   )
 }
 
@@ -331,6 +334,13 @@ export default function ChatLayout({ children }: Props) {
           )
         );
       })
+    } else {
+      newChat.isEditing = false;
+      setChatList(prevItems =>
+        prevItems.map(item =>
+          item.id === chat.id ? { ...item, newChat } : item
+        )
+      );
     }
   }
 
