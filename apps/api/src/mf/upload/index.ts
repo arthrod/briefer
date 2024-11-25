@@ -112,7 +112,7 @@ uploadRouter.post(
 
       const fileId = req.file.filename
       const filePath = req.file.path
-      const fileName = req.file.originalname
+      const fileName = decodeURIComponent(req.file.originalname)
       const fileSize = req.file.size
 
       Logger.info('开始上传文件', {
