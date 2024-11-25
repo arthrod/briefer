@@ -10,52 +10,60 @@ import clsx from 'clsx'
 import { useCreateChat } from '@/hooks/mf/chat/useCreateChat'
 import { ChatType } from '@/hooks/mf/chat/useChatList'
 import { useRouter } from 'next/router'
+import { showToast } from '@/components/mf/Toast'
+
+const fullText = '我能帮你做点什么？'
 
 function HomePage() {
   const [type, setType] = useState<ChatType>('rag')
-  const [fileId, setFileId] = useState<string>('')
+  // 逐字动画逻辑
+  const [displayText, setDisplayText] = useState('') // 当前显示的文字
+  const [disableCursor, setDisableCursor] = useState(false)
+  const [translateY, setTranslateY] = useState(0) // State to control translation
+  const [changePage, setChangePage] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const chatInputRef = useRef<HTMLDivElement>(null)
+
   const createChat = useCreateChat()
   const router = useRouter()
   const { newChat } = useChatLayoutContext()
-  const chatInputRef = useRef<HTMLDivElement>(null)
-  const [loading, setLoading] = useState(false)
-  const [disabled, setDisabled] = useState(false)
-  const [translateY, setTranslateY] = useState(0) // State to control translation
-  const [changePage, setChangePage] = useState(false)
 
   const send = useCallback(
-    (msg: string) => {
+    async (msg: string, _fileId?: string) => {
       if (loading) {
-        return
+        return Promise.reject('')
       }
-
+      if (type === 'report' && !_fileId) {
+        showToast('请上传报告模版', 'warning')
+        return Promise.reject('noFile')
+      }
       setLoading(true)
       try {
-        createChat(type, fileId).then((data) => {
-          if (chatInputRef.current) {
-            const rect = chatInputRef.current.getBoundingClientRect()
-            const distanceFromBottom = window.innerHeight - rect.bottom
-            const translationValue = distanceFromBottom - 40 // Calculate translateY value
-            setTranslateY(translationValue) // Update state to trigger CSS transformation
-          }
-
-          setChangePage(true)
+        createChat(type, _fileId).then((data) => {
           newChat(data, msg)
-          setTimeout(() => {
-            router.push(`/rag/${data.id}`, undefined, { shallow: true })
-          }, 300)
+          if (type === 'rag') {
+            if (chatInputRef.current) {
+              const rect = chatInputRef.current.getBoundingClientRect()
+              const distanceFromBottom = window.innerHeight - rect.bottom
+              const translationValue = distanceFromBottom - 40 // Calculate translateY value
+              setTranslateY(translationValue) // Update state to trigger CSS transformation
+            }
+            setChangePage(true)
+            setTimeout(() => {
+              router.push(`/rag/${data.id}`, undefined, { shallow: true })
+            }, 300)
+          } else {
+            router.push(
+              `/workspaces/${data.workspaceId}/documents/${data.documentId}/notebook/edit?chatId=${data.id}`
+            )
+          }
         })
       } finally {
         setLoading(false)
       }
     },
-    [createChat, fileId, newChat, router, type]
+    [router, type]
   )
-
-  // 逐字动画逻辑
-  const fullText = '我能帮你做点什么？'
-  const [displayText, setDisplayText] = useState<string>('') // 当前显示的文字
-  const [disableCursor, setDisableCursor] = useState<boolean>(false)
 
   useEffect(() => {
     let index = 0
@@ -93,9 +101,8 @@ function HomePage() {
         style={{ transform: `translateY(${translateY}px)`, width: '768px' }}>
         <ChatInput
           className={styles.input}
-          isUpload={type === 'report'}
+          showUpload={type === 'report'}
           loading={loading}
-          disabled={disabled}
           send={send}
         />
       </div>

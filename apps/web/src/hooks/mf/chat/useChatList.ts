@@ -11,6 +11,7 @@ export type HistoryChat = {
   title: string
   type: ChatType
   createdTime: string
+  workspaceId?: string
   documentId?: string
   isEditing?: boolean
 }

@@ -1,5 +1,15 @@
 import { ChatList, HistoryChat, useChatList } from '@/hooks/mf/chat/useChatList'
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
+import React, {
+  createContext,
+  Dispatch,
+  ReactNode,
+  SetStateAction,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
 import { clsx } from 'clsx'
 import { useRouter } from 'next/router'
 import { useWorkspaces } from '@/hooks/useWorkspaces'
@@ -36,23 +46,6 @@ interface Item {
 interface IMoreBtnProps {
   items: Item[]
   onItemClick?: (type: string) => void
-}
-
-interface ChatLayoutContextType {
-  newChat: (chat: HistoryChat, msg: string) => void
-  refreshChatList: () => void
-  getCache: () => string
-  startRound: (chatId: string, roundId: string) => ChatSession
-  getRound: (roundId: string) => ChatSession | undefined
-  endRound: (roundId: string) => void
-}
-export const ChatLayoutContext = createContext<ChatLayoutContextType | null>(null)
-export const useChatLayoutContext = () => {
-  const context = useContext(ChatLayoutContext)
-  if (!context) {
-    throw new Error('useChatLayout must be used within ChatLayoutProvider')
-  }
-  return context
 }
 
 const MoreBtn = ({ items, onItemClick }: IMoreBtnProps) => {
@@ -157,56 +150,24 @@ export type EventListener = {
   close: () => void
 }
 
-export default function ChatLayout({ children }: Props) {
-  const getChatList = useChatList()
+interface ChatLayoutContextType {
+  chatList: HistoryChat[]
+  setChatList: Dispatch<SetStateAction<HistoryChat[]>>
+  newChat: (chat: HistoryChat, msg: string) => void
+  refreshChatList: () => void
+  getCache: () => string
+  startRound: (chatId: string, roundId: string) => ChatSession
+  getRound: (roundId: string) => ChatSession | undefined
+  endRound: (roundId: string) => void
+}
+
+export const ChatLayoutContext = createContext<ChatLayoutContextType | null>(null)
+
+export function ChatLayoutProvider(props: { children: ReactNode }) {
   const [chatList, setChatList] = useState<HistoryChat[]>([])
-  const [workspaces] = useWorkspaces()
   const [chatSession, setChatSession] = useState<ChatSession[]>([])
-  const [updateTitleEvent, setUpdateTitleEvent] = useState<EventSource | null>(null)
-  const lastedEvent = useRef<EventSource | null>(updateTitleEvent)
-  const [chatId, setChatId] = useState('')
-  const [routeTitle, setRouteTitle] = useState('')
-  const eventTimeoutId = useRef(-1)
-  const lastedTimeoutId = useRef(-1)
   const [cache, setCache] = useState('')
-  const [currentTitle, setCurrentTitle] = useState('')
-  const [isCommit, setIsCommit] = useState(false)
-  const router = useRouter()
-  const session = useSession()
-  const firstLetter = session.data?.loginName.charAt(0).toUpperCase() // 获取用户名的第一个字母并转为大写
-
-  const [{ deleteChat }] = useDeleteChat()
-  const [{ editTitle }] = useChatEdit()
-
-  useEffect(() => {
-    setChatId(String(router.query.chatId))
-    handleUpdate()
-    titleUpdate()
-    return () => {
-      if (lastedEvent.current) {
-        lastedEvent.current.close()
-      }
-    }
-  }, [])
-
-  useEffect(() => {
-    setChatId(String(router.query.chatId))
-    setRouteTitle(() => {
-      const { pathname } = router
-      if (pathname === `/user/profile`) {
-        return '个人中心'
-      }
-      return ''
-    })
-  }, [router])
-
-  useEffect(() => {
-    lastedTimeoutId.current = eventTimeoutId.current
-  }, [eventTimeoutId])
-
-  useEffect(() => {
-    lastedEvent.current = updateTitleEvent
-  }, [updateTitleEvent])
+  const getChatList = useChatList()
 
   const newChat = useCallback(
     (chat: HistoryChat, msg: string) => {
@@ -223,8 +184,11 @@ export default function ChatLayout({ children }: Props) {
   }, [cache])
 
   const refreshChatList = useCallback(() => {
-    handleUpdate()
+    getChatList().then((data: ChatList) => {
+      setChatList(data.list)
+    })
   }, [])
+
   const getRound = useCallback((roundId: string) => {
     for (let i = 0; i < chatSession.length; i++) {
       if (chatSession[i].roundId === roundId) {
@@ -232,6 +196,7 @@ export default function ChatLayout({ children }: Props) {
       }
     }
   }, [])
+
   const endRound = useCallback((roundId: string) => {
     const chatSession = getRound(roundId)
     if (chatSession) {
@@ -288,6 +253,79 @@ export default function ChatLayout({ children }: Props) {
 
     return chatSession
   }
+  return (
+    <ChatLayoutContext.Provider
+      value={{
+        chatList,
+        setChatList,
+        newChat,
+        refreshChatList,
+        getCache,
+        getRound,
+        endRound,
+        startRound,
+      }}>
+      {props.children}
+    </ChatLayoutContext.Provider>
+  )
+}
+
+export const useChatLayoutContext = () => {
+  const context = useContext(ChatLayoutContext)
+  if (!context) {
+    throw new Error('useChatLayout must be used within ChatLayoutProvider')
+  }
+  return context
+}
+
+export default function ChatLayout({ children }: Props) {
+  const [updateTitleEvent, setUpdateTitleEvent] = useState<EventSource | null>(null)
+  const [chatId, setChatId] = useState('')
+  const [routeTitle, setRouteTitle] = useState('')
+  const [currentTitle, setCurrentTitle] = useState('')
+  const [isCommit, setIsCommit] = useState(false)
+  const eventTimeoutId = useRef(-1)
+  const lastedTimeoutId = useRef(-1)
+  const lastedEvent = useRef<EventSource | null>(updateTitleEvent)
+  const [workspaces] = useWorkspaces()
+  const session = useSession()
+  const router = useRouter()
+  const [{ deleteChat }] = useDeleteChat()
+  const [{ editTitle }] = useChatEdit()
+  const { chatList, setChatList, refreshChatList } = useChatLayoutContext()
+
+  const firstLetter = session.data?.loginName.charAt(0).toUpperCase() // 获取用户名的第一个字母并转为大写
+
+  useEffect(() => {
+    setChatId(String(router.query.chatId))
+    refreshChatList()
+
+    titleUpdate()
+    return () => {
+      if (lastedEvent.current) {
+        lastedEvent.current.close()
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    setChatId(String(router.query.chatId))
+    setRouteTitle(() => {
+      const { pathname } = router
+      if (pathname === `/user/profile`) {
+        return '个人中心'
+      }
+      return ''
+    })
+  }, [router])
+
+  useEffect(() => {
+    lastedTimeoutId.current = eventTimeoutId.current
+  }, [eventTimeoutId])
+
+  useEffect(() => {
+    lastedEvent.current = updateTitleEvent
+  }, [updateTitleEvent])
 
   const titleUpdate = useCallback(() => {
     const eventSource = new EventSource(
@@ -320,12 +358,6 @@ export default function ChatLayout({ children }: Props) {
     }
     setUpdateTitleEvent(eventSource)
   }, [chatList])
-
-  const handleUpdate = () => {
-    getChatList().then((data: ChatList) => {
-      setChatList(data.list)
-    })
-  }
 
   const deleteChatById = (id: string) => {
     deleteChat(id).then(() => {
@@ -370,134 +402,126 @@ export default function ChatLayout({ children }: Props) {
   }
 
   return (
-    <ChatLayoutContext.Provider
-      value={{
-        newChat,
-        refreshChatList,
-        getCache,
-        getRound,
-        endRound,
-        startRound,
-      }}>
-      <div className={clsx(styles.chatLayout)}>
-        <div className={clsx(styles.left, 'text-sm')}>
-          <div className={styles.top}>
-            <div
-              className={clsx('flex w-full flex-col', styles.logo_icon)}
-              onClick={() => {
-                router.push('/home')
-              }}>
-              <Logo />
-            </div>
-            <div
-              className={styles.createBtn}
-              onClick={() => {
-                router.push(`/home`)
-              }}>
-              <img src="/icons/chat-new-line.svg" width={16} height={16} />
-              <span>新建对话</span>
-            </div>
+    <div className={clsx(styles.chatLayout)}>
+      <div className={clsx(styles.left, 'text-sm')}>
+        <div className={styles.top}>
+          <div
+            className={clsx('flex w-full flex-col', styles.logo_icon)}
+            onClick={() => {
+              router.push('/home')
+            }}>
+            <Logo />
           </div>
-          <ScrollBar className={styles.chatListWrapper}>
-            {chatList.length ? (
-              chatList.map((chat) => {
-                const isActive = chat.id === chatId // 判断是否是当前选中项
-                return (
-                  <div
-                    key={chat.id}
-                    className={clsx(styles.chatItem, {
-                      [styles.chatItem_active]: isActive, // 添加选中样式
-                    })}
-                    onClick={() => {
-                      if (chat.id === chatId) {
-                        return
-                      }
-                      if (chat.type === 'report') {
-                        router.replace(`/workspaces/${workspaces.data[0].id}/documents`)
-                      } else {
-                        router.push(`/rag/${chat.id}`)
-                      }
-                    }}>
-                    {chat.isEditing ? (
-                      <div className={styles.itemTitleInputLayout}>
-                        <input
-                          type="text"
-                          className={styles.itemTitleInput}
-                          onChange={(e) => {
-                            setCurrentTitle(e.target.value)
-                          }}
-                          onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                            if (e.key === 'Enter' && !e.shiftKey) {
-                              e.preventDefault() // 防止默认的换行行为
-                              updateChat(chat)
-                            }
-                          }}
-                          value={currentTitle}
-                          onBlur={() => {
+          <div
+            className={styles.createBtn}
+            onClick={() => {
+              router.push(`/home`)
+            }}>
+            <img src="/icons/chat-new-line.svg" width={16} height={16} />
+            <span>新建对话</span>
+          </div>
+        </div>
+        <ScrollBar className={styles.chatListWrapper}>
+          {chatList.length ? (
+            chatList.map((chat) => {
+              const isActive = chat.id === chatId // 判断是否是当前选中项
+              return (
+                <div
+                  key={chat.id}
+                  className={clsx(styles.chatItem, {
+                    [styles.chatItem_active]: isActive, // 添加选中样式
+                  })}
+                  onClick={() => {
+                    if (chat.id === chatId) {
+                      return
+                    }
+                    if (chat.type === 'report') {
+                      router.push(
+                        `/workspaces/${workspaces.data[0].id}/documents/${chat.documentId}/notebook/edit?chatId=${chat.id}`
+                      )
+                    } else {
+                      router.push(`/rag/${chat.id}`)
+                    }
+                  }}>
+                  {chat.isEditing ? (
+                    <div className={styles.itemTitleInputLayout}>
+                      <input
+                        type="text"
+                        className={styles.itemTitleInput}
+                        onChange={(e) => {
+                          setCurrentTitle(e.target.value)
+                        }}
+                        onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault() // 防止默认的换行行为
                             updateChat(chat)
-                          }}
-                          autoFocus
-                        />
-                        <div className={isCommit ? styles.loadingIcon : styles.loadingIconHidden}>
-                          <Spin color="#2F69FE" wrapperClassName="pl-2" />
-                        </div>
+                          }
+                        }}
+                        value={currentTitle}
+                        onBlur={() => {
+                          updateChat(chat)
+                        }}
+                        autoFocus
+                      />
+                      <div className={isCommit ? styles.loadingIcon : styles.loadingIconHidden}>
+                        <Spin color="#2F69FE" wrapperClassName="pl-2" />
                       </div>
-                    ) : (
-                      <div className={styles.itemTitle}>{chat.title}</div>
-                    )}
-                    <MoreBtn
-                      items={[
-                        { type: 'edit', label: '编辑标题' },
-                        { type: 'del', label: '删除' },
-                      ]}
-                      onItemClick={(type) => {
-                        if (type === 'del') {
-                          deleteChatById(chat.id)
-                        } else if (type === 'edit') {
-                          setCurrentTitle(chat.title)
-                          setChatList((prevItems) =>
-                            prevItems.map((item) =>
-                              item.id === chat.id ? { ...item, isEditing: true } : item
-                            )
+                    </div>
+                  ) : (
+                    <div className={styles.itemTitle}>{chat.title}</div>
+                  )}
+                  <MoreBtn
+                    items={[
+                      { type: 'edit', label: '编辑标题' },
+                      { type: 'del', label: '删除' },
+                    ]}
+                    onItemClick={(type) => {
+                      if (type === 'del') {
+                        deleteChatById(chat.id)
+                      } else if (type === 'edit') {
+                        setCurrentTitle(chat.title)
+                        setChatList((prevItems) =>
+                          prevItems.map((item) =>
+                            item.id === chat.id ? { ...item, isEditing: true } : item
                           )
-                        }
-                      }}
-                    />
-                  </div>
-                )
-              })
-            ) : (
-              <NoData className={styles.empty} />
-            )}
-          </ScrollBar>
-        </div>
-        <div className={styles.main}>
-          <div className={styles.mainTop}>
-            <div className={styles.title}>
-              {routeTitle ? (
-                <>
-                  <span
-                    style={{ cursor: 'pointer' }}
-                    onClick={() => {
-                      router.back()
-                    }}>
-                    <ArrowRight />
-                  </span>
-                  <span>{routeTitle}</span>
-                </>
-              ) : null}
-            </div>
-            <div
-              className={styles.userAvatar}
-              onClick={() => {
-                router.push('/user/profile')
-              }}>
-              {firstLetter}
-            </div>
-          </div>
-          {children}
-        </div>
+                        )
+                      }
+                    }}
+                  />
+                </div>
+              )
+            })
+          ) : (
+            <NoData className={styles.empty} />
+          )}
+        </ScrollBar>
       </div>
-    </ChatLayoutContext.Provider>
+      <div className={styles.main}>
+        <div className={styles.mainTop}>
+          <div className={styles.title}>
+            {routeTitle ? (
+              <>
+                <span
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => {
+                    router.back()
+                  }}>
+                  <ArrowRight />
+                </span>
+                <span>{routeTitle}</span>
+              </>
+            ) : null}
+          </div>
+          <div
+            className={styles.userAvatar}
+            onClick={() => {
+              router.push('/user/profile')
+            }}>
+            {firstLetter}
+          </div>
+        </div>
+        {children}
+      </div>
+    </div>
   )
 }

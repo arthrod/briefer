@@ -1,41 +1,40 @@
 .mfToastViewPortTop {
-    top: 88px;
+  top: 88px;
 }
 .mfToastViewPortDown {
-    bottom: 104px;
+  bottom: 104px;
 }
 .mfToastViewPort {
-    
-    .mfToast {
-        display: flex;
-        flex-direction: row;
-        align-items: center;
-        color: #212533;
+  .mfToast {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    color: #212533;
+    font-size: 14px;
+    border-radius: 4px;
+    border: 1px solid #dde3e8;
+    box-shadow: 0px 8px 12px -12px rgba(88, 90, 95, 0.1);
+    border-radius: 10px;
+    color: #212533;
+    width: fit-content;
+    padding: 0px;
+    background: #f4f7fe;
+
+    .mfToastLayout {
+      padding: 8px 16px 8px 16px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+
+      .mfToastDes {
+        text-align: center;
+        margin-left: 4px;
         font-size: 14px;
-        border-radius: 4px;
-        border: 1px solid #DDE3E8;
-        box-shadow: 0px 8px 12px -12px rgba(88, 90, 95, 0.1);
-        border-radius: 10px;
-        color: #212533;
-        width: fit-content;
-        padding: 0px;
-        background: #F4F7FE;
+      }
 
-        .mfToastLayout {
-            padding: 8px 16px 8px 16px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-
-            .mfToastDes {
-                text-align: center;
-                margin-left: 4px;
-                font-size: 14px;
-            }
-
-            .mfToastIcon {
-                display: flex;
-            }
-        }
+      .mfToastIcon {
+        display: flex;
+      }
     }
+  }
 }

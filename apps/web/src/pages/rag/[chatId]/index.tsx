@@ -7,7 +7,6 @@ import { useRouter } from 'next/router'
 import { ChatSessionData } from '@/hooks/mf/chat/useChatSession'
 
 function RagDetail() {
-  const [disabled, setDisabled] = useState(false)
   const [loading, setLoading] = useState(false)
 
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -43,19 +42,13 @@ function RagDetail() {
           closeLoading={() => {
             setLoading(false)
           }}
-          disableInput={() => {
-            setDisabled(true)
-          }}
-          enableInput={() => {
-            setDisabled(false)
-          }}
           receiveMsgDone={() => {
             setLoading(false)
           }}></ChatDetail>
       </div>
 
       <div className={styles.input_layout}>
-        <ChatInput disabled={disabled} loading={loading} isUpload={false} send={send} stop={stop} />
+        <ChatInput loading={loading} showUpload={false} send={send} stop={stop} />
       </div>
     </div>
   )

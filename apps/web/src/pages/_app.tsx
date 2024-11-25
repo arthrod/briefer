@@ -11,8 +11,8 @@ import { EnvironmentStatusProvider } from '@/hooks/useEnvironmentStatus'
 import { WebsocketProvider } from '@/hooks/useWebsocket'
 import '@/styles/globals.css'
 import '@/styles/markdown.scss'
+import '@/styles/highlingt-light.scss'
 import 'simplebar-react/dist/simplebar.min.css'
-
 
 import '../../scripts/wdyr'
 import DndBackendProvider from '@/components/DndBackendProvider'
@@ -22,6 +22,7 @@ import Telemetry from '@/components/Telemetry'
 import { DataSourcesProvider } from '@/hooks/useDatasources'
 import { ReusableComponentsProvider } from '@/hooks/useReusableComponents'
 import { CommentsProvider } from '@/hooks/useComments'
+import { ChatLayoutProvider } from '@/components/mf/ChatLayout'
 
 type Page<P = {}> = NextPage<P> & {
   layout?: ComponentType
@@ -48,9 +49,11 @@ function App({ Component, pageProps: { session, ...pageProps } }: Props) {
                 <DataSourcesProvider>
                   <ReusableComponentsProvider>
                     <SideBarProvider>
-                      <Layout>
-                        <Component {...pageProps} />
-                      </Layout>
+                      <ChatLayoutProvider>
+                        <Layout>
+                          <Component {...pageProps} />
+                        </Layout>
+                      </ChatLayoutProvider>
                     </SideBarProvider>
                   </ReusableComponentsProvider>
                 </DataSourcesProvider>

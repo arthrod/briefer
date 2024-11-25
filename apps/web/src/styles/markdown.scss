@@ -113,10 +113,21 @@
   @include light;
 }
 
-@media (prefers-color-scheme: dark) {
+@media (prefers-color-scheme: light) {
   :root {
-    @include dark;
+    @include light;
   }
+}
+
+.markdown-body {
+  -ms-text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+  margin: 0;
+  color: var(--color-fg-default);
+  background-color: var(--color-canvas-default);
+  font-size: 14px;
+  line-height: 1.5;
+  word-wrap: break-word;
 }
 
 .markdown-body .octicon {
@@ -304,7 +315,7 @@
   border-collapse: collapse;
   display: block;
   width: max-content;
-  max-width: 100%;
+  // max-width: 100%;
   overflow: auto;
 }
 
@@ -466,6 +477,7 @@
 }
 
 .markdown-body pre {
+  position: relative;
   margin-top: 0;
   margin-bottom: 0;
   font-family:
@@ -478,6 +490,35 @@
     monospace;
   font-size: 12px;
   word-wrap: normal;
+  &:hover {
+    .copy-code-button {
+      pointer-events: all;
+      transform: translateX(-16px);
+      opacity: 0.5;
+    }
+  }
+
+  .copy-code-button {
+    position: absolute;
+    right: 0px;
+    top: 20px;
+    padding: 0px 5px;
+    width: 36px;
+    height: 20px;
+    text-align: center;
+    color: #fff;
+    border: 1px solid rgb(222, 222, 222);
+    border-radius: 10px;
+    background-color: #303030;
+    transform: translateX(0);
+    pointer-events: none;
+    opacity: 0;
+    transition: all ease 0.3s;
+    cursor: pointer;
+    &:hover {
+      opacity: 1;
+    }
+  }
 }
 
 .markdown-body .octicon {
@@ -542,7 +583,7 @@
 .markdown-body pre,
 .markdown-body details {
   margin-top: 0;
-  margin-bottom: 16px;
+  margin-bottom: 10px;
 }
 
 .markdown-body blockquote > :first-child {
@@ -841,6 +882,7 @@
   padding: 0;
   margin: 0;
   word-break: normal;
+  // white-space: pre-line;
   white-space: pre;
   background: transparent;
   border: 0;
@@ -857,11 +899,12 @@
 
 .markdown-body .highlight pre,
 .markdown-body pre {
-  padding: 16px 16px 8px 16px;
+  padding: 10px 10px 8px 10px;
   overflow: auto;
   font-size: 85%;
   line-height: 1.45;
   border-radius: 6px;
+  direction: ltr;
 }
 
 .markdown-body pre code,
@@ -1132,4 +1175,16 @@
 
 .markdown-body ::-webkit-calendar-picker-indicator {
   filter: invert(50%);
+}
+
+.markdown-body .mermaid {
+  border: var(--border-in-light);
+  margin-bottom: 10px;
+  border-radius: 4px;
+  padding: 10px;
+  background-color: var(--white);
+}
+
+#dmermaid {
+  display: none;
 }

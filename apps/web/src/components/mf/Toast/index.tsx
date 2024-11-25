@@ -33,11 +33,11 @@ const toastVariants = cva(
   {
     variants: {
       variant: {
-        default: "border bg-background text-foreground",
-        success: "border-green-500 bg-green-100 text-green-900",
-        error: "border-red-500 bg-red-100 text-red-900",
-        warning: "border-yellow-500 bg-yellow-100 text-yellow-900",
-        destructive: "border-destructive bg-destructive text-destructive-foreground",
+        default: 'border bg-background text-foreground',
+        success: 'border-green-500 bg-green-100 text-green-900',
+        error: 'border-red-500 bg-red-100 text-red-900',
+        warning: 'border-yellow-500 bg-yellow-100 text-yellow-900',
+        destructive: 'border-destructive bg-destructive text-destructive-foreground',
       },
     },
     defaultVariants: {
@@ -122,9 +122,12 @@ type ToastActionElement = React.ReactElement<typeof ToastAction>
 
 import { createRoot } from 'react-dom/client'
 
-export function showToast(description: string,
-  variant: "success" | "error" | "warning" | "default" = "default",
-  direction?: 'up' | 'down'
+const duration = 3000
+
+export function showToast(
+  description: string,
+  variant: 'success' | 'error' | 'warning' | 'default' = 'default',
+  direction: 'up' | 'down' = 'up'
 ) {
   const toastContainer = document.createElement('div')
   document.body.appendChild(toastContainer)
@@ -132,26 +135,32 @@ export function showToast(description: string,
   const root = createRoot(toastContainer) // Using createRoot instead of ReactDOM.render
 
   root.render(
-    <ToastProvider open duration={3000}>
+    <ToastProvider duration={duration}>
       <Toast className={styles.mfToast}>
         <div className={styles.mfToastLayout}>
-          <div className={styles.mfToastIcon}>{
-            variant === 'error' ? <ErrorIcon></ErrorIcon> :
-              variant === 'success' ? <SuccessIcon></SuccessIcon> :
-                <CommonIcon></CommonIcon>
-          }</div>
+          <div className={styles.mfToastIcon}>
+            {variant === 'error' ? (
+              <ErrorIcon></ErrorIcon>
+            ) : variant === 'success' ? (
+              <SuccessIcon></SuccessIcon>
+            ) : (
+              <CommonIcon></CommonIcon>
+            )}
+          </div>
           <div className={styles.mfToastDes}>{description}</div>
         </div>
       </Toast>
-      <ToastViewport className={direction === 'down' ? styles.mfToastViewPortDown : styles.mfToastViewPortTop} />
+      <ToastViewport
+        className={direction === 'down' ? styles.mfToastViewPortDown : styles.mfToastViewPortTop}
+      />
     </ToastProvider>
   )
 
   // Automatically unmount and remove the container after the toast disappears
-  // setTimeout(() => {
-  //   root.unmount()
-  //   document.body.removeChild(toastContainer)
-  // }, 3000) // Close after 3 seconds
+  setTimeout(() => {
+    root.unmount()
+    document.body.removeChild(toastContainer)
+  }, duration) // Close after 3 seconds
 }
 
 export {

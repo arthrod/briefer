@@ -21,18 +21,16 @@ import { ChatSession, useChatLayoutContext } from '../ChatLayout'
 import { v4 as uuidv4 } from 'uuid'
 import { showToast } from '../Toast'
 import { useSession } from '@/hooks/useAuth'
-import RobotMessage from './RobotMessage'
 import { ChatStatus, useChatStatus } from '@/hooks/mf/chat/useChatStatus'
 import { useChatStop } from '@/hooks/mf/chat/useChatStop'
 import ScrollBar from '@/components/ScrollBar'
 import Pointer from '../Pointer'
-const defaultMsg = '``` content\n我是你的AI小助手\n```'
+import Markdown from '../markdown'
+const defaultMsg = '我是你的AI小助手'
 export interface ChatDetailProps {
   loading: boolean
   openLoading: () => void
   closeLoading: () => void
-  disableInput: () => void
-  enableInput: () => void
   receiveMsgDone?: () => void
 }
 
@@ -42,11 +40,7 @@ type ChatRound = {
 }
 
 const ChatDetail = forwardRef(
-  (
-    { openLoading, closeLoading, disableInput, enableInput, receiveMsgDone }: ChatDetailProps,
-    ref
-  ) => {
-    const { getCache } = useChatLayoutContext()
+  ({ openLoading, closeLoading, receiveMsgDone }: ChatDetailProps, ref) => {
     const [list, setList] = useState<MessageContent[]>([])
     const [chatSession, setChatSession] = useState<ChatSession | null>(null)
     const [chatRound, setChatRound] = useState<ChatRound>({ data: null, timeoutId: -1 })
@@ -55,7 +49,9 @@ const ChatDetail = forwardRef(
 
     const latestChatRound = useRef(chatRound)
     const [{ createChatSession }] = useChatSession()
-    const { startRound } = useChatLayoutContext()
+
+    const { startRound, getCache } = useChatLayoutContext()
+
     const [{ getChatStatus }] = useChatStatus()
     const [{ stopChat }] = useChatStop()
     const session = useSession()
@@ -170,12 +166,14 @@ const ChatDetail = forwardRef(
       chatSession.listener.onerror = (error) => {
         updateMsg(msgId, '服务错误', true)
         setWaiting(true)
-        disableInput()
         closeLoading()
       }
 
       chatSession.listener.onmessage = (event) => {
-        const data = event.data + '\n'
+        let { data } = event
+        if (data === '[DONE]') {
+          return null
+        }
         setList((prevList) => {
           const lastIndex = prevList.length - 1 // 获取最后一条消息的索引
           const updatedList = [...prevList]
@@ -229,7 +227,6 @@ const ChatDetail = forwardRef(
     }, [])
 
     const handleRegenerate = (message: MessageContent) => {
-      enableInput()
       updateMsg(message.id, '', false)
       if (message.roundId) {
         waitingReceive(message.id, message.roundId)
@@ -244,6 +241,7 @@ const ChatDetail = forwardRef(
         receiveMsgDone()
       }
     }
+
     const getSuccessElm = (message: MessageContent, index: number) => {
       return message.isError ? (
         <div className={styles.errorContent}>
@@ -256,7 +254,8 @@ const ChatDetail = forwardRef(
         </div>
       ) : (
         <div className={styles.content} key={index}>
-          <RobotMessage content={message.content} receiveMsgDone={_receiveMsgDone} />
+          <Markdown>{message.content}</Markdown>
+          {/* <RobotMessage content={message.content} receiveMsgDone={_receiveMsgDone} /> */}
           {message.status === 'chatting' ? <Pointer /> : null}
         </div>
       )

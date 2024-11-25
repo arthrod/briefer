@@ -11,7 +11,10 @@
     cursor: pointer;
     opacity: 1;
     transition: all 0.15s ease-out;
-
+    &.shakeAnimate {
+      color: #2f69fe;
+      animation: shake 200ms ease-in-out 2;
+    }
     &:hover {
       color: #2f69fe;
     }
@@ -41,20 +44,20 @@
     border-radius: 50%;
     color: #2f69fe;
     background: rgba(47, 105, 254, 0.12);
-    cursor: not-allowed;
+    cursor: pointer;
 
     &.activate {
       color: #fff;
       background-color: #2f69fe;
-      cursor: pointer;
     }
 
     .loading {
       background-color: #f0f0f0;
       color: #a0a0a0;
-      cursor: not-allowed;
     }
+
     .stopSquare {
+      display: inline-block;
       width: 16px;
       height: 16px;
       background-color: #2f69fe;
@@ -72,9 +75,25 @@
     }
   }
   .disabled {
-    background-color: #f0f0f0;
-    color: #a0a0a0;
     cursor: not-allowed;
+  }
+}
+
+@keyframes shake {
+  0% {
+    transform: translateX(0) translateY(-50%);
+  }
+  25% {
+    transform: translateX(-2px) translateY(-50%);
+  }
+  50% {
+    transform: translateX(0) translateY(-50%);
+  }
+  75% {
+    transform: translateX(2px) translateY(-50%);
+  }
+  100% {
+    transform: translateX(0) translateY(-50%);
   }
 }
 
@@ -96,6 +115,11 @@
       }
       .fileName {
         flex: 1;
+      }
+      .percent {
+        display: flex;
+        align-items: center;
+        margin-right: 20px;
       }
       .icon {
       }

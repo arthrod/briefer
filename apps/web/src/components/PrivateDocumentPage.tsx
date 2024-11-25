@@ -41,6 +41,7 @@ interface Props {
   user: ApiUser & { roles: Record<string, UserWorkspaceRole> }
   isApp: boolean
 }
+
 export default function PrivateDocumentPage(props: Props) {
   const [{ document, publishing }, { publish }] = useDocument(props.workspaceId, props.documentId)
 

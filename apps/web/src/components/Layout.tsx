@@ -1,19 +1,16 @@
-import { v4 as uuidv4 } from 'uuid'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Syne } from 'next/font/google'
 import PagePath from '@/components/PagePath'
-import { ChevronDoubleLeftIcon, ChevronDoubleRightIcon } from '@heroicons/react/24/outline'
+import { ChevronDoubleRightIcon } from '@heroicons/react/24/outline'
 import clsx from 'clsx'
 import { useRouter } from 'next/router'
 import { Page } from '@/components/PagePath'
 import { useWorkspaces } from '@/hooks/useWorkspaces'
 import { useStringQuery } from '@/hooks/useQueryArgs'
 import { useSession, useSignout } from '@/hooks/useAuth'
-import type { UserWorkspaceRole } from '@briefer/database'
 import { isBanned } from '@/utils/isBanned'
 import BannedPage from './BannedPage'
 import MobileWarning from './MobileWarning'
-import ScrollBar from './ScrollBar'
 import CommandPalette from './commandPalette'
 import { useHotkeys } from 'react-hotkeys-hook'
 
@@ -22,6 +19,7 @@ import useSideBar from '@/hooks/useSideBar'
 import ChatDetail from './mf/ChatDetail'
 import ChatInput from './mf/ChatInput'
 import ToggleIcon from '../icons/toggle.svg'
+import { ChatSessionData } from '@/hooks/mf/chat/useChatSession'
 
 const syne = Syne({ subsets: ['latin'] })
 
@@ -34,14 +32,31 @@ interface Props {
 }
 
 export default function Layout({ children, pagePath, topBarClassname, topBarContent }: Props) {
-  const session = useSession()
-
   const [isSearchOpen, setSearchOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
+
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const chatDetailRef = useRef<{
+    addSendMsg: (msg: string) => Promise<ChatSessionData>
+    addReceiveMsg: (msg: string) => string
+    stopSendMsg: () => void
+  }>(null)
+
+  const session = useSession()
+  const router = useRouter()
+  const signOut = useSignout()
+
+  const [{ data: workspaces, isLoading: isLoadingWorkspaces }] = useWorkspaces()
+  const [isSideBarOpen, setSideBarOpen] = useSideBar()
+
+  const workspaceId = useStringQuery('workspaceId')
+  const documentId = useStringQuery('documentId')
+  const chatId = useStringQuery('chatId')
+
   useHotkeys(['mod+k'], () => {
     setSearchOpen((prev) => !prev)
   })
 
-  const [isSideBarOpen, setSideBarOpen] = useSideBar()
   const toggleSideBar = useCallback(
     (state: boolean) => {
       return () => setSideBarOpen(state)
@@ -49,13 +64,6 @@ export default function Layout({ children, pagePath, topBarClassname, topBarCont
     [setSideBarOpen]
   )
 
-  const router = useRouter()
-  const workspaceId = useStringQuery('workspaceId')
-  const documentId = useStringQuery('documentId')
-
-  const [{ data: workspaces, isLoading: isLoadingWorkspaces }] = useWorkspaces()
-
-  const signOut = useSignout()
   useEffect(() => {
     const workspace = workspaces.find((w) => w.id === workspaceId)
 
@@ -68,7 +76,6 @@ export default function Layout({ children, pagePath, topBarClassname, topBarCont
     }
   }, [workspaces, isLoadingWorkspaces, signOut])
 
-  const scrollRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const onBeforeUnload = () => {
       if (scrollRef.current) {
@@ -81,6 +88,7 @@ export default function Layout({ children, pagePath, topBarClassname, topBarCont
       router.events.off('routeChangeStart', onBeforeUnload)
     }
   }, [workspaceId, scrollRef, router])
+
   useEffect(() => {
     const scroll = localStorage.getItem(`scroll-${workspaceId}`)
     if (scroll && scrollRef.current) {
@@ -89,8 +97,19 @@ export default function Layout({ children, pagePath, topBarClassname, topBarCont
   }, [workspaceId, scrollRef])
 
   const userEmail = session.data?.email
+
   if (userEmail && isBanned(userEmail)) {
     return <BannedPage />
+  }
+
+  const send = async (question: string) => {
+    if (chatDetailRef.current) {
+      chatDetailRef.current.addSendMsg(question)
+    }
+  }
+
+  const stop = () => {
+    chatDetailRef.current?.stopSendMsg()
   }
 
   return (
@@ -118,11 +137,19 @@ export default function Layout({ children, pagePath, topBarClassname, topBarCont
           AI助手
         </div>
         <div className={styles.middle}>
-          {/* <ChatDetail></ChatDetail> */}
+          <ChatDetail
+            ref={chatDetailRef}
+            loading={false}
+            openLoading={() => {
+              setLoading(true)
+            }}
+            closeLoading={() => {
+              setLoading(false)
+            }}></ChatDetail>
         </div>
         <div className={styles.bottom}>
           <div className={styles.chatArea}>
-            <ChatInput isUpload={true} />
+            <ChatInput loading={loading} showUpload={false} send={send} stop={stop} />
           </div>
         </div>
       </div>

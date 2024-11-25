@@ -19,7 +19,7 @@ const fileSizeLimit = 1024 * 1024 * 1024 // 1GB
 // 速率限制器配置
 const uploadLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15分钟
-  max: 50 // 限制每个IP 15分钟内最多50次上传
+  max: 50, // 限制每个IP 15分钟内最多50次上传
 })
 
 // 测试用户数据
@@ -36,19 +36,19 @@ function getMockSession() {
       nickname: '',
       createdAt: new Date(),
       updatedAt: new Date(),
-      isDeleted: false
+      isDeleted: false,
     },
-    userWorkspaces: {}
+    userWorkspaces: {},
   }
 }
 
 // 认证中间件
 const authMiddleware = USE_TEST_AUTH
-  ? ((req: Request, res: Response, next: NextFunction) => {
-    req.session = getMockSession();
-    next();
-  })
-  : authenticationMiddleware;
+  ? (req: Request, res: Response, next: NextFunction) => {
+      req.session = getMockSession()
+      next()
+    }
+  : authenticationMiddleware
 
 // 日期格式化
 function formatDate(date: Date): string {
@@ -68,44 +68,43 @@ const storage = multer.diskStorage({
   filename: function (req, file, cb) {
     const fileId = uuidv4()
     cb(null, fileId)
-  }
+  },
 })
 
 // Multer配置
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: fileSizeLimit
-  }
+    fileSize: fileSizeLimit,
+  },
 })
 
 // 文件大小检查中间件
 const checkFileSize = (req: Request, res: Response, next: NextFunction) => {
-  const contentLength = parseInt(req.headers['content-length'] || '0', 10);
+  const contentLength = parseInt(req.headers['content-length'] || '0', 10)
   if (contentLength > fileSizeLimit) {
     Logger.warn('文件大小超出限制', {
       size: contentLength,
       limit: fileSizeLimit,
-      userId: req.session?.user?.id
+      userId: req.session?.user?.id,
     })
     return sendResponse(res, fail(ErrorCode.FILE_TOO_LARGE, '文件大小不能超过1GB'))
   }
-  next();
-};
-
+  next()
+}
 
 // 文件上传接口
 uploadRouter.post(
-  '/file', 
+  '/file',
   uploadLimiter,
-  checkFileSize, 
-  authMiddleware, 
-  upload.single('file'), 
+  checkFileSize,
+  authMiddleware,
+  upload.single('file'),
   async (req: Request, res: Response) => {
     try {
       if (!req.file) {
         Logger.warn('未选择上传文件', {
-          userId: req.session?.user?.id
+          userId: req.session?.user?.id,
         })
         return sendResponse(res, fail(ErrorCode.PARAM_ERROR, '请选择要上传的文件'))
       }
@@ -120,7 +119,7 @@ uploadRouter.post(
         fileName,
         fileSize,
         filePath,
-        userId: req.session.user.id
+        userId: req.session.user.id,
       })
 
       // 保存文件信息到数据库
@@ -130,24 +129,23 @@ uploadRouter.post(
           fileName,
           fileSize: BigInt(fileSize),
           filePath,
-          createdUserId: req.session.user.id
-        }
+          createdUserId: req.session.user.id,
+        },
       })
 
       Logger.info('文件上传成功', {
         fileId,
         fileName,
-        userId: req.session.user.id
+        userId: req.session.user.id,
       })
 
       return sendResponse(res, success({ id: fileId }, '上传成功'))
-
     } catch (err) {
       Logger.error('文件上传失败', {
         error: err,
         errorMessage: err instanceof Error ? err.message : '未知错误',
         errorStack: err instanceof Error ? err.stack : undefined,
-        userId: req.session?.user?.id
+        userId: req.session?.user?.id,
       })
       return sendResponse(res, handleError(err, '文件上传失败'))
     }
@@ -160,20 +158,20 @@ uploadRouter.use((err: any, req: Request, res: Response, next: NextFunction) => 
     if (err.code === 'LIMIT_FILE_SIZE') {
       Logger.warn('文件大小超出限制', {
         error: err.message,
-        userId: req.session?.user?.id
+        userId: req.session?.user?.id,
       })
       return sendResponse(res, fail(ErrorCode.FILE_TOO_LARGE, '文件大小不能超过1GB'))
     }
   }
-  
+
   Logger.error('文件上传发生未知错误', {
     error: err,
     errorMessage: err instanceof Error ? err.message : '未知错误',
     errorStack: err instanceof Error ? err.stack : undefined,
-    userId: req.session?.user?.id
+    userId: req.session?.user?.id,
   })
-  
+
   return sendResponse(res, fail(ErrorCode.SERVER_ERROR, '服务器内部错误'))
 })
 
-export default uploadRouter 
+export default uploadRouter
