@@ -1,12 +1,5 @@
 import { ChatList, HistoryChat, useChatList } from '@/hooks/mf/chat/useChatList'
-import React, {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { clsx } from 'clsx'
 import { useRouter } from 'next/router'
 import { useWorkspaces } from '@/hooks/useWorkspaces'
@@ -15,7 +8,7 @@ import { NoData } from '@/components/mf/NoData'
 import styles from './index.module.scss'
 import ScrollBar from '@/components/ScrollBar'
 
-import Logo from '../../../icons/mind-flow.svg'
+import Logo from '@/icons/mind-flow.svg'
 import { useSession } from '@/hooks/useAuth'
 import { Popover, PopoverButton, PopoverPanel } from '@headlessui/react'
 import {
@@ -33,6 +26,8 @@ import { useDeleteChat } from '@/hooks/mf/chat/useChatDelete'
 import { showToast } from '../Toast'
 import { useChatEdit } from '@/hooks/mf/chat/useChatEdit'
 import Spin from '@/components/Spin'
+import ArrowRight from '@/icons/arrow-right-line.svg'
+
 interface Item {
   type: string
   label: string
@@ -52,13 +47,14 @@ interface ChatLayoutContextType {
   endRound: (roundId: string) => void
 }
 export const ChatLayoutContext = createContext<ChatLayoutContextType | null>(null)
-export const useChatLayout = () => {
+export const useChatLayoutContext = () => {
   const context = useContext(ChatLayoutContext)
   if (!context) {
     throw new Error('useChatLayout must be used within ChatLayoutProvider')
   }
   return context
 }
+
 const MoreBtn = ({ items, onItemClick }: IMoreBtnProps) => {
   const [isOpen, setIsOpen] = useState(false)
   const [isDialogOpen, setDialogOpen] = useState(false)
@@ -160,6 +156,7 @@ export type EventListener = {
   onerror?: (error: Event) => void
   close: () => void
 }
+
 export default function ChatLayout({ children }: Props) {
   const getChatList = useChatList()
   const [chatList, setChatList] = useState<HistoryChat[]>([])
@@ -167,15 +164,49 @@ export default function ChatLayout({ children }: Props) {
   const [chatSession, setChatSession] = useState<ChatSession[]>([])
   const [updateTitleEvent, setUpdateTitleEvent] = useState<EventSource | null>(null)
   const lastedEvent = useRef<EventSource | null>(updateTitleEvent)
-  const [eventTimeoutId, setEventTimeoutId] = useState<number>(-1)
   const [chatId, setChatId] = useState('')
-  const lastedTimeoutId = useRef<number>(eventTimeoutId)
-  const [cache, setCache] = useState<string>('')
-  const [currentTitle, setCurrentTitle] = useState<string>('')
-  const [isCommit, setIsCommit] = useState<boolean>(false)
+  const [routeTitle, setRouteTitle] = useState('')
+  const eventTimeoutId = useRef(-1)
+  const lastedTimeoutId = useRef(-1)
+  const [cache, setCache] = useState('')
+  const [currentTitle, setCurrentTitle] = useState('')
+  const [isCommit, setIsCommit] = useState(false)
   const router = useRouter()
   const session = useSession()
   const firstLetter = session.data?.loginName.charAt(0).toUpperCase() // 获取用户名的第一个字母并转为大写
+
+  const [{ deleteChat }] = useDeleteChat()
+  const [{ editTitle }] = useChatEdit()
+
+  useEffect(() => {
+    setChatId(String(router.query.chatId))
+    handleUpdate()
+    titleUpdate()
+    return () => {
+      if (lastedEvent.current) {
+        lastedEvent.current.close()
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    setChatId(String(router.query.chatId))
+    setRouteTitle(() => {
+      const { pathname } = router
+      if (pathname === `/user/profile`) {
+        return '个人中心'
+      }
+      return ''
+    })
+  }, [router])
+
+  useEffect(() => {
+    lastedTimeoutId.current = eventTimeoutId.current
+  }, [eventTimeoutId])
+
+  useEffect(() => {
+    lastedEvent.current = updateTitleEvent
+  }, [updateTitleEvent])
 
   const newChat = useCallback(
     (chat: HistoryChat, msg: string) => {
@@ -227,7 +258,9 @@ export default function ChatLayout({ children }: Props) {
       listener: listener,
       eventSource: eventSource,
     }
+
     setChatSession((sessions) => [...sessions, chatSession])
+
     eventSource.onopen = () => {
       if (listener.onopen) {
         listener.onopen()
@@ -256,72 +289,43 @@ export default function ChatLayout({ children }: Props) {
     return chatSession
   }
 
-  useEffect(() => {
-    setChatId(String(router.query.chatId))
-    handleUpdate()
-    titleUpdate()
-    return () => {
-      if (lastedEvent.current) {
-        lastedEvent.current.close()
+  const titleUpdate = useCallback(() => {
+    const eventSource = new EventSource(
+      `${process.env.NEXT_PUBLIC_API_URL}/v1/mf/chat/title/update`,
+      {
+        withCredentials: true, // 如果需要发送 cookies
       }
-    }
-  }, [])
-
-  useEffect(() => {
-    setChatId(String(router.query.chatId))
-  }, [router])
-
-  useEffect(() => {
-    lastedTimeoutId.current = eventTimeoutId
-  }, [eventTimeoutId])
-
-  useEffect(() => {
-    lastedEvent.current = updateTitleEvent
-  }, [updateTitleEvent])
-
-  const titleUpdate = useCallback(
-    (timeoutId?: number) => {
-      const eventSource = new EventSource(
-        `${process.env.NEXT_PUBLIC_API_URL}/v1/mf/chat/title/update`,
-        {
-          withCredentials: true, // 如果需要发送 cookies
-        }
-      )
-      eventSource.onmessage = (event: MessageEvent) => {
-        try {
-          const data = JSON.parse(event.data)
-          setChatList((prevList) => {
-            const lastIndex = prevList.findIndex((item) => item.id === data.chatId) // 获取最后一条消息的索引
-            const updatedList = [...prevList]
-            if (lastIndex >= 0) {
-              updatedList[lastIndex] = {
-                ...updatedList[lastIndex],
-                title: (updatedList[lastIndex].title = data.title), // 将新内容追加到最后一条消息
-              }
+    )
+    eventSource.onmessage = (event: MessageEvent) => {
+      try {
+        const data = JSON.parse(event.data)
+        setChatList((prevList) => {
+          const lastIndex = prevList.findIndex((item) => item.id === data.chatId) // 获取最后一条消息的索引
+          const updatedList = [...prevList]
+          if (lastIndex >= 0) {
+            updatedList[lastIndex] = {
+              ...updatedList[lastIndex],
+              title: (updatedList[lastIndex].title = data.title), // 将新内容追加到最后一条消息
             }
-            return updatedList
-          })
-        } catch (e) {}
-      }
-      eventSource.onerror = (error) => {
-        eventSource.close()
-        const timeoutId = window.setTimeout(() => {
-          titleUpdate()
-        }, 5000)
-        setEventTimeoutId(timeoutId)
-      }
-      setUpdateTitleEvent(eventSource)
-    },
-    [chatList]
-  )
+          }
+          return updatedList
+        })
+      } catch (e) {}
+    }
+    eventSource.onerror = (error) => {
+      eventSource.close()
+      eventTimeoutId.current = window.setTimeout(() => {
+        titleUpdate()
+      }, 5000)
+    }
+    setUpdateTitleEvent(eventSource)
+  }, [chatList])
 
   const handleUpdate = () => {
     getChatList().then((data: ChatList) => {
       setChatList(data.list)
     })
   }
-
-  const [{ deleteChat }] = useDeleteChat()
 
   const deleteChatById = (id: string) => {
     deleteChat(id).then(() => {
@@ -333,7 +337,6 @@ export default function ChatLayout({ children }: Props) {
     })
   }
 
-  const [{ editTitle }] = useChatEdit()
   const commitTitle = (id: string, title: string) => {
     setIsCommit(true)
     return editTitle(id, title)
@@ -469,11 +472,25 @@ export default function ChatLayout({ children }: Props) {
           </ScrollBar>
         </div>
         <div className={styles.main}>
-          <div className={styles.title}>
+          <div className={styles.mainTop}>
+            <div className={styles.title}>
+              {routeTitle ? (
+                <>
+                  <span
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => {
+                      router.back()
+                    }}>
+                    <ArrowRight />
+                  </span>
+                  <span>{routeTitle}</span>
+                </>
+              ) : null}
+            </div>
             <div
               className={styles.userAvatar}
               onClick={() => {
-                //todo 个人中心
+                router.push('/user/profile')
               }}>
               {firstLetter}
             </div>

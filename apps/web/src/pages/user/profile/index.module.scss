@@ -1,0 +1,19 @@
+.userProfile {
+  margin-top: 24px;
+  .title {
+    font-size: 20px;
+    font-weight: 500;
+    color: #3d3d3d;
+  }
+  .info {
+    display: flex;
+    align-items: center;
+    margin-top: 16px;
+    .label {
+      color: #8792a4;
+      width: 5.875rem;
+    }
+    .value {
+    }
+  }
+}

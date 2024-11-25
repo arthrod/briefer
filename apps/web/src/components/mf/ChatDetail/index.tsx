@@ -17,7 +17,7 @@ import {
 } from '@/hooks/mf/chat/useChatDetail'
 import { useRouter } from 'next/router'
 import { ChatSessionData, useChatSession } from '@/hooks/mf/chat/useChatSession'
-import { ChatSession, useChatLayout } from '../ChatLayout'
+import { ChatSession, useChatLayoutContext } from '../ChatLayout'
 import { v4 as uuidv4 } from 'uuid'
 import { showToast } from '../Toast'
 import { useSession } from '@/hooks/useAuth'
@@ -46,7 +46,7 @@ const ChatDetail = forwardRef(
     { openLoading, closeLoading, disableInput, enableInput, receiveMsgDone }: ChatDetailProps,
     ref
   ) => {
-    const { getCache } = useChatLayout()
+    const { getCache } = useChatLayoutContext()
     const [list, setList] = useState<MessageContent[]>([])
     const [chatSession, setChatSession] = useState<ChatSession | null>(null)
     const [chatRound, setChatRound] = useState<ChatRound>({ data: null, timeoutId: -1 })
@@ -55,7 +55,7 @@ const ChatDetail = forwardRef(
 
     const latestChatRound = useRef(chatRound)
     const [{ createChatSession }] = useChatSession()
-    const { startRound } = useChatLayout()
+    const { startRound } = useChatLayoutContext()
     const [{ getChatStatus }] = useChatStatus()
     const [{ stopChat }] = useChatStop()
     const session = useSession()
