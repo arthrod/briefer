@@ -832,6 +832,7 @@ router.post(
             title: chat.title,
             type: type,
             createdTime: formatDate(chat.createdTime),
+            workspaceId: workspace.workspaceId,
           }
         },
         {
@@ -859,6 +860,7 @@ router.post(
           title: response.title,
           type: response.type,
           createdTime: response.createdTime,
+          workspaceId: response.workspaceId,
         },
         msg: '创建成功',
       })
@@ -1541,7 +1543,7 @@ router.get(
       const chatRecord = await prisma().chatRecord.findFirst({
         where: {
           id: roundId,
-          chatId,
+          chatId: chatId,
           chat: {
             userId: req.session.user.id,
           },
