@@ -2,12 +2,7 @@ import * as Y from 'yjs'
 import React from 'react'
 import { PlayIcon, StopIcon } from '@heroicons/react/20/solid'
 import { useYDocState } from '@/hooks/useYDoc'
-import {
-  YRunAll,
-  getRunAll,
-  getRunAllAttributes,
-  isRunAllLoading,
-} from '@briefer/editor'
+import { YRunAll, getRunAll, getRunAllAttributes, isRunAllLoading } from '@briefer/editor'
 import { useCallback } from 'react'
 import clsx from 'clsx'
 
@@ -36,11 +31,7 @@ export default function RunAllV2(props: Props) {
     }
   }, [state, run, abort])
 
-  const {
-    total,
-    remaining,
-    status: docRunStatus,
-  } = getRunAllAttributes(state.value)
+  const { total, remaining, status: docRunStatus } = getRunAllAttributes(state.value)
   const current = total - remaining
 
   const loading = isRunAllLoading(state.value)
@@ -50,25 +41,23 @@ export default function RunAllV2(props: Props) {
       type="button"
       className={clsx(
         {
-          'bg-gray-200 cursor-not-allowed':
+          'cursor-not-allowed bg-gray-200':
             props.disabled ||
             docRunStatus === 'abort-requested' ||
             docRunStatus === 'aborting' ||
             docRunStatus === 'schedule-running',
-          'bg-primary-200 hover:bg-primary-300':
-            !props.disabled && !loading && props.primary,
-          'bg-white hover:bg-gray-100 ring-1 ring-gray-200 text-gray-500':
+          'bg-primary-200 hover:bg-primary-300': !props.disabled && !loading && props.primary,
+          'bg-white text-gray-500 ring-1 ring-gray-200 hover:bg-gray-100':
             !props.disabled && !loading && !props.primary,
           'bg-red-200 hover:bg-red-300':
             !props.disabled &&
             loading &&
             (docRunStatus === 'run-requested' || docRunStatus === 'running'),
         },
-        'flex items-center rounded-sm px-3 py-1 text-sm gap-x-1.5 fixed mt-3 right-8 z-10'
+        'flex items-center gap-x-1.5 rounded-sm px-3 py-1 text-sm'
       )}
       onClick={onClick}
-      disabled={props.disabled || docRunStatus === 'schedule-running'}
-    >
+      disabled={props.disabled || docRunStatus === 'schedule-running'}>
       {loading ? (
         <>
           <StopIcon className="h-4 w-4" />
@@ -80,7 +69,8 @@ export default function RunAllV2(props: Props) {
         </>
       ) : (
         <>
-          <PlayIcon className="h-4 w-4" /> Run all
+          <PlayIcon className="h-4 w-4" />
+          运行
         </>
       )}
     </button>

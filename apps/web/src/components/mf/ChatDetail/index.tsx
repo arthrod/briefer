@@ -9,12 +9,7 @@ import {
 } from 'react'
 import styles from './index.module.scss'
 import clsx from 'clsx'
-import {
-  MessageContent,
-  MessageStatus,
-  RagDetailData,
-  useChatDetail,
-} from '@/hooks/mf/chat/useChatDetail'
+import { MessageContent, RagDetailData, useChatDetail } from '@/hooks/mf/chat/useChatDetail'
 import { useRouter } from 'next/router'
 import { ChatSessionData, useChatSession } from '@/hooks/mf/chat/useChatSession'
 import { ChatSession, useChatLayoutContext } from '../ChatLayout'
@@ -28,7 +23,6 @@ import Pointer from '../Pointer'
 import Markdown from '../markdown'
 const defaultMsg = '我是你的AI小助手'
 export interface ChatDetailProps {
-  loading: boolean
   openLoading: () => void
   closeLoading: () => void
   receiveMsgDone?: () => void
@@ -45,19 +39,17 @@ const ChatDetail = forwardRef(
     const [chatSession, setChatSession] = useState<ChatSession | null>(null)
     const [chatRound, setChatRound] = useState<ChatRound>({ data: null, timeoutId: -1 })
 
-    const [waiting, setWaiting] = useState<boolean>(false)
+    const [waiting, setWaiting] = useState(false)
 
+    const scrollRef = useRef<HTMLDivElement>(null)
     const latestChatRound = useRef(chatRound)
+
     const [{ createChatSession }] = useChatSession()
-
     const { startRound, getCache } = useChatLayoutContext()
-
     const [{ getChatStatus }] = useChatStatus()
     const [{ stopChat }] = useChatStop()
     const session = useSession()
     const getChatDetail = useChatDetail()
-
-    const scrollRef = useRef<HTMLDivElement>(null)
 
     useImperativeHandle(ref, () => ({
       addSendMsg: addSendMsg,
@@ -70,6 +62,36 @@ const ChatDetail = forwardRef(
 
     const router = useRouter()
     const chatId = router.query.chatId
+
+    useEffect(() => {
+      setTimeout(scrollToBottom, 100)
+    }, [list])
+
+    useEffect(() => {
+      if (chatId) {
+        loadDetail()
+          .then(() => {
+            watchStatus(true)
+          })
+          .catch((e) => {
+            if (e.code === 403) {
+              router.replace('/home')
+            }
+          })
+      }
+    }, [chatId, router])
+
+    // 初始加载数据后滚动到底部
+    useEffect(() => {
+      return () => {
+        closeLoading()
+        window.clearTimeout(latestChatRound.current.timeoutId)
+      }
+    }, [])
+
+    useEffect(() => {
+      latestChatRound.current = chatRound
+    }, [chatRound])
 
     const scrollToBottom = useCallback(() => {
       if (scrollRef.current) {
@@ -140,10 +162,9 @@ const ChatDetail = forwardRef(
                 id: msgId,
                 role: 'user',
                 content: msg,
-                status: 'success',
               }
               setList((messageList) => [...messageList, msgContent])
-              const receiveMsg = addReceiveMsg('', 'chatting')
+              const receiveMsg = addReceiveMsg('')
               receiveMsg.roundId = data.id
               waitingReceive(receiveMsg.id, data.id)
             })
@@ -165,13 +186,14 @@ const ChatDetail = forwardRef(
       }
       chatSession.listener.onerror = (error) => {
         updateMsg(msgId, '服务错误', true)
-        setWaiting(true)
+        setWaiting(false)
         closeLoading()
       }
 
       chatSession.listener.onmessage = (event) => {
         let { data } = event
         if (data === '[DONE]') {
+          _receiveMsgDone()
           return null
         }
         setList((prevList) => {
@@ -187,24 +209,23 @@ const ChatDetail = forwardRef(
 
       chatSession.listener.close = () => {
         setWaiting(false)
-        updateMsgStatus(msgId, 'success')
+        updateMsgStatus(msgId)
         closeLoading()
       }
     }
 
-    const addReceiveMsg = (msg: string, status: MessageStatus): MessageContent => {
+    const addReceiveMsg = (msg: string): MessageContent => {
       const msgContent: MessageContent = {
         id: uuidv4(),
         role: 'assistant',
         content: msg,
         roundId: '',
-        status: status,
       }
       setList((messageList) => [...messageList, msgContent])
       return msgContent
     }
 
-    const updateMsgStatus = useCallback((id: string, status: MessageStatus): void => {
+    const updateMsgStatus = useCallback((id: string): void => {
       setList((prevList) =>
         prevList.map(
           (item) =>
@@ -236,29 +257,11 @@ const ChatDetail = forwardRef(
     const _receiveMsgDone = () => {
       chatSession?.eventSource.close()
       chatSession?.listener.close()
+      setWaiting(false)
       setChatSession(null)
       if (receiveMsgDone) {
         receiveMsgDone()
       }
-    }
-
-    const getSuccessElm = (message: MessageContent, index: number) => {
-      return message.isError ? (
-        <div className={styles.errorContent}>
-          <div>发生错误。服务器发生错误，或者在处理您的请求时出现了其他问题</div>
-          <div className={styles.buttonWrapper}>
-            <div className={styles.errorButton} onClick={() => handleRegenerate(message)}>
-              点击重新生成
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className={styles.content} key={index}>
-          <Markdown>{message.content}</Markdown>
-          {/* <RobotMessage content={message.content} receiveMsgDone={_receiveMsgDone} /> */}
-          {message.status === 'chatting' ? <Pointer /> : null}
-        </div>
-      )
     }
 
     const getMessageElm = useCallback(
@@ -269,7 +272,21 @@ const ChatDetail = forwardRef(
               <span className={styles.robot}>
                 <img width={14} src="/icons/logo.svg" alt="" />
               </span>
-              {getSuccessElm(message, index)}
+              {message.isError ? (
+                <div className={styles.errorContent}>
+                  <div>发生错误。服务器发生错误，或者在处理您的请求时出现了其他问题</div>
+                  <div className={styles.buttonWrapper}>
+                    <div className={styles.errorButton} onClick={() => handleRegenerate(message)}>
+                      点击重新生成
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className={styles.content}>
+                  <Markdown>{message.content}</Markdown>
+                  {waiting && index === list.length - 1 ? <Pointer /> : null}
+                </div>
+              )}
             </div>
           )
         } else {
@@ -286,14 +303,10 @@ const ChatDetail = forwardRef(
       [list]
     )
 
-    useEffect(() => {
-      setTimeout(scrollToBottom, 100)
-    }, [list])
-
     const loadDetail = () => {
       return getChatDetail<RagDetailData>(String(chatId), 'rag').then((data) => {
         if (data) {
-          data.messages.unshift({ id: '', role: 'system', content: defaultMsg, status: 'success' })
+          data.messages.unshift({ id: '', role: 'system', content: defaultMsg })
           setList(data.messages)
           const msg = getCache()
           console.log('当前是否有缓存的用户问题内存，如果有就直接发送：' + msg)
@@ -303,31 +316,6 @@ const ChatDetail = forwardRef(
         }
       })
     }
-    useEffect(() => {
-      if (chatId) {
-        loadDetail()
-          .then(() => {
-            watchStatus(true)
-          })
-          .catch((e) => {
-            if (e.code === 403) {
-              router.replace('/home')
-            }
-          })
-      }
-    }, [chatId, router])
-
-    // 初始加载数据后滚动到底部
-    useEffect(() => {
-      return () => {
-        closeLoading()
-        window.clearTimeout(latestChatRound.current.timeoutId)
-      }
-    }, [])
-
-    useEffect(() => {
-      latestChatRound.current = chatRound
-    }, [chatRound])
 
     const stopWatchStatus = () => {
       closeLoading()
