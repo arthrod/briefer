@@ -17,6 +17,7 @@ import { titleUpdateEmitter } from './title-summarizer.js'
 const CONFIG = {
   USE_TEST_AUTH: false, // 测试模式开关，如果为 true，则使用 mock 数据
   AI_AGENT_URL: process.env['AI_AGENT_URL'],
+  AI_AGENT_TIMEOUT: Number(process.env['AI_AGENT_TIMEOUT']) ?? 15000, // AI Agent 超时时间， 默认15s
   CHAT_DETAIL_CACHE_DURATION: 60,
   // RATE_LIMITS: {
   //   API: {
@@ -41,6 +42,12 @@ const CONFIG = {
     CHATTING: 2,
     COMPLETED: 3,
     FAILED: 4,
+  },
+  AI_AGENT_ENDPOINTS: {
+    REPORT_COMPLETIONS: '/v1/ai/chat/report/completions',
+    DATA_COMPLETIONS: '/v1/ai/chat/data/completions',
+    RELATION_CHECK: '/v1/ai/chat/relation',
+    SUMMARIZE: '/v1/ai/chat/summarize',
   },
 } as const
 
@@ -241,9 +248,9 @@ function getMockSession() {
 // 8. 中间件
 const authMiddleware = CONFIG.USE_TEST_AUTH
   ? (req: Request, res: Response, next: NextFunction) => {
-      req.session = getMockSession()
-      next()
-    }
+    req.session = getMockSession()
+    next()
+  }
   : authenticationMiddleware
 
 const handleError = (err: unknown, req: Request, res: Response, operation: string) => {
@@ -1419,6 +1426,18 @@ router.get(
           chat: {
             select: {
               id: true,
+              type: true,
+              fileRelations: {
+                select: {
+                  userFile: {
+                    select: {
+                      fileId: true,
+                      fileName: true,
+                      filePath: true,
+                    }
+                  }
+                }
+              }
             },
           },
         },
@@ -1433,124 +1452,22 @@ router.get(
         return
       }
 
-      const messages: Message[] = [
-        {
-          id: chatRecord.id,
-          role: 'user',
-          content: sanitizeInput(chatRecord.question),
-        },
-      ]
-
       try {
-        // 先打印请求参数日志
-        logger().info({
-          msg: 'Relation check request',
-          data: {
-            url: `${CONFIG.AI_AGENT_URL}/v1/ai/chat/relation`,
-            requestBody: { messages },
-            chatId,
-            roundId,
-            userId: req.session.user.id,
-          },
-        })
-
-        const relationCheckResponse = await fetchWithTimeout(
-          `${CONFIG.AI_AGENT_URL}/v1/ai/chat/relation`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ messages }),
-          },
-          5000
-        )
-
-        if (!relationCheckResponse.ok) {
-          throw new Error(`关联性检查请求失败: ${relationCheckResponse.status}`)
-        }
-
-        const relationResult = (await relationCheckResponse.json()) as RelationCheckResponse
-
-        // 打印响应结果日志
-        logger().info({
-          msg: 'Relation check response',
-          data: {
-            response: relationResult,
-            chatId,
-            roundId,
-            userId: req.session.user.id,
-          },
-        })
-
-        if (relationResult.code !== 0 || !relationResult.data.related) {
+        // 根据聊天类型进行不同处理
+        if (chatRecord.chat.type === 2) { // report类型
           logger().info({
-            msg: 'Chat content not related',
-            data: { roundId, chatId },
+            msg: 'Processing report type chat',
+            data: {
+              chatId,
+              roundId,
+              userId: req.session.user.id
+            }
           })
 
-          const errorMessage = [
-            '```content',
-            '抱歉，我目前无法回答与查找数据无关的内容。如果您有查找数据需求，请随时告诉我！',
-            '```',
-          ]
-
-          const userInput = chatRecord.question
-          const title = userInput.slice(0, 15) // 截取前15个字
-
-          try {
-            // 更新 ChatRecord 状态为结束，并存储错误信息和标题
-            await prisma().$transaction([
-              // 更新 ChatRecord
-              prisma().chatRecord.update({
-                where: { id: roundId },
-                data: {
-                  status: CONFIG.CHAT_STATUS.COMPLETED, // 结束状态
-                  answer: Buffer.from(errorMessage.join('\n')),
-                  speakerType: 'assistant',
-                  updateTime: new Date(),
-                },
-              }),
-              // 更新 Chat 的标题和 isTitleSet 字段
-              prisma().chat.update({
-                where: { id: chatId },
-                data: {
-                  title: title,
-                  isTitleSet: true,
-                  updateTime: new Date(),
-                },
-              }),
-            ])
-
-            // 发送标题更新事件
-            const updateData = {
-              chatId: chatId,
-              title: title,
-            }
-
-            logger().info({
-              msg: 'Emitting title update event for unrelated content',
-              data: updateData,
-            })
-
-            titleUpdateEmitter.emit('titleUpdate', updateData)
-
-            logger().info({
-              msg: 'Title update event emitted for unrelated content',
-              data: {
-                chatId,
-                listenerCount: titleUpdateEmitter.listenerCount('titleUpdate'),
-              },
-            })
-          } catch (dbError) {
-            logger().error({
-              msg: 'Failed to update database for unrelated content',
-              data: {
-                error: dbError instanceof Error ? dbError.message : 'Unknown error',
-                chatId,
-                roundId,
-              },
-            })
-            // 使用sendSSEError处理数据库错误
-            await sendSSEError(res, dbError, {
+          // 获取关联的文件
+          const fileRelation = chatRecord.chat.fileRelations[0]
+          if (!fileRelation?.userFile) {
+            await sendSSEError(res, new ValidationError('未找到关联的文件'), {
               type: 'chat_record',
               chatId,
               roundId,
@@ -1558,41 +1475,220 @@ router.get(
             return
           }
 
-          errorMessage.forEach((line) => {
-            res.write(`data: ${line}\n`)
+          const userFile = fileRelation.userFile
+          const fileContent = await fs.readFile(userFile.filePath)
+
+          // 构建请求体
+          const formData = new URLSearchParams()
+          formData.append('user_input', chatRecord.question)
+          formData.append('docx_report', fileContent.toString('base64'))
+          formData.append('filename', userFile.fileName)
+
+          // 调用AI Agent接口
+          logger().info({
+            msg: 'Sending request to AI Agent',
+            data: {
+              url: `${CONFIG.AI_AGENT_URL}${CONFIG.AI_AGENT_ENDPOINTS.REPORT_COMPLETIONS}`,
+              timeout: CONFIG.AI_AGENT_TIMEOUT,
+              filename: userFile.fileName,
+              question: chatRecord.question
+            }
+          });
+
+          const response = await fetchWithTimeout(
+            `${CONFIG.AI_AGENT_URL}${CONFIG.AI_AGENT_ENDPOINTS.REPORT_COMPLETIONS}`,
+            {
+              method: 'POST',
+              body: formData,
+              headers: {
+                'Accept': 'text/event-stream',
+                'Content-Type': 'application/x-www-form-urlencoded'
+              },
+              signal: controller.signal
+            },
+            CONFIG.AI_AGENT_TIMEOUT
+          )
+
+          // 处理响应
+          await handleStreamResponse(
+            response,
+            res,
+            {
+              type: 'chat_record',
+              chatId,
+              roundId
+            },
+            controller
+          )
+        } else { // rag类型
+          const messages: Message[] = [
+            {
+              id: chatRecord.id,
+              role: 'user',
+              content: sanitizeInput(chatRecord.question),
+            },
+          ]
+
+          // 先打印请求参数日志
+          logger().info({
+            msg: 'Relation check request',
+            data: {
+              url: `${CONFIG.AI_AGENT_URL}${CONFIG.AI_AGENT_ENDPOINTS.RELATION_CHECK}`,
+              requestBody: { messages },
+              chatId,
+              roundId,
+            },
           })
-          res.write('\n') // 表示该消息结束
-          res.write(`data: [DONE]\n\n`)
-          return
+
+          const relationCheckResponse = await fetchWithTimeout(
+            `${CONFIG.AI_AGENT_URL}${CONFIG.AI_AGENT_ENDPOINTS.RELATION_CHECK}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ messages }),
+            },
+            5000
+          )
+
+          if (!relationCheckResponse.ok) {
+            throw new Error(`关联性检查请求失败: ${relationCheckResponse.status}`)
+          }
+
+          const relationResult = (await relationCheckResponse.json()) as RelationCheckResponse
+
+          // 打印响应结果日志
+          logger().info({
+            msg: 'Relation check response',
+            data: {
+              response: relationResult,
+              chatId,
+              roundId,
+              userId: req.session.user.id,
+            },
+          })
+
+          if (relationResult.code !== 0 || !relationResult.data.related) {
+            logger().info({
+              msg: 'Chat content not related',
+              data: { roundId, chatId },
+            })
+
+            const errorMessage = [
+              '```content',
+              '抱歉，我目前无法回答与查找数据无关的内容。如果您有查找数据需求，请随时告诉我！',
+              '```',
+            ]
+
+            const userInput = chatRecord.question
+            const title = userInput.slice(0, 15) // 截取前15个字
+
+            try {
+              // 更新 ChatRecord 状态为结束，并存储错误信息和标题
+              await prisma().$transaction([
+                // 更新 ChatRecord
+                prisma().chatRecord.update({
+                  where: { id: roundId },
+                  data: {
+                    status: CONFIG.CHAT_STATUS.COMPLETED, // 结束状态
+                    answer: Buffer.from(errorMessage.join('\n')),
+                    speakerType: 'assistant',
+                    updateTime: new Date(),
+                  },
+                }),
+                // 更新 Chat 的标题和 isTitleSet 字段
+                prisma().chat.update({
+                  where: { id: chatId },
+                  data: {
+                    title: title,
+                    isTitleSet: true,
+                    updateTime: new Date(),
+                  },
+                }),
+              ])
+
+              // 发送标题更新事件
+              const updateData = {
+                chatId: chatId,
+                title: title,
+              }
+
+              logger().info({
+                msg: 'Emitting title update event for unrelated content',
+                data: updateData,
+              })
+
+              titleUpdateEmitter.emit('titleUpdate', updateData)
+
+              logger().info({
+                msg: 'Title update event emitted for unrelated content',
+                data: {
+                  chatId,
+                  listenerCount: titleUpdateEmitter.listenerCount('titleUpdate'),
+                },
+              })
+            } catch (dbError) {
+              logger().error({
+                msg: 'Failed to update database for unrelated content',
+                data: {
+                  error: dbError instanceof Error ? dbError.message : 'Unknown error',
+                  chatId,
+                  roundId,
+                },
+              })
+              // 使用sendSSEError处理数据库错误
+              await sendSSEError(res, dbError, {
+                type: 'chat_record',
+                chatId,
+                roundId,
+              })
+              return
+            }
+
+            errorMessage.forEach((line) => {
+              res.write(`data: ${line}\n`)
+            })
+            res.write('\n') // 表示该消息结束
+            res.write(`data: [DONE]\n\n`)
+            return
+          }
+
+          logger().info({
+            msg: 'Sending request to AI Agent',
+            data: {
+              url: `${CONFIG.AI_AGENT_URL}${CONFIG.AI_AGENT_ENDPOINTS.DATA_COMPLETIONS}`,
+              timeout: CONFIG.AI_AGENT_TIMEOUT,
+              messages: messages
+            }
+          });
+
+          const response = (await fetchWithTimeout(
+            `${CONFIG.AI_AGENT_URL}${CONFIG.AI_AGENT_ENDPOINTS.DATA_COMPLETIONS}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                user_input: chatRecord.question,
+              }),
+              signal: controller.signal, // 添加 signal
+            },
+            30000
+          )) as FetchResponse
+
+          if (!response.ok) {
+            throw new Error(`AI 对话请求失败: ${response.status}`)
+          }
+
+          await handleStreamResponse(
+            response,
+            res,
+            {
+              type: 'chat_record',
+              chatId: chatId,
+              roundId: roundId,
+            },
+            controller
+          ) // 传入 controller
         }
-
-        const response = (await fetchWithTimeout(
-          `${CONFIG.AI_AGENT_URL}/v1/ai/chat/data/completions`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              user_input: chatRecord.question,
-            }),
-            signal: controller.signal, // 添加 signal
-          },
-          30000
-        )) as FetchResponse
-
-        if (!response.ok) {
-          throw new Error(`AI 对话请求失败: ${response.status}`)
-        }
-
-        await handleStreamResponse(
-          response,
-          res,
-          {
-            type: 'chat_record',
-            chatId: chatId,
-            roundId: roundId,
-          },
-          controller
-        ) // 传入 controller
       } catch (error) {
         logger().error({
           msg: 'AI service error',
@@ -1679,7 +1775,7 @@ router.get(
         logger().info({
           msg: 'Summarize request parameters',
           data: {
-            url: `${CONFIG.AI_AGENT_URL}/v1/ai/chat/summarize`,
+            url: `${CONFIG.AI_AGENT_URL}${CONFIG.AI_AGENT_ENDPOINTS.SUMMARIZE}`,
             requestBody: {
               messages,
               temperature: 0,
@@ -1690,8 +1786,17 @@ router.get(
           },
         })
 
+        logger().info({
+          msg: 'Sending request to AI Agent',
+          data: {
+            url: `${CONFIG.AI_AGENT_URL}${CONFIG.AI_AGENT_ENDPOINTS.SUMMARIZE}`,
+            timeout: CONFIG.AI_AGENT_TIMEOUT,
+            messages: messages
+          }
+        });
+
         const response = (await fetchWithTimeout(
-          `${CONFIG.AI_AGENT_URL}/v1/ai/chat/summarize`,
+          `${CONFIG.AI_AGENT_URL}${CONFIG.AI_AGENT_ENDPOINTS.SUMMARIZE}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
