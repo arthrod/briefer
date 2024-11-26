@@ -433,7 +433,7 @@ async function handleStreamResponse(
 
           if (data.includes('[DONE]')) {
             // 在完整消息末尾添加[DONE]标记
-            completeMessage += '\n[DONE]'
+            // completeMessage += '\n[DONE]'
 
             try {
               const now = new Date()
@@ -591,15 +591,15 @@ async function handleStreamResponse(
       const now = new Date()
       if (updateTarget.type === 'chat_record' && updateTarget.roundId) {
         // 确保消息末尾有 [DONE] 标识
-        const finalMessage = completeMessage.includes('[DONE]')
-          ? completeMessage
-          : completeMessage.trim() + '\n[DONE]'
+        // const finalMessage = completeMessage.includes('[DONE]')
+        //   ? completeMessage
+        //   : completeMessage.trim() + '\n[DONE]'
 
         await prisma().$transaction([
           prisma().chatRecord.update({
             where: { id: updateTarget.roundId },
             data: {
-              answer: Buffer.from(finalMessage), // 使用添加了 [DONE] 的消息
+              answer: Buffer.from(completeMessage), // 使用添加了 [DONE] 的消息
               speakerType: 'assistant',
               status: CONFIG.CHAT_STATUS.COMPLETED,
               updateTime: now,
