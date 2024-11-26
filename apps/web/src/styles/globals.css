@@ -18,6 +18,7 @@ html {
 body {
   margin: 0;
   height: 100vh;
+  overflow: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -369,7 +370,7 @@ body {
   body {
     @apply bg-background text-foreground;
   }
-   /* shadcn */
+  /* shadcn */
   :root {
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
