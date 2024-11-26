@@ -999,8 +999,9 @@ router.post('/update', authMiddleware, async (req, res) => {
 
 // Chat 删除路由
 router.post('/delete', authMiddleware, async (req, res) => {
+  let validatedData;
   try {
-    const validatedData = validateSchema(deleteChatSchema, req.body, 'delete chat')
+    validatedData = validateSchema(deleteChatSchema, req.body, 'delete chat')
     if (!validatedData) {
       return res.status(400).json(createErrorResponse(400, '参数校验失败'))
     }
@@ -1015,60 +1016,125 @@ router.post('/delete', authMiddleware, async (req, res) => {
       },
     })
 
+    // 先检查聊天是否存在且属于当前用户
     const chat = await prisma().chat.findFirst({
       where: {
         id,
         userId: req.session.user.id,
       },
-      select: {
-        id: true,
-        documentRelations: {
-          select: {
-            documentId: true,
-          },
-        },
-      },
     })
 
     if (!chat) {
-      throw new AuthorizationError('对话不存在或无权访问')
+      return res.status(404).json(createErrorResponse(404, '对话不存在或无权限删除'))
     }
 
+    let filesToDelete: { fileId: string, filePath: string }[] = []
+
+    // 使用事务确保数据一致性
     await prisma().$transaction(async (tx) => {
-      if (chat.documentRelations?.length > 0) {
-        await tx.document.deleteMany({
+      // 0. 获取关联的文件信息
+      const fileRelations = await tx.chatFileRelation.findMany({
+        where: { chatId: id },
+        include: {
+          userFile: {
+            select: {
+              fileId: true,
+              filePath: true
+            }
+          }
+        }
+      })
+      filesToDelete = fileRelations.map(relation => ({
+        fileId: relation.userFile.fileId,
+        filePath: relation.userFile.filePath
+      }))
+
+      // 1. 获取关联的文档ID
+      const documentRelation = await tx.chatDocumentRelation.findFirst({
+        where: { chatId: id },
+        select: { documentId: true }
+      })
+
+      // 2. 删除聊天记录
+      await tx.chatRecord.deleteMany({
+        where: { chatId: id }
+      })
+
+      // 3. 删除文档关联
+      await tx.chatDocumentRelation.deleteMany({
+        where: { chatId: id }
+      })
+
+      // 4. 删除文件关联
+      await tx.chatFileRelation.deleteMany({
+        where: { chatId: id }
+      })
+
+      // 5. 删除关联的UserFile记录
+      if (filesToDelete.length > 0) {
+        await tx.userFile.deleteMany({
           where: {
-            id: {
-              in: chat.documentRelations.map((r) => r.documentId),
-            },
-          },
+            fileId: {
+              in: filesToDelete.map(file => file.fileId)
+            }
+          }
         })
       }
 
+      // 6. 如果存在关联文档，删除文档
+      if (documentRelation?.documentId) {
+        await tx.document.delete({
+          where: { id: documentRelation.documentId }
+        })
+      }
+
+      // 7. 删除聊天主记录
       await tx.chat.delete({
-        where: { id },
+        where: { id }
       })
     })
 
+    // 事务成功后，删除磁盘文件
+    for (const file of filesToDelete) {
+      try {
+        await fs.unlink(file.filePath)
+      } catch (error) {
+        logger().error({
+          msg: 'Failed to delete file from disk',
+          data: {
+            error,
+            fileId: file.fileId,
+            filePath: file.filePath
+          }
+        })
+      }
+    }
+
     logger().info({
-      msg: 'Chat and associated data deleted successfully',
+      msg: 'Chat deleted successfully',
       data: {
         chatId: id,
         userId: req.session.user.id,
-        documentCount: chat.documentRelations?.length || 0,
       },
     })
 
     return res.json({
       code: 0,
-      data: {},
+      data: null,
       msg: '删除成功',
     })
+
   } catch (err) {
-    if (err instanceof AuthorizationError) {
-      return res.status(403).json(createErrorResponse(403, err.message))
-    }
-    return handleError(err, req, res, 'delete chat')
+    logger().error({
+      msg: 'Failed to delete chat',
+      data: {
+        chatId: validatedData?.id,
+        userId: req.session.user.id,
+        error: err
+      },
+    })
+
+    return res.status(500).json(createErrorResponse(500, '删除失败'))
   }
 })
 
@@ -1773,7 +1839,7 @@ router.post('/stop', authMiddleware, async (req: Request, res: Response) => {
       activeRequests.delete(roundId)
     }
 
-    // 更新对话状态为完成
+    // 更新对话态为完成
     const currentAnswer = chatRecord.answer.toString()
     const updatedAnswer = currentAnswer.includes('[DONE]')
       ? currentAnswer
