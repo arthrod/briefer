@@ -189,11 +189,15 @@ function PrivateDocumentPageInner(
     }
 
     await props.publish()
-    router.push(`/workspaces/${props.document.workspaceId}/documents/${props.document.id}/notebook${window.location.search}`)
+    router.push(
+      `/workspaces/${props.document.workspaceId}/documents/${props.document.id}/notebook${window.location.search}`
+    )
   }, [props.publishing, props.publish])
 
   const onGoToApp = useCallback(() => {
-    router.push(`/workspaces/${props.document.workspaceId}/documents/${props.document.id}/notebook${window.location.search}`)
+    router.push(
+      `/workspaces/${props.document.workspaceId}/documents/${props.document.id}/notebook${window.location.search}`
+    )
   }, [router])
 
   const topBarContent = (
@@ -212,10 +216,11 @@ function PrivateDocumentPageInner(
         </span>
       </div>
 
-      <div className="flex h-[30px] w-full items-center justify-end gap-x-2">
+      <div className="flex h-[30px] w-full items-center justify-end gap-x-4">
+        {!isViewer && <RunAllV2 disabled={false} yDoc={yDoc} primary={props.isApp} />}
         {props.isApp ? (
           <Link
-            className="flex items-center justify-center gap-x-1.5 gap-x-2 rounded-sm border border-gray-200 bg-white px-3 py-1 text-sm text-gray-500 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex items-center gap-x-1.5 rounded-sm px-3 py-1 text-sm"
             href={`/workspaces/${props.document.workspaceId}/documents/${props.document.id}/notebook/edit`}>
             <img className="h-4 w-4" src="/icons/edit.svg" alt="" />
             <span>编辑</span>
@@ -282,7 +287,6 @@ function PrivateDocumentPageInner(
           onOpenFiles={onToggleFiles}
           onSchemaExplorer={onToggleSchemaExplorerSQLBlock}
         />
-        {!isViewer && <RunAllV2 disabled={false} yDoc={yDoc} primary={props.isApp} />}
 
         <Comments
           workspaceId={props.workspaceId}

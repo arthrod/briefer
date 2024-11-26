@@ -23,7 +23,7 @@ export default function Markdown(props: {
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath, remarkBreaks]}
         rehypePlugins={[rehypeKatex]}
-        className={`break-words ${className || ''}`}
+        className={`markdown-body break-words ${className || ''}`}
         // urlTransform={(url) => sanitizeUrl(url)}
         components={{
           code: (props: any) => CodeBlock({ ...props, hiddenCodeCopyButton }),
@@ -44,6 +44,7 @@ export default function Markdown(props: {
     [children]
   )
 }
+
 const customCode = ['content', 'title', 'json']
 
 const getTableDes = (jsonData: any) => {
@@ -88,7 +89,7 @@ export function CodeBlock(props: any) {
           )
         } catch (e) {}
       default:
-        return <div></div>
+        return <div>{block.content}</div>
     }
   }
   return useMemo(() => {

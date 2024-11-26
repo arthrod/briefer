@@ -126,7 +126,7 @@
   color: var(--color-fg-default);
   background-color: var(--color-canvas-default);
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 1.2;
   word-wrap: break-word;
 }
 
@@ -230,7 +230,7 @@
 .markdown-body pre,
 .markdown-body samp {
   font-family: monospace;
-  font-size: 1em;
+  font-size: 1rem;
 }
 
 .markdown-body figure {
@@ -478,16 +478,9 @@
 
 .markdown-body pre {
   position: relative;
-  margin-top: 0;
-  margin-bottom: 0;
-  font-family:
-    ui-monospace,
-    SFMono-Regular,
-    SF Mono,
-    Menlo,
-    Consolas,
-    Liberation Mono,
-    monospace;
+  // margin-top: 0;
+  // margin-bottom: 0;
+
   font-size: 12px;
   word-wrap: normal;
   &:hover {
@@ -582,8 +575,8 @@
 .markdown-body table,
 .markdown-body pre,
 .markdown-body details {
-  margin-top: 0;
-  margin-bottom: 10px;
+  margin: 0;
+  padding: 0;
 }
 
 .markdown-body blockquote > :first-child {
@@ -899,10 +892,10 @@
 
 .markdown-body .highlight pre,
 .markdown-body pre {
-  padding: 10px 10px 8px 10px;
-  overflow: auto;
-  font-size: 85%;
-  line-height: 1.45;
+  // padding: 10px 10px 8px 10px;
+  // overflow: auto;
+  // font-size: 85%;
+  line-height: 1.2;
   border-radius: 6px;
   direction: ltr;
 }
@@ -1179,7 +1172,7 @@
 
 .markdown-body .mermaid {
   border: var(--border-in-light);
-  margin-bottom: 10px;
+  // margin-bottom: 10px;
   border-radius: 4px;
   padding: 10px;
   background-color: var(--white);

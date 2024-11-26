@@ -113,7 +113,8 @@ export default function Layout({ children, pagePath, topBarClassname, topBarCont
   }
 
   return (
-    <div className={`flex h-full w-full ${syne.className}`}>
+    // <div className={`flex h-full w-full ${syne.className}`}>
+    <div className={`flex h-full w-full`}>
       <MobileWarning />
 
       <CommandPalette workspaceId={workspaceId} isOpen={isSearchOpen} setOpen={setSearchOpen} />
@@ -139,7 +140,6 @@ export default function Layout({ children, pagePath, topBarClassname, topBarCont
         <div className={styles.middle}>
           <ChatDetail
             ref={chatDetailRef}
-            loading={false}
             openLoading={() => {
               setLoading(true)
             }}

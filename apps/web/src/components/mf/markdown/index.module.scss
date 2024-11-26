@@ -1,31 +1,12 @@
 .content {
   color: #272a33;
   white-space: break-spaces;
-  // 只有在下一个兄弟元素存在时才加 margin-bottom
-  &:not(:last-child) {
-    margin-bottom: 1rem; // 只有在不是最后一个元素时才加 margin-bottom
-  }
-
-  // 只有在下一个元素是 .title 时才加 margin-bottom
-  &:has(+ .title) {
-    margin-bottom: 1rem; // 如果下一个元素是 .title，添加 margin-bottom
-  }
 }
 
 .title {
   font-size: 1rem;
   font-weight: 600;
   color: #272a33;
-
-  // 只有在下一个兄弟元素存在时才加 margin-bottom
-  &:not(:last-child) {
-    margin-bottom: 4px; // 只有在不是最后一个元素时才加 margin-bottom
-  }
-
-  // 只有在下一个元素是 .content 时才加 margin-bottom
-  &:has(+ .content) {
-    margin-bottom: 4px; // 如果下一个元素是 .content，添加 margin-bottom
-  }
 }
 
 .json {
@@ -33,7 +14,6 @@
   flex-direction: column;
   align-items: center;
   padding: 12px;
-
   background: #ffffff;
 
   border: 1px solid rgba(0, 0, 0, 0.06);
@@ -59,7 +39,6 @@
   }
 
   .tableDes {
-    margin-top: 8px;
     overflow: hidden;
     width: 100%;
   }
@@ -70,14 +49,5 @@
     span {
       white-space: nowrap;
     }
-  }
-
-  &:not(:last-child) {
-    margin-bottom: 4px; // 只有在不是最后一个元素时才加 margin-bottom
-  }
-
-  // 只有在下一个元素是 .content 时才加 margin-bottom
-  &:has(+ .content) {
-    margin-bottom: 4px; // 如果下一个元素是 .content，添加 margin-bottom
   }
 }

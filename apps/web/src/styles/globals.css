@@ -95,7 +95,7 @@ body {
   /* Add more CSS variables here. */
 }
 
-@font-face {
+/* @font-face {
   font-family: 'Trap';
   src: url('/fonts/Trap-Black.ttf');
   src: url('/fonts/Trap-Bold.ttf');
@@ -120,7 +120,7 @@ body {
   src: url('/fonts/Trap-ExtraBold.ttf');
   font-weight: 900;
   font-style: black;
-}
+} */
 
 @layer base {
   input[type='number']::-webkit-inner-spin-button,

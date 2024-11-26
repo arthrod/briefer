@@ -35,7 +35,6 @@ function RagDetail() {
         <ChatDetail
           ref={chatDetail}
           key={String(chatId)}
-          loading={loading}
           openLoading={() => {
             setLoading(true)
           }}
