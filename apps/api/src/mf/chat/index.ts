@@ -1584,9 +1584,9 @@ router.get(
 
             try {
               // 更新 ChatRecord 状态为结束，并存储错误信息和标题
-              await prisma().$transaction([
+              await prisma().$transaction(async (tx) => {
                 // 更新 ChatRecord
-                prisma().chatRecord.update({
+                await tx.chatRecord.update({
                   where: { id: roundId },
                   data: {
                     status: CONFIG.CHAT_STATUS.COMPLETED, // 结束状态
@@ -1594,37 +1594,48 @@ router.get(
                     speakerType: 'assistant',
                     updateTime: new Date(),
                   },
-                }),
-                // 更新 Chat 的标题和 isTitleSet 字段
-                prisma().chat.update({
+                })
+
+                // 检查是否已设置标题
+                const chat = await tx.chat.findUnique({
                   where: { id: chatId },
-                  data: {
+                  select: { isTitleSet: true }
+                })
+
+                // 只有当标题未设置时才更新标题
+                if (!chat?.isTitleSet) {
+                  const userInput = chatRecord.question
+                  const title = userInput.slice(0, 15) // 截取前15个字
+                  await tx.chat.update({
+                    where: { id: chatId },
+                    data: {
+                      title: title,
+                      isTitleSet: true,
+                      updateTime: new Date(),
+                    },
+                  })
+
+                  // 发送标题更新事件
+                  const updateData = {
+                    chatId: chatId,
                     title: title,
-                    isTitleSet: true,
-                    updateTime: new Date(),
-                  },
-                }),
-              ])
+                  }
 
-              // 发送标题更新事件
-              const updateData = {
-                chatId: chatId,
-                title: title,
-              }
+                  logger().info({
+                    msg: 'Emitting title update event for unrelated content',
+                    data: updateData,
+                  })
 
-              logger().info({
-                msg: 'Emitting title update event for unrelated content',
-                data: updateData,
-              })
+                  titleUpdateEmitter.emit('titleUpdate', updateData)
 
-              titleUpdateEmitter.emit('titleUpdate', updateData)
-
-              logger().info({
-                msg: 'Title update event emitted for unrelated content',
-                data: {
-                  chatId,
-                  listenerCount: titleUpdateEmitter.listenerCount('titleUpdate'),
-                },
+                  logger().info({
+                    msg: 'Title update event emitted for unrelated content',
+                    data: {
+                      chatId,
+                      listenerCount: titleUpdateEmitter.listenerCount('titleUpdate'),
+                    },
+                  })
+                }
               })
             } catch (dbError) {
               logger().error({
@@ -2049,14 +2060,12 @@ router.get('/title/update', authMiddleware, async (req: Request, res: Response) 
 
       try {
         // 验证该聊天是否属于当前用户
-        const chat = await prisma().chat.findFirst({
-          where: {
-            id: data.chatId,
-            userId: userId,
-          },
+        const chat = await prisma().chat.findUnique({
+          where: { id: data.chatId },
+          select: { userId: true }
         })
 
-        if (chat) {
+        if (chat && chat.userId === userId) {
           const message = JSON.stringify({
             chatId: data.chatId,
             title: data.title,
