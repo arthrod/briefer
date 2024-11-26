@@ -786,82 +786,87 @@ router.post(
         throw new ValidationError('未找到有效的工作区')
       }
 
-      const response = await prisma().$transaction(
-        async (tx) => {
-          const chat = await tx.chat.create({
+      const response = await prisma().$transaction(async (tx) => {
+        // 创建聊天
+        const chat = await tx.chat.create({
+          data: {
+            id: chatId,
+            userId,
+            title,
+            type: type === 'rag' ? 1 : 2,
+          },
+        })
+
+        // 创建初始问答记录，question 默认为空字符串
+        const chatRecord = await tx.chatRecord.create({
+          data: {
+            id: uuidv4(),
+            chatId: chat.id,
+            question: '',  // 默认空字符串
+            answer: Buffer.from(''),
+            speakerType: 'user',
+            status: CONFIG.CHAT_STATUS.START,
+          },
+        })
+
+        // 如果是报告类型，创建文件关联
+        if (type === 'report') {
+          await tx.chatRecordFileRelation.create({
             data: {
-              id: chatId,
-              userId,
-              title,
-              type: type === 'rag' ? 1 : 2,
+              id: uuidv4(),
+              chatRecordId: chatRecord.id,
+              fileId,
             },
           })
-
-          let documentId = null
-          if (type === 'report') {
-            const doc = await tx.document.create({
-              data: {
-                id: uuidv4(),
-                title: sanitizeInput('新的报告'),
-                workspaceId: workspace.workspaceId,
-                icon: 'DocumentIcon',
-                orderIndex: -1,
-              },
-            })
-            documentId = doc.id
-
-            await Promise.all([
-              tx.chatDocumentRelation.create({
-                data: {
-                  chatId: chat.id,
-                  documentId: doc.id,
-                },
-              }),
-              tx.chatFileRelation.create({
-                data: {
-                  chatId: chat.id,
-                  fileId,
-                },
-              }),
-            ])
-          }
-
-          return {
-            chatId: chat.id,
-            documentId,
-            title: chat.title,
-            type: type,
-            createdTime: formatDate(chat.createdTime),
-            workspaceId: workspace.workspaceId,
-          }
-        },
-        {
-          timeout: 5000,
         }
-      )
+
+        let documentId = null
+        if (type === 'report') {
+          const doc = await tx.document.create({
+            data: {
+              id: uuidv4(),
+              title: sanitizeInput('新的报告'),
+              workspaceId: workspace.workspaceId,
+              icon: 'DocumentIcon',
+              orderIndex: -1,
+            },
+          })
+          documentId = doc.id
+
+          await Promise.all([
+            tx.chatDocumentRelation.create({
+              data: {
+                chatId: chat.id,
+                documentId: doc.id,
+              },
+            }),
+            tx.chatFileRelation.create({
+              data: {
+                chatId: chat.id,
+                fileId,
+              },
+            }),
+          ])
+        }
+
+        return {
+          id: chat.id,
+          documentId,
+          title: chat.title,
+          type: type,
+          createdTime: formatDate(chat.createdTime),
+          workspaceId: workspace.workspaceId,
+        }
+      })
 
       logger().info({
         msg: 'Chat created successfully',
-        data: {
-          chatId: response.chatId,
-          documentId: response.documentId,
-          title: response.title,
-          type: response.type,
-          createdTime: response.createdTime,
-          userId,
-        },
+        data: response,
       })
 
       return res.json({
         code: 0,
-        data: {
-          id: response.chatId,
-          documentId: response.documentId,
-          title: response.title,
-          type: response.type,
-          createdTime: response.createdTime,
-          workspaceId: response.workspaceId,
-        },
+        data: response,
         msg: '创建成功',
       })
     } catch (err) {
@@ -1139,7 +1144,7 @@ router.post('/delete', authMiddleware, async (req, res) => {
 })
 
 // Chat Round 创建路由
-router.post('/round/create', authMiddleware, async (req, res) => {
+router.post('/round/create', authMiddleware, async (req: Request, res: Response) => {
   try {
     const validatedData = validateSchema(createChatRoundSchema, req.body, 'create chat round')
     if (!validatedData) {
@@ -1147,13 +1152,11 @@ router.post('/round/create', authMiddleware, async (req, res) => {
     }
 
     const { chatId, question } = validatedData
+    const userId = req.session.user.id
 
     logger().info({
       msg: 'Attempting to create chat round',
-      data: {
-        chatId,
-        userId: req.session.user.id,
-      },
+      data: { chatId, userId },
     })
 
     const chat = await prisma().chat.findFirst({
@@ -1161,31 +1164,59 @@ router.post('/round/create', authMiddleware, async (req, res) => {
         id: chatId,
         userId: req.session.user.id,
       },
+      include: {
+        records: {
+          orderBy: { createdTime: 'asc' },
+        },
+      },
     })
 
     if (!chat) {
       throw new AuthorizationError('对话不存在或无权访问')
     }
 
-    const sanitizedQuestion = sanitizeInput(question)
+    let chatRecord
+    if (chat.records && chat.records.length === 1 && chat.records[0]?.status === CONFIG.CHAT_STATUS.START) {
+      // 更新现有记录
+      chatRecord = await prisma().chatRecord.update({
+        where: { id: chat.records[0].id },
+        data: {
+          question: sanitizeInput(question),
+          status: CONFIG.CHAT_STATUS.START,
+          updateTime: new Date(),
+        },
+      })
 
-    const chatRecord = await prisma().chatRecord.create({
-      data: {
-        chatId,
-        question: sanitizedQuestion,
-        answer: Buffer.from(''),
-        speakerType: 'user',
-      },
-    })
+      logger().info({
+        msg: 'Updated existing chat record',
+        data: {
+          recordId: chatRecord.id,
+          chatId,
+          userId,
+        },
+      })
+    } else {
+      // 创建新记录
+      chatRecord = await prisma().chatRecord.create({
+        data: {
+          id: uuidv4(),
+          chatId,
+          question: sanitizeInput(question),
+          answer: Buffer.from(''),
+          speakerType: 'user',
+          status: CONFIG.CHAT_STATUS.START,
+        },
+      })
 
-    logger().info({
-      msg: 'Chat round created successfully',
-      data: {
-        recordId: chatRecord.id,
-        chatId,
-        userId: req.session.user.id,
-      },
-    })
+      logger().info({
+        msg: 'Created new chat record',
+        data: {
+          recordId: chatRecord.id,
+          chatId,
+          userId,
+        },
+      })
+    }
 
     return res.json({
       code: 0,
