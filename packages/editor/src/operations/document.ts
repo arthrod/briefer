@@ -228,10 +228,7 @@ export const groupBlockGroups = (
       ?.map((t) => t.clone()) ?? []
   const targetBlock = yLayout.get(targetIndex)
 
-  const activeDroppedTab = yLayout
-    .get(droppedIndex)
-    .getAttribute('current')
-    ?.clone()
+  const activeDroppedTab = yLayout.get(droppedIndex).getAttribute('current')?.clone()
 
   if (droppedIndex < targetIndex) {
     targetBlock.getAttribute('tabs')?.unshift(droppedTabs)
@@ -273,8 +270,7 @@ export const groupBlocks = (
     const prevTab = sourceBlockGroup.getAttribute('tabs')?.get(tabIndex - 1)
     const nextTab = sourceBlockGroup.getAttribute('tabs')?.get(tabIndex + 1)
 
-    const newCurrentTabId =
-      nextTab?.getAttribute('id') ?? prevTab?.getAttribute('id')
+    const newCurrentTabId = nextTab?.getAttribute('id') ?? prevTab?.getAttribute('id')
     const newCurrentRef = new Y.XmlElement('block-ref')
     newCurrentRef.setAttribute('id', newCurrentTabId ?? '')
     sourceBlockGroup.setAttribute('current', newCurrentRef)
@@ -319,9 +315,7 @@ export const checkCanDropBlockGroup = (
     return false
   }
 
-  return (
-    blockGroupIndex !== desiredIndex && blockGroupIndex + 1 !== desiredIndex
-  )
+  return blockGroupIndex !== desiredIndex && blockGroupIndex + 1 !== desiredIndex
 }
 
 export const checkCanDropBlock = (
@@ -358,10 +352,7 @@ export type RemoveBlockGroupResult =
     }
   | RemoveBlockGroupDashboardConflictResult
 
-function extractDashboardRefs(
-  tabRefs: TabRef[],
-  dashboard: Y.Map<YDashboardItem>
-): TabRef[] {
+function extractDashboardRefs(tabRefs: TabRef[], dashboard: Y.Map<YDashboardItem>): TabRef[] {
   const dashConflicts: TabRef[] = []
   const tabsByBlockId = new Map<string, TabRef>()
   for (const tab of tabRefs) {
@@ -423,17 +414,11 @@ export const removeBlockGroup = (
 }
 
 // A new function just to make the name very clear
-export const addDashboardOnlyBlock = (
-  yBlockDefs: Y.Map<YBlock>,
-  block: AddBlockGroupBlock
-) => {
+export const addDashboardOnlyBlock = (yBlockDefs: Y.Map<YBlock>, block: AddBlockGroupBlock) => {
   return createBlock(block, yBlockDefs)
 }
 
-export const removeDashboardBlock = (
-  yBlockDefs: Y.Map<YBlock>,
-  blockId: string
-) => {
+export const removeDashboardBlock = (yBlockDefs: Y.Map<YBlock>, blockId: string) => {
   const block = yBlockDefs.get(blockId)
   const blockType = block?.getAttribute('type')
   if (!block || !blockType) {

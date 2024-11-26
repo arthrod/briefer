@@ -19,7 +19,7 @@ function RagDetail() {
   const router = useRouter()
   const { chatId } = router.query
 
-  const send = (question: string) => {
+  const send = async (question: string) => {
     if (chatDetail.current) {
       chatDetail.current.addSendMsg(question)
     }
