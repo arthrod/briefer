@@ -19,7 +19,7 @@ function DashboardNotebookGroupButton(props: Props) {
             ? 'bg-ceramic-50 text-gray-900 -mr-px'
             : 'bg-white text-gray-500'
         )}
-        href={`/workspaces/${props.workspaceId}/documents/${props.documentId}/notebook${props.isEditing ? '/edit' : ''}`}
+        href={`/workspaces/${props.workspaceId}/documents/${props.documentId}/notebook${props.isEditing ? '/edit' : ''}${window.location.search}`}
       >
         <BookOpenIcon className="w-4 h-4" />
         <span>Notebook</span>
@@ -31,7 +31,7 @@ function DashboardNotebookGroupButton(props: Props) {
             ? 'bg-ceramic-50 text-gray-900 -ml-px'
             : 'bg-white text-gray-500'
         )}
-        href={`/workspaces/${props.workspaceId}/documents/${props.documentId}/dashboard${props.isEditing ? '/edit' : ''}`}
+        href={`/workspaces/${props.workspaceId}/documents/${props.documentId}/dashboard${props.isEditing ? '/edit' : ''}${window.location.search}`}
       >
         <Squares2X2Icon className="w-4 h-4" />
         <span>Dashboard</span>

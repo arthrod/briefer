@@ -360,7 +360,7 @@ const ChatDetail = forwardRef(
       [chatRound]
     )
     return (
-      <ScrollBar ref={scrollRef} className={styles.chatList} key={String(chatId)}>
+      <ScrollBar ref={scrollRef} className={styles.chatDetailLayout} key={String(chatId)}>
         {list.map((message, index) => getMessageElm(message, index))}
       </ScrollBar>
     )

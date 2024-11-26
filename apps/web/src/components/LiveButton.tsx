@@ -13,16 +13,14 @@ function LiveButton(props: Props) {
       title="Page never published"
       message="Publish this page to see a live version."
       position="bottom"
-      active={props.tooltipActive}
-    >
+      active={props.tooltipActive}>
       <button
-        className="flex items-center rounded-sm px-3 py-1 text-sm bg-white hover:bg-gray-100 text-gray-500 border border-gray-200 disabled:cursor-not-allowed disabled:bg-gray-100 group overflow-hidden group max-w-[42px] xl:max-w-[120px] hover:max-w-[120px] transition-mw duration-500"
+        className="transition-mw group flex max-w-[42px] items-center overflow-hidden rounded-sm border border-gray-200 bg-white px-3 py-1 text-sm text-gray-500 duration-500 hover:max-w-[120px] hover:bg-gray-100 disabled:cursor-not-allowed disabled:bg-gray-100 xl:max-w-[120px]"
         onClick={props.onClick}
-        disabled={props.disabled}
-      >
-        <EyeIcon className="min-w-4 min-h-4" />
+        disabled={props.disabled}>
+        <EyeIcon className="min-h-4 min-w-4" />
 
-        <span className="ml-2 opacity-0 group-hover:opacity-100 xl:opacity-100 duration-500 transition-opacity text-clip text-nowrap">
+        <span className="ml-2 text-clip text-nowrap opacity-0 transition-opacity duration-500 group-hover:opacity-100 xl:opacity-100">
           Live version
         </span>
       </button>

@@ -189,11 +189,11 @@ function PrivateDocumentPageInner(
     }
 
     await props.publish()
-    router.push(`/workspaces/${props.document.workspaceId}/documents/${props.document.id}/notebook`)
+    router.push(`/workspaces/${props.document.workspaceId}/documents/${props.document.id}/notebook${window.location.search}`)
   }, [props.publishing, props.publish])
 
   const onGoToApp = useCallback(() => {
-    router.push(`/workspaces/${props.document.workspaceId}/documents/${props.document.id}/notebook`)
+    router.push(`/workspaces/${props.document.workspaceId}/documents/${props.document.id}/notebook${window.location.search}`)
   }, [router])
 
   const topBarContent = (

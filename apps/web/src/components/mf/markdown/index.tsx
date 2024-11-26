@@ -10,6 +10,7 @@ import LinkSvg from '@/icons/link-icon.svg'
 
 import 'katex/dist/katex.min.css' // `rehype-katex` does not import the CSS for you
 import styles from './index.module.scss'
+import clsx from 'clsx'
 
 export default function Markdown(props: {
   children: string
@@ -51,17 +52,17 @@ const getTableDes = (jsonData: any) => {
 }
 
 export function CodeBlock(props: any) {
-  const renderBlock = (block: { type: string; content: string; jsonNumber?: number }) => {
+  const renderBlock = (block: { type: string; content: string }) => {
     switch (block.type) {
-      case 'content':
-        return <div className={styles.content}>{block.content}</div>
       case 'title':
         return <div className={styles.title}>{block.content}</div>
+      case 'content':
+        return <div className={clsx(styles.content, 'text-sm')}>{block.content}</div>
       case 'json':
         try {
           const jsonData = JSON.parse(block.content)
           return (
-            <div className={styles.json}>
+            <div className={clsx(styles.json, 'text-sm')}>
               <div className={styles.jsonTitle}>
                 <div className={styles.link}>
                   <a href={jsonData.link} target="_blank">
@@ -71,7 +72,7 @@ export function CodeBlock(props: any) {
                     <LinkSvg></LinkSvg>
                   </span>
                 </div>
-                <div className={styles.tips}>{'查找结果' + block.jsonNumber}</div>
+                {/* <div className={styles.tips}>{'查找结果' + block.jsonNumber}</div> */}
               </div>
               <div className={styles.tableDes}>{getTableDes(jsonData)}</div>
               <div className={styles.relatedColumns}>

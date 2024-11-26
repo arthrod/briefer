@@ -1,20 +1,19 @@
 .content {
-  font-size: 14px;
   color: #272a33;
-
+  white-space: break-spaces;
   // 只有在下一个兄弟元素存在时才加 margin-bottom
   &:not(:last-child) {
-    margin-bottom: 16px; // 只有在不是最后一个元素时才加 margin-bottom
+    margin-bottom: 1rem; // 只有在不是最后一个元素时才加 margin-bottom
   }
 
   // 只有在下一个元素是 .title 时才加 margin-bottom
   &:has(+ .title) {
-    margin-bottom: 16px; // 如果下一个元素是 .title，添加 margin-bottom
+    margin-bottom: 1rem; // 如果下一个元素是 .title，添加 margin-bottom
   }
 }
 
 .title {
-  font-size: 16px;
+  font-size: 1rem;
   font-weight: 600;
   color: #272a33;
 
@@ -49,31 +48,13 @@
       display: flex;
       align-items: center;
       color: #2f69fe;
-      font-size: 14px;
       font-weight: 600;
-      flex-shrink: 1;
-      text-overflow: ellipsis;
-      overflow: hidden;
-      white-space: nowrap;
       cursor: pointer;
       line-height: 1.1;
       border-bottom: 1px solid transparent;
       &:hover {
         border-color: #2f69fe;
       }
-    }
-
-    .tips {
-      margin-left: 8px;
-      color: #8792a4;
-      font-size: 14px;
-      min-width: 100px;
-      flex-grow: 1;
-      flex-shrink: 1;
-      text-overflow: ellipsis;
-      overflow: hidden;
-      white-space: nowrap;
-      text-align: right;
     }
   }
 
