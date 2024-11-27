@@ -1,5 +1,5 @@
 import DashboardSkeleton from '@/components/Dashboard/DashboardSkeleton'
-import Layout from '@/components/Layout'
+import WorkspaceLayout from '@/components/WorkspaceLayout'
 import { useSession } from '@/hooks/useAuth'
 import useDocument from '@/hooks/useDocument'
 import { useStringQuery } from '@/hooks/useQueryArgs'
@@ -44,9 +44,9 @@ export default function DashboardPage() {
 
   if (!document || !session.data || !role || !document.publishedAt) {
     return (
-      <Layout>
+      <WorkspaceLayout>
         <DashboardSkeleton />
-      </Layout>
+      </WorkspaceLayout>
     )
   }
 

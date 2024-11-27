@@ -10,7 +10,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import DataSourcesList, {
   dataSourcePrettyName,
 } from '@/components/DataSourcesList'
-import Layout from '@/components/Layout'
+import WorkspaceLayout from '@/components/WorkspaceLayout'
 import { useDataSources } from '@/hooks/useDatasources'
 import { useStringQuery } from '@/hooks/useQueryArgs'
 import DataSourcesInfo from '@/components/DataSourcesInfo'
@@ -105,7 +105,7 @@ export default function DataSourcesPage() {
   }, [])
 
   return (
-    <Layout pagePath={pagePath(workspaceId ?? '')}>
+    <WorkspaceLayout pagePath={pagePath(workspaceId ?? '')}>
       <DataSourcesInfo showInfo={showMoreInfo} closeInfo={closeInfo} />
       <OfflineDataSourceDialog
         dataSource={offlineDataSource}
@@ -152,7 +152,7 @@ export default function DataSourcesPage() {
         dataSourceId={schemaExplorerDataSourceId}
         canRetrySchema={true}
       />
-    </Layout>
+    </WorkspaceLayout>
   )
 }
 

@@ -7,9 +7,9 @@ import { X } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 import styles from './index.module.scss'
-import ErrorIcon from '../../../icons/toast-error.svg'
-import SuccessIcon from '../../../icons/toast-success.svg'
-import CommonIcon from '../../../icons/toast-common.svg'
+import ErrorIcon from '@/icons/toast-error.svg'
+import SuccessIcon from '@/icons/toast-success.svg'
+import CommonIcon from '@/icons/toast-common.svg'
 const ToastProvider = ToastPrimitives.Provider
 
 const ToastViewport = React.forwardRef<

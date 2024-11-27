@@ -5,7 +5,7 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/router'
 import { UserWorkspaceRole } from '@briefer/database'
 import { ContentSkeleton, TitleSkeleton } from '@/components/v2Editor/ContentSkeleton'
-import Layout from '@/components/Layout'
+import WorkspaceLayout from '@/components/WorkspaceLayout'
 import clsx from 'clsx'
 import { widthClasses } from '@/components/v2Editor/constants'
 
@@ -24,14 +24,14 @@ export default function DocumentPage() {
 
   if (!session.data && session.isLoading && !session.error) {
     return (
-      <Layout>
+      <WorkspaceLayout>
         <div className="flex w-full justify-center">
           <div className={clsx(widthClasses, 'py-20')}>
             <TitleSkeleton visible />
             <ContentSkeleton visible />
           </div>
         </div>
-      </Layout>
+      </WorkspaceLayout>
     )
   }
 
@@ -81,13 +81,13 @@ function PrivateDocumentPage(props: PrivateDocumentPageProps) {
   }, [document, loading, props.user])
 
   return (
-    <Layout>
+    <WorkspaceLayout>
       <div className="flex w-full justify-center">
         <div className={clsx(widthClasses, 'py-20')}>
           <TitleSkeleton visible />
           <ContentSkeleton visible />
         </div>
       </div>
-    </Layout>
+    </WorkspaceLayout>
   )
 }

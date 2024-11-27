@@ -20,5 +20,5 @@ export const useChatStop = () => {
 
         return getData<null>(res)
     }, [])
-    return useMemo(() => [{ stopChat }], [stopChat])
+    return useMemo(() => stopChat, [stopChat])
 }

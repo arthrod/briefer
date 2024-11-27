@@ -3,8 +3,8 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import styles from './index.module.scss'
 import ChatInput from '@/components/mf/ChatInput'
 
-import RagIcon from '../../icons/rag.svg'
-import ReportIcon from '../../icons/report.svg'
+import RagIcon from '@/icons/rag.svg'
+import ReportIcon from '@/icons/report.svg'
 import ChatLayout, { useChatLayoutContext } from '@/components/mf/ChatLayout'
 import clsx from 'clsx'
 import { useCreateChat } from '@/hooks/mf/chat/useCreateChat'
@@ -103,7 +103,7 @@ function HomePage() {
           className={styles.input}
           showUpload={type === 'report'}
           loading={loading}
-          send={send}
+          onSend={send}
         />
       </div>
       <div className={styles.suggestions} style={{ transform: `translateY(${translateY}px)` }}>

@@ -1,6 +1,6 @@
 import { Transition } from '@headlessui/react'
 import { XMarkIcon } from '@heroicons/react/20/solid'
-import Layout from '@/components/Layout'
+import WorkspaceLayout from '@/components/WorkspaceLayout'
 import Spin from '@/components/Spin'
 import FormError from '@/components/forms/formError'
 import { useSession } from '@/hooks/useAuth'
@@ -97,7 +97,7 @@ function Profile(props: Props) {
   )
 
   return (
-    <Layout pagePath={pagePath}>
+    <WorkspaceLayout pagePath={pagePath}>
       <div className="flex w-full justify-center">
         <div className="w-full overflow-scroll">
           <form className="px-4 sm:p-6 lg:p-12" onSubmit={handleSubmit(onSubmitHandler)} noValidate>
@@ -241,7 +241,7 @@ function Profile(props: Props) {
         </div>
       </div>
       <SuccessNotification show={success} onClose={onCloseSuccessNotificaiton} />
-    </Layout>
+    </WorkspaceLayout>
   )
 }
 

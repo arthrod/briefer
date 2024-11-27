@@ -9,17 +9,16 @@ import { useWorkspaces } from '@/hooks/useWorkspaces'
 import { useStringQuery } from '@/hooks/useQueryArgs'
 import { useSession, useSignout } from '@/hooks/useAuth'
 import { isBanned } from '@/utils/isBanned'
-import BannedPage from './BannedPage'
-import MobileWarning from './MobileWarning'
-import CommandPalette from './commandPalette'
+import BannedPage from '../BannedPage'
+import MobileWarning from '../MobileWarning'
+import CommandPalette from '../commandPalette'
 import { useHotkeys } from 'react-hotkeys-hook'
 
-import styles from './Layout.module.scss'
+import styles from './index.module.scss'
 import useSideBar from '@/hooks/useSideBar'
-import ChatDetail from './mf/ChatDetail'
-import ChatInput from './mf/ChatInput'
-import ToggleIcon from '../icons/toggle.svg'
-import { ChatSessionData } from '@/hooks/mf/chat/useChatSession'
+import ChatDetail, { ChatDetailRef } from '../mf/ChatDetail'
+import ChatInput from '../mf/ChatInput'
+import ToggleIcon from '@/icons/toggle.svg'
 
 const syne = Syne({ subsets: ['latin'] })
 
@@ -31,16 +30,17 @@ interface Props {
   hideOnboarding?: boolean
 }
 
-export default function Layout({ children, pagePath, topBarClassname, topBarContent }: Props) {
+export default function WorkspaceLayout({
+  children,
+  pagePath,
+  topBarClassname,
+  topBarContent,
+}: Props) {
   const [isSearchOpen, setSearchOpen] = useState(false)
   const [loading, setLoading] = useState(false)
 
   const scrollRef = useRef<HTMLDivElement>(null)
-  const chatDetailRef = useRef<{
-    addSendMsg: (msg: string) => Promise<ChatSessionData>
-    addReceiveMsg: (msg: string) => string
-    stopSendMsg: () => void
-  }>(null)
+  const chatDetailRef = useRef<ChatDetailRef>(null)
 
   const session = useSession()
   const router = useRouter()
@@ -149,7 +149,7 @@ export default function Layout({ children, pagePath, topBarClassname, topBarCont
         </div>
         <div className={styles.bottom}>
           <div className={styles.chatArea}>
-            <ChatInput loading={loading} showUpload={false} send={send} stop={stop} />
+            <ChatInput loading={loading} showUpload={false} onSend={send} onStop={stop} />
           </div>
         </div>
       </div>

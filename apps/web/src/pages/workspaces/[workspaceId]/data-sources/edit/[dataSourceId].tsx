@@ -6,7 +6,7 @@ import {
 import { useRouter } from 'next/router'
 import { useCallback } from 'react'
 
-import Layout from '@/components/Layout'
+import WorkspaceLayout from '@/components/WorkspaceLayout'
 import BigQueryForm, {
   BigQueryDataSourceInput,
 } from '@/components/forms/bigquery'
@@ -88,7 +88,7 @@ export default function EditDataSourcePostgresSQLPage() {
   console.log(data)
 
   return (
-    <Layout pagePath={pagePath} hideOnboarding>
+    <WorkspaceLayout pagePath={pagePath} hideOnboarding>
       <div className="w-full overflow-scroll">
         {data && data.config.type === 'psql' ? (
           <PostgreSQLForm
@@ -146,6 +146,6 @@ export default function EditDataSourcePostgresSQLPage() {
           />
         ) : null}
       </div>
-    </Layout>
+    </WorkspaceLayout>
   )
 }

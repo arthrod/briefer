@@ -7,7 +7,7 @@ import { useRouter } from 'next/router'
 import type { ApiDocument, ApiUser, UserWorkspaceRole } from '@briefer/database'
 import { isNil } from 'ramda'
 import { useDocuments } from '@/hooks/useDocuments'
-import Layout from './Layout'
+import WorkspaceLayout from './WorkspaceLayout'
 import Comments from './Comments'
 import RunAllV2 from './RunAllV2'
 import useFullScreenDocument from '@/hooks/useFullScreenDocument'
@@ -47,14 +47,14 @@ export default function PrivateDocumentPage(props: Props) {
 
   if (!document) {
     return (
-      <Layout>
+      <WorkspaceLayout>
         <div className="flex w-full justify-center">
           <div className={clsx(widthClasses, 'py-20')}>
             <TitleSkeleton visible />
             <ContentSkeleton visible />
           </div>
         </div>
-      </Layout>
+      </WorkspaceLayout>
     )
   }
 
@@ -267,7 +267,7 @@ function PrivateDocumentPageInner(
   )
 
   return (
-    <Layout topBarContent={topBarContent}>
+    <WorkspaceLayout topBarContent={topBarContent}>
       <div className="relative flex w-full">
         <V2Editor
           document={props.document}
@@ -346,6 +346,6 @@ function PrivateDocumentPageInner(
           </>
         )}
       </div>
-    </Layout>
+    </WorkspaceLayout>
   )
 }

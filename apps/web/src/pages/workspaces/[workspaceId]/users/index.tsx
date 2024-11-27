@@ -4,7 +4,7 @@ import Link from 'next/link'
 import React, { useCallback, useState } from 'react'
 
 import UsersList from '@/components/UsersList'
-import Layout from '@/components/Layout'
+import WorkspaceLayout from '@/components/WorkspaceLayout'
 import { useUsers } from '@/hooks/useUsers'
 import { useStringQuery } from '@/hooks/useQueryArgs'
 import { useSession } from '@/hooks/useAuth'
@@ -65,7 +65,7 @@ export default function UsersPage() {
   }, [])
 
   return (
-    <Layout pagePath={pagePath(workspaceId ?? '')}>
+    <WorkspaceLayout pagePath={pagePath(workspaceId ?? '')}>
       <div className="h-full w-full overflow-scroll bg-white">
         <div className="px-4 sm:p-6 lg:p-8">
           <div className="border-b border-gray-200 pb-4 sm:flex sm:items-center sm:justify-between">
@@ -105,6 +105,6 @@ export default function UsersPage() {
         </div>
       </div>
       <PasswordDialog user={newPassword} onClose={onClosePasswordDialog} isReset />
-    </Layout>
+    </WorkspaceLayout>
   )
 }

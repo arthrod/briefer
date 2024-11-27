@@ -11,7 +11,7 @@ import styles from './index.module.scss'
 import clsx from 'clsx'
 import { MessageContent, RagDetailData, useChatDetail } from '@/hooks/mf/chat/useChatDetail'
 import { useRouter } from 'next/router'
-import { ChatSessionData, useChatSession } from '@/hooks/mf/chat/useChatSession'
+import { ChatSessionCreateData, useChatSessionCreate } from '@/hooks/mf/chat/useChatSessionCreate'
 import { ChatSession, useChatLayoutContext } from '../ChatLayout'
 import { v4 as uuidv4 } from 'uuid'
 import { showToast } from '../Toast'
@@ -28,40 +28,48 @@ export interface ChatDetailProps {
   receiveMsgDone?: () => void
 }
 
+export interface ChatDetailRef {
+  addSendMsg: (msg: string) => Promise<ChatSessionCreateData | void>
+  addAssistantMsg: (msg: string) => MessageContent
+  updateMsg: (id: string, msg: string, error: boolean) => void
+  stopSendMsg: () => void
+}
+
 type ChatRound = {
   data: ChatStatus | null
   timeoutId: number
 }
 
-const ChatDetail = forwardRef(
-  ({ openLoading, closeLoading, receiveMsgDone }: ChatDetailProps, ref) => {
+const ChatDetail = forwardRef<ChatDetailRef, ChatDetailProps>(
+  ({ openLoading, closeLoading, receiveMsgDone }, ref) => {
     const [list, setList] = useState<MessageContent[]>([])
-    const [chatSession, setChatSession] = useState<ChatSession | null>(null)
     const [chatRound, setChatRound] = useState<ChatRound>({ data: null, timeoutId: -1 })
 
     const [waiting, setWaiting] = useState(false)
 
+    const chatSession = useRef<ChatSession | null>(null)
     const scrollRef = useRef<HTMLDivElement>(null)
     const latestChatRound = useRef(chatRound)
 
-    const [{ createChatSession }] = useChatSession()
-    const { startRound, getCache } = useChatLayoutContext()
-    const [{ getChatStatus }] = useChatStatus()
-    const [{ stopChat }] = useChatStop()
     const session = useSession()
-    const getChatDetail = useChatDetail()
+    const { startRound, getCache } = useChatLayoutContext()
 
-    useImperativeHandle(ref, () => ({
-      addSendMsg: addSendMsg,
-      addReceiveMsg: addReceiveMsg,
-      updateMsg: updateMsg,
-      stopSendMsg: stopSendMSg,
-    }))
+    const getChatDetail = useChatDetail()
+    const createChatSession = useChatSessionCreate()
+    const getChatStatus = useChatStatus()
+    const stopChat = useChatStop()
 
     const firstLetter = session.data?.loginName.charAt(0).toUpperCase() // 获取用户名的第一个字母并转为大写
 
     const router = useRouter()
     const chatId = router.query.chatId
+
+    useImperativeHandle(ref, () => ({
+      addSendMsg: addSendMsg,
+      addAssistantMsg: addAssistantMsg,
+      updateMsg: updateMsg,
+      stopSendMsg: stopSendMSg,
+    }))
 
     useEffect(() => {
       setTimeout(scrollToBottom, 100)
@@ -122,11 +130,12 @@ const ChatDetail = forwardRef(
     }, [])
 
     const stopSendMSg = useCallback((): void => {
-      if (chatSession) {
-        stopChat(chatSession.roundId)
+      if (chatSession.current) {
+        const { roundId, eventSource, listener } = chatSession.current
+        stopChat(roundId)
           .then(() => {
-            chatSession.eventSource.close()
-            chatSession.listener.close()
+            eventSource.close()
+            listener.close()
           })
           .catch(() => {
             showToast('停止失败，请重试', 'error')
@@ -150,47 +159,48 @@ const ChatDetail = forwardRef(
       }
     }, [list, chatRound])
 
-    const addSendMsg = useCallback(
-      (msg: string): void => {
-        if (msg && !waiting) {
-          openLoading()
-          setWaiting(true)
-          createChatSession(msg, String(chatId))
-            .then((data: ChatSessionData) => {
-              const msgId = uuidv4()
-              const msgContent: MessageContent = {
-                id: msgId,
-                role: 'user',
-                content: msg,
-              }
-              setList((messageList) => [...messageList, msgContent])
-              const receiveMsg = addReceiveMsg('')
-              receiveMsg.roundId = data.id
-              waitingReceive(receiveMsg.id, data.id)
-            })
-            .catch((e) => {
-              showToast('消息发送失败，请检查网络', 'error')
-              closeLoading()
-              setWaiting(false)
-            })
-        }
-      },
-      [waiting, list]
-    )
+    const addSendMsg = async (msg: string) => {
+      if (msg && !waiting) {
+        openLoading()
+        setWaiting(true)
+        return await createChatSession(msg, String(chatId))
+          .then((data) => {
+            const msgId = uuidv4()
+            const msgContent: MessageContent = {
+              id: msgId,
+              role: 'user',
+              content: msg,
+            }
+            setList((messageList) => [...messageList, msgContent])
+            const receiveMsg = addAssistantMsg('')
+            receiveMsg.roundId = data.id
+            waitingReceive(receiveMsg.id, data.id)
+            return data
+          })
+          .catch((e) => {
+            showToast('消息发送失败，请检查网络', 'error')
+            closeLoading()
+            setWaiting(false)
+          })
+      } else {
+        return Promise.reject('')
+      }
+    }
 
     const waitingReceive = (msgId: string, roundId: string) => {
-      const chatSession = startRound(String(chatId), roundId)
-      setChatSession(chatSession)
-      chatSession.listener.onopen = () => {
+      const _chatSession = startRound(String(chatId), roundId)
+      chatSession.current = _chatSession
+
+      _chatSession.listener.onopen = () => {
         openLoading()
       }
-      chatSession.listener.onerror = (error) => {
+      _chatSession.listener.onerror = (error) => {
         updateMsg(msgId, '服务错误', true)
         setWaiting(false)
         closeLoading()
       }
 
-      chatSession.listener.onmessage = (event) => {
+      _chatSession.listener.onmessage = (event) => {
         let { data } = event
         if (data === '[DONE]') {
           _receiveMsgDone()
@@ -207,14 +217,14 @@ const ChatDetail = forwardRef(
         })
       }
 
-      chatSession.listener.close = () => {
+      _chatSession.listener.close = () => {
         setWaiting(false)
         updateMsgStatus(msgId)
         closeLoading()
       }
     }
 
-    const addReceiveMsg = (msg: string): MessageContent => {
+    const addAssistantMsg = (msg: string) => {
       const msgContent: MessageContent = {
         id: uuidv4(),
         role: 'assistant',
@@ -236,7 +246,7 @@ const ChatDetail = forwardRef(
       )
     }, [])
 
-    const updateMsg = useCallback((id: string, msg: string, error: boolean): void => {
+    const updateMsg = (id: string, msg: string, error: boolean) => {
       setList((prevList) =>
         prevList.map(
           (item) =>
@@ -245,7 +255,7 @@ const ChatDetail = forwardRef(
               : item // 否则保持不变
         )
       )
-    }, [])
+    }
 
     const handleRegenerate = (message: MessageContent) => {
       updateMsg(message.id, '', false)
@@ -255,10 +265,10 @@ const ChatDetail = forwardRef(
     }
 
     const _receiveMsgDone = () => {
-      chatSession?.eventSource.close()
-      chatSession?.listener.close()
+      chatSession.current?.eventSource.close()
+      chatSession.current?.listener.close()
+      chatSession.current = null
       setWaiting(false)
-      setChatSession(null)
       if (receiveMsgDone) {
         receiveMsgDone()
       }

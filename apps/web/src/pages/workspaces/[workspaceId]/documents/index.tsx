@@ -1,4 +1,4 @@
-import Layout from '@/components/Layout'
+import WorkspaceLayout from '@/components/WorkspaceLayout'
 import { ContentSkeleton, TitleSkeleton } from '@/components/v2Editor/ContentSkeleton'
 import { widthClasses } from '@/components/v2Editor/constants'
 import { useDocuments } from '@/hooks/useDocuments'
@@ -31,13 +31,13 @@ export default function DocumentsPage() {
   }, [documents, state.loading, createDocument, workspaceId])
 
   return (
-    <Layout>
+    <WorkspaceLayout>
       <div className="flex w-full justify-center">
         <div className={clsx(widthClasses, 'w-full py-20')}>
           <TitleSkeleton visible />
           <ContentSkeleton visible />
         </div>
       </div>
-    </Layout>
+    </WorkspaceLayout>
   )
 }

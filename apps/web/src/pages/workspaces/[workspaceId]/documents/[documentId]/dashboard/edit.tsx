@@ -1,5 +1,5 @@
 import DashboardSkeleton from '@/components/Dashboard/DashboardSkeleton'
-import Layout from '@/components/Layout'
+import WorkspaceLayout from '@/components/WorkspaceLayout'
 import { useSession } from '@/hooks/useAuth'
 import useDocument from '@/hooks/useDocument'
 import { useStringQuery } from '@/hooks/useQueryArgs'
@@ -52,9 +52,9 @@ export default function EditDashboardPage() {
 
   if (!document || !user || !role || role === 'viewer') {
     return (
-      <Layout>
+      <WorkspaceLayout>
         <DashboardSkeleton />
-      </Layout>
+      </WorkspaceLayout>
     )
   }
 

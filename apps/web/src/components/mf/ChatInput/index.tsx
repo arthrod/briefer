@@ -1,8 +1,8 @@
 import styles from './index.module.scss'
-import UploadIcon from '../../../icons/upload.svg'
-import SendIcon from '../../../icons/send.svg'
-import FileIcon from '../../../icons/file.svg'
-import DeleteIcon from '../../../icons/delete.svg'
+import UploadIcon from '@/icons/upload.svg'
+import SendIcon from '@/icons/send.svg'
+import FileIcon from '@/icons/file.svg'
+import DeleteIcon from '@/icons/delete.svg'
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import clsx from 'clsx'
@@ -13,11 +13,11 @@ interface IProps {
   className?: string
   showUpload: boolean
   loading?: boolean
-  send?: (question: string, fileId?: string) => Promise<void>
-  stop?: () => void
+  onSend?: (question: string, fileId?: string) => Promise<void>
+  onStop?: () => void
 }
 
-const ChatInput = ({ className, showUpload, loading = false, send, stop }: IProps) => {
+const ChatInput = ({ className, showUpload, loading = false, onSend, onStop }: IProps) => {
   const [question, setQuestion] = useState('')
   const [disabled, setDisabled] = useState(true)
 
@@ -84,12 +84,14 @@ const ChatInput = ({ className, showUpload, loading = false, send, stop }: IProp
       xhr.send(formData)
     }
   }
+
   const handleSend = () => {
     if (loading) {
       return
     }
-    if (send) {
-      send(question, fileId)
+
+    if (onSend) {
+      onSend(question, fileId)
         .then(() => {
           setQuestion('')
           if (questionRef.current) {
@@ -155,7 +157,7 @@ const ChatInput = ({ className, showUpload, loading = false, send, stop }: IProp
             className={clsx(styles.sendBtn, styles.loading)}
             onClick={(e) => {
               if (loading) {
-                stop && stop()
+                onStop && onStop()
               }
             }}>
             <span className={styles.stopSquare}></span>
@@ -200,14 +202,7 @@ const ChatInput = ({ className, showUpload, loading = false, send, stop }: IProp
           </div>
         </PopoverContent>
       </Popover>
-      <input
-        ref={fileInputRef}
-        type="file"
-        onChange={(e) => {
-          handleFileChangeEvent(e)
-        }}
-        hidden
-      />
+      <input ref={fileInputRef} type="file" onChange={handleFileChangeEvent} hidden />
     </div>
   )
 }

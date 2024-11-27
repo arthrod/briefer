@@ -6,9 +6,9 @@ import Spin from '@/components/Spin'
 import Cookies from 'js-cookie'
 import useProperties from '@/hooks/useProperties'
 import styles from './index.module.scss'
-import AccountSvg from '../../icons/login_account.svg'
-import PwdSvg from '../../icons/logn_pwd.svg'
-import MindFlowSvg from '../../icons/mind-flow.svg'
+import AccountSvg from '@/icons/login_account.svg'
+import PwdSvg from '@/icons/login_pwd.svg'
+import MindFlowSvg from '@/icons/mind-flow.svg'
 import { Checkbox } from '@/components/mf/Checkbox/Checkbox'
 import { CheckedState } from '@radix-ui/react-checkbox'
 
@@ -19,16 +19,16 @@ export default function Login() {
   const tokenExists = Cookies.get('sessionExpiry')
   const [remePwd, setRemePwd] = useState<boolean | 'indeterminate'>(false)
   useEffect(() => {
-    const value = localStorage.getItem('remePwd');
-    const username = localStorage.getItem('username') || '';
-    const booleanValue = value === 'true';
-    setRemePwd(booleanValue);
+    const value = localStorage.getItem('remePwd')
+    const username = localStorage.getItem('username') || ''
+    const booleanValue = value === 'true'
+    setRemePwd(booleanValue)
     if (value) {
       setUsername(username)
     }
   }, [])
   const onChangeChecked = useCallback((checked: CheckedState) => {
-    setRemePwd(checked);
+    setRemePwd(checked)
     localStorage.setItem('remePwd', checked.toString())
   }, [])
   useEffect(() => {
@@ -45,7 +45,6 @@ export default function Login() {
     [setUsername]
   )
 
-
   const [password, setPassword] = useState('')
   const onChangePassword: ChangeEventHandler<HTMLInputElement> = useCallback(
     (e) => {
@@ -53,7 +52,6 @@ export default function Login() {
     },
     [setPassword]
   )
-
 
   const [auth, { loginWithPassword }] = useLogin()
 
@@ -87,33 +85,25 @@ export default function Login() {
   }
 
   return (
-    <div
-      className={clsx('w-100vw relative h-full overflow-hidden', styles.login_home)}>
+    <div className={clsx('w-100vw relative h-full overflow-hidden', styles.login_home)}>
       <div className={styles.top}>
-        <MindFlowSvg
-          className={styles.mindflow_icon}
-        ></MindFlowSvg>
+        <MindFlowSvg className={styles.mindflow_icon}></MindFlowSvg>
         <div className={styles.content}>
-
           {/*
-         * This padding must match the sum of the paddings of the messages at
-         * the bottom of the box so that the box is centered with the logo on
-         * the left.
-         */}
+           * This padding must match the sum of the paddings of the messages at
+           * the bottom of the box so that the box is centered with the logo on
+           * the left.
+           */}
           <div>
-
-
-            <div
-              className={clsx(
-                'flex flex-col rounded-lg',
-                styles.form
-              )}>
+            <div className={clsx('flex flex-col rounded-lg', styles.form)}>
               <h2 className="text-hunter-900 text-4xl font-bold tracking-tight">登录</h2>
 
-              <form onSubmit={onPasswordAuth} className='mt-[16px]'>
+              <form onSubmit={onPasswordAuth} className="mt-[16px]">
                 <div>
                   <div className={clsx('pb-4')}>
-                    <label htmlFor="username" className="block pb-2 text-sm leading-6 text-gray-500">
+                    <label
+                      htmlFor="username"
+                      className="block pb-2 text-sm leading-6 text-gray-500">
                       帐号
                     </label>
                     <div className={styles.input_layout}>
@@ -132,7 +122,9 @@ export default function Login() {
                   </div>
 
                   <div className={clsx('mt-[28px]')}>
-                    <label htmlFor="username" className="block pb-2 text-sm leading-6 text-gray-500">
+                    <label
+                      htmlFor="username"
+                      className="block pb-2 text-sm leading-6 text-gray-500">
                       密码
                     </label>
                     <div className={styles.input_layout}>
@@ -150,18 +142,24 @@ export default function Login() {
                       />
                     </div>
                   </div>
-                  <div className="flex items-center space-x-2 mt-[18px]">
+                  <div className="mt-[18px] flex items-center space-x-2">
                     <Checkbox id="terms" checked={remePwd} onCheckedChange={onChangeChecked} />
                     <label
                       htmlFor="terms"
-                      className={clsx("text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
+                      className={clsx(
+                        'text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70',
                         styles.checkbox
-
                       )}>
                       记住用户名
                     </label>
                   </div>
-                  <div className={clsx(auth.error ? 'visible' : 'hidden', 'flex', 'mt-[10px]', styles.errorHint)}>
+                  <div
+                    className={clsx(
+                      auth.error ? 'visible' : 'hidden',
+                      'flex',
+                      'mt-[10px]',
+                      styles.errorHint
+                    )}>
                     <div className={styles.errorText}>
                       {auth.error === 'unexpected' && '出现了未知问题. 请联系运维人员.'}
                       {auth.error === 'invalid-creds' && '用户名或密码错误'}
@@ -176,7 +174,7 @@ export default function Login() {
                         'flex w-full items-center justify-center rounded-sm px-6 py-3 text-sm font-medium shadow-sm disabled:bg-gray-200 disabled:hover:cursor-not-allowed'
                       )}>
                       <span>登录</span>
-                      {auth.loading && <Spin color='#ffffff' wrapperClassName="pl-2" />}
+                      {auth.loading && <Spin color="#ffffff" wrapperClassName="pl-2" />}
                     </button>
                   </div>
                 </div>

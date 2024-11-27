@@ -3,7 +3,7 @@ import React, { useEffect } from 'react'
 
 import { useStringQuery } from '@/hooks/useQueryArgs'
 import { useRouter } from 'next/router'
-import Layout from '@/components/Layout'
+import WorkspaceLayout from '@/components/WorkspaceLayout'
 
 const pagePath = (workspaceId: string) => [
   { name: 'Configurations', icon: Cog8ToothIcon, href: '#', current: false },
@@ -24,9 +24,9 @@ export default function EnvironmentsPage() {
   }, [workspaceId, router])
 
   return (
-    <Layout pagePath={pagePath(workspaceId ?? '')}>
+    <WorkspaceLayout pagePath={pagePath(workspaceId ?? '')}>
       <EnvironmentsPlaceholder />
-    </Layout>
+    </WorkspaceLayout>
   )
 }
 
