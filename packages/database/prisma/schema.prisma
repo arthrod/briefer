@@ -560,6 +560,7 @@ enum ChatSpeakerType {
 model ChatRecord {
   id          String          @id @default(uuid()) @db.Uuid
   chatId      String          @db.Uuid
+  roundId     String?         @db.Uuid
   question    String
   answer      Bytes
   speakerType ChatSpeakerType @default(user)
@@ -572,6 +573,7 @@ model ChatRecord {
 
   @@map("ChatRecord")
   @@index([chatId])
+  @@index([roundId])
 }
 
 model ChatRecordFileRelation {

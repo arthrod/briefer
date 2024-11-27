@@ -146,6 +146,19 @@ async function handleJsonContent(
         if (parsedJson.type === 'normal') {
             // 处理普通消息
             res.write(`data: ${parsedJson.content}\n\n`)
+            // 创建新的对话记录
+            await prisma().chatRecord.create({
+                data: {
+                    id: crypto.randomUUID(),  // 生成新的 UUID
+                    chatId: updateTarget.chatId,
+                    roundId: updateTarget.roundId,  // 使用原始记录的 ID 作为 roundId
+                    question: '',  // 添加空的 question 字段
+                    answer: Buffer.from(parsedJson.content),
+                    status: 3, // COMPLETED
+                    createdTime: new Date(),
+                    updateTime: new Date()
+                }
+            });
             res.write('data: [NEW_STEP]\n\n')
         } else if (parsedJson.type === 'document') {
             // 处理文档块
@@ -177,6 +190,7 @@ async function handleStreamEnd(
     try {
         const now = new Date()
 
+        // 更新原始对话记录的状态为完成
         await prisma().$transaction([
             prisma().chatRecord.update({
                 where: { id: updateTarget.roundId },
@@ -373,12 +387,40 @@ export async function handleReportStreamResponse(
                                 completeMessage += content;
                                 // 只发送 content 部分到前端
                                 res.write(`data: ${parsedContent.content}\n\n`);
-                                // 在这里添加 [NEW_STEP]
+
+                                // 创建新的对话记录
+                                await prisma().chatRecord.create({
+                                    data: {
+                                        id: crypto.randomUUID(),  // 生成新的 UUID
+                                        chatId: updateTarget.chatId,
+                                        roundId: updateTarget.roundId,  // 使用原始记录的 ID 作为 roundId
+                                        question: '',  // 添加空的 question 字段
+                                        answer: Buffer.from(parsedContent.content),
+                                        status: 3, // COMPLETED
+                                        createdTime: new Date(),
+                                        updateTime: new Date()
+                                    }
+                                });
+
                                 res.write('data: [NEW_STEP]\n\n');
                             } catch (parseError) {
                                 // 如果解析失败，说明不是 JSON 格式，直接发送原始内容
                                 completeMessage += content;
                                 res.write(`data: ${content}\n\n`);
+
+                                // 创建新的对话记录
+                                await prisma().chatRecord.create({
+                                    data: {
+                                        id: crypto.randomUUID(),  // 生成新的 UUID
+                                        chatId: updateTarget.chatId,
+                                        roundId: updateTarget.roundId,  // 使用原始记录的 ID 作为 roundId
+                                        question: '',  // 添加空的 question 字段
+                                        answer: Buffer.from(content),
+                                        status: 3, // COMPLETED
+                                        createdTime: new Date(),
+                                        updateTime: new Date()
+                                    }
+                                });
                             }
                         }
                     } catch (jsonError) {

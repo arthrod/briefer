@@ -822,10 +822,12 @@ router.post(
         })
 
         // 创建初始问答记录，question 默认为空字符串
+        const recordId = uuidv4();
         const chatRecord = await tx.chatRecord.create({
           data: {
-            id: uuidv4(),
+            id: recordId,
             chatId: chat.id,
+            roundId: recordId,  // 使用相同的 ID 作为 roundId
             question: '',  // 默认空字符串
             answer: Buffer.from(''),
             speakerType: 'user',
@@ -1225,6 +1227,7 @@ router.post('/round/create', authMiddleware, async (req: Request, res: Response)
         data: {
           id: uuidv4(),
           chatId,
+          roundId: uuidv4(), // 使用新的 ID 作为 roundId
           question: sanitizeInput(question),
           answer: Buffer.from(''),
           speakerType: 'user',
@@ -1235,7 +1238,7 @@ router.post('/round/create', authMiddleware, async (req: Request, res: Response)
       logger().info({
         msg: 'Created new chat record',
         data: {
-          recordId: chatRecord.id,
+          recordId: chatRecord.roundId,
           chatId,
           userId,
         },
@@ -1245,7 +1248,7 @@ router.post('/round/create', authMiddleware, async (req: Request, res: Response)
     return res.json({
       code: 0,
       data: {
-        id: chatRecord.id,
+        id: chatRecord.roundId,
       },
       msg: '创建成功',
     })
