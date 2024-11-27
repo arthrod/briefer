@@ -12,6 +12,7 @@ import { Send } from 'express-serve-static-core'
 import fs from 'fs/promises'
 import path from 'path'
 import { titleUpdateEmitter } from './title-summarizer.js'
+import { handleReportStreamResponse } from './report-stream.js'
 
 // 1. 将所有配置常量集中到一个对象中
 const CONFIG = {
@@ -1390,7 +1391,7 @@ router.get(
   '/completions',
   authMiddleware,
   // completionsLimiter,
-  async (req, res) => {
+  async (req: Request, res: Response) => {
     // 在路由开始就建立 SSE 连接
     setupSSEConnection(res)
 
@@ -1495,7 +1496,7 @@ router.get(
             }
           });
 
-          const response = await fetchWithTimeout(
+          const fetchResponse = await fetchWithTimeout(
             `${CONFIG.AI_AGENT_URL}${CONFIG.AI_AGENT_ENDPOINTS.REPORT_COMPLETIONS}`,
             {
               method: 'POST',
@@ -1509,15 +1510,12 @@ router.get(
             CONFIG.AI_AGENT_TIMEOUT
           )
 
-          // 处理响应
-          await handleStreamResponse(
-            response,
+          await handleReportStreamResponse(
+            fetchResponse,
+            req,
             res,
-            {
-              type: 'chat_record',
-              chatId,
-              roundId
-            },
+            chatId,
+            roundId,
             controller
           )
         } else { // rag类型
