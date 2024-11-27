@@ -154,6 +154,7 @@ async function handleJsonContent(
                     roundId: updateTarget.roundId,  // 使用原始记录的 ID 作为 roundId
                     question: '',  // 添加空的 question 字段
                     answer: Buffer.from(parsedJson.content),
+                    speakerType: 'assistant',
                     status: 3, // COMPLETED
                     createdTime: new Date(),
                     updateTime: new Date()
@@ -396,6 +397,7 @@ export async function handleReportStreamResponse(
                                         roundId: updateTarget.roundId,  // 使用原始记录的 ID 作为 roundId
                                         question: '',  // 添加空的 question 字段
                                         answer: Buffer.from(parsedContent.content),
+                                        speakerType: 'assistant',
                                         status: 3, // COMPLETED
                                         createdTime: new Date(),
                                         updateTime: new Date()
@@ -416,6 +418,7 @@ export async function handleReportStreamResponse(
                                         roundId: updateTarget.roundId,  // 使用原始记录的 ID 作为 roundId
                                         question: '',  // 添加空的 question 字段
                                         answer: Buffer.from(content),
+                                        speakerType: 'assistant',
                                         status: 3, // COMPLETED
                                         createdTime: new Date(),
                                         updateTime: new Date()

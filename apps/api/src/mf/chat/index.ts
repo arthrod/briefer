@@ -1331,31 +1331,49 @@ router.post(
         throw new AuthorizationError('聊天记录不存在或无权访问')
       }
 
-      const messages = chat.records.flatMap((record) => [
-        {
-          id: record.id,
-          role: 'user',
-          content: sanitizeInput(record.question),
-          status: 'success',
-        },
-        {
-          id: record.id,
-          role: 'assistant',
-          content: record.answer.toString(),
-          status: (() => {
-            switch (record.status) {
-              case CONFIG.CHAT_STATUS.FAILED:
-                return 'error'
-              case CONFIG.CHAT_STATUS.CHATTING:
-                return 'chatting'
-              case CONFIG.CHAT_STATUS.START:
-              case CONFIG.CHAT_STATUS.COMPLETED:
-              default:
-                return 'success'
-            }
-          })(),
-        },
-      ])
+      // 首先按时间排序聊天记录
+      const sortedRecords = [...chat.records].sort((a, b) => 
+        a.createdTime.getTime() - b.createdTime.getTime()
+      );
+
+      // 转换聊天记录为消息格式
+      const messages = sortedRecords.flatMap((record) => {
+        const messages = [];
+
+        // 只有当 question 有内容时才添加 user 消息
+        if (record.question) {
+          messages.push({
+            id: record.id,
+            role: 'user',
+            content: sanitizeInput(record.question),
+            status: 'success',
+          });
+        }
+
+        // 只有当 answer 有内容时才添加 assistant 消息
+        const answerContent = record.answer.toString();
+        if (answerContent) {
+          messages.push({
+            id: record.id,
+            role: 'assistant',
+            content: answerContent,
+            status: (() => {
+              switch (record.status) {
+                case CONFIG.CHAT_STATUS.FAILED:
+                  return 'error'
+                case CONFIG.CHAT_STATUS.CHATTING:
+                  return 'chatting'
+                case CONFIG.CHAT_STATUS.START:
+                case CONFIG.CHAT_STATUS.COMPLETED:
+                default:
+                  return 'success'
+              }
+            })(),
+          });
+        }
+
+        return messages;
+      });
 
       const responseData: ChatDetailResponse = {
         type: chat.type === 1 ? 'rag' : 'report',
@@ -2017,6 +2035,7 @@ router.post('/stop', authMiddleware, async (req: Request, res: Response) => {
         data: {
           status: CONFIG.CHAT_STATUS.COMPLETED,
           answer: Buffer.from(updatedAnswer),
+          speakerType: 'assistant',
           updateTime: new Date(),
         },
       }),
