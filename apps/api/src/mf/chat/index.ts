@@ -730,22 +730,38 @@ const cacheMiddleware = (duration: number) => {
 // 11. Fetch 工具函数
 async function fetchWithTimeout(
   url: string,
-  options: RequestInit & { body?: string | URLSearchParams | Buffer },
+  options: RequestInit & { body?: string | URLSearchParams | Buffer | FormData },
   timeout: number
 ): Promise<FetchResponse> {
-  const controller = new AbortController()
-  const id = setTimeout(() => controller.abort(), timeout)
+  const controller = options.signal 
+    ? undefined  // 如果已经传入了 signal，就不创建新的 controller
+    : new AbortController();
+    
+  const timeoutId = controller 
+    ? setTimeout(() => {
+        controller.abort();
+        logger().warn({
+          msg: 'Request timeout',
+          data: { url, timeout }
+        });
+      }, timeout)
+    : undefined;
 
   try {
     const response = await fetch(url, {
       ...options,
-      signal: controller.signal,
-    })
-    clearTimeout(id)
-    return response
+      signal: options.signal || controller?.signal,
+    });
+    
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+    return response;
   } catch (error) {
-    clearTimeout(id)
-    throw error
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+    throw error;
   }
 }
 
@@ -1480,14 +1496,13 @@ router.get(
           const fileContent = await fs.readFile(userFile.filePath)
 
           // 构建请求体
-          const formData = new URLSearchParams()
-          formData.append('user_input', chatRecord.question)
-          formData.append('docx_report', fileContent.toString('base64'))
-          formData.append('filename', userFile.fileName)
+          const formData = new FormData();
+          formData.append('user_input', chatRecord.question);
+          formData.append('docx_report', new Blob([fileContent]), userFile.fileName);
 
           // 调用AI Agent接口
           logger().info({
-            msg: 'Sending request to AI Agent',
+            msg: 'Sending report request to AI Agent',
             data: {
               url: `${CONFIG.AI_AGENT_URL}${CONFIG.AI_AGENT_ENDPOINTS.REPORT_COMPLETIONS}`,
               timeout: CONFIG.AI_AGENT_TIMEOUT,
@@ -1502,13 +1517,16 @@ router.get(
               method: 'POST',
               body: formData,
               headers: {
-                'Accept': 'text/event-stream',
-                'Content-Type': 'application/x-www-form-urlencoded'
+                'Accept': 'text/event-stream'
               },
               signal: controller.signal
             },
-            CONFIG.AI_AGENT_TIMEOUT
+            60000  // 增加超时时间到 60 秒
           )
+
+          if (!fetchResponse.ok) {
+            throw new Error(`AI 报告对话请求失败: ${fetchResponse.status}`)
+          }
 
           await handleReportStreamResponse(
             fetchResponse,
