@@ -146,14 +146,13 @@ async function handleJsonContent(
         if (parsedJson.type === 'normal') {
             // 处理普通消息
             res.write(`data: ${parsedJson.content}\n\n`)
-            res.write('data: [NEXT_STEP]\n\n')
+            res.write('data: [NEW_STEP]\n\n')
         } else if (parsedJson.type === 'document') {
             // 处理文档块
             const blockId = await handleDocumentBlock(parsedJson.block, updateTarget)
 
             // 发送确认消息
             res.write(`data: Block created: ${parsedJson.block.type} (${blockId})\n\n`)
-            res.write('data: [NEXT_STEP]\n\n')
         }
     } catch (error) {
         logger().error({
@@ -369,8 +368,18 @@ export async function handleReportStreamResponse(
                                 continue
                             }
 
-                            completeMessage += content
-                            res.write(`data: ${content}\n\n`)
+                            try {
+                                const parsedContent = JSON.parse(content);
+                                completeMessage += content;
+                                // 只发送 content 部分到前端
+                                res.write(`data: ${parsedContent.content}\n\n`);
+                                // 在这里添加 [NEW_STEP]
+                                res.write('data: [NEW_STEP]\n\n');
+                            } catch (parseError) {
+                                // 如果解析失败，说明不是 JSON 格式，直接发送原始内容
+                                completeMessage += content;
+                                res.write(`data: ${content}\n\n`);
+                            }
                         }
                     } catch (jsonError) {
                         logger().error({
