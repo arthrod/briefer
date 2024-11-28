@@ -17,6 +17,8 @@ import {
     appendDropdownInputOptions
 } from '@briefer/editor'
 import crypto from 'crypto'
+import fs from 'fs'
+import path from 'path'
 
 // 定义更新目标类型
 export interface ReportUpdateTarget {
@@ -78,6 +80,54 @@ function createBlockFromRequest(blockRequest: BlockRequest): YBlock {
 
         default:
             throw new Error(`Unsupported block type: ${blockRequest.type}`)
+    }
+}
+
+// 写入 SSE 日志的辅助函数
+async function appendToSSELog(chatId: string, roundId: string, content: string): Promise<void> {
+    try {
+        // 使用固定的日志路径
+        const logDir = '/Users/jingcai/Dev/mindflow/mindflow/apps/api/logs/sse'
+        const logFile = path.join(logDir, `${chatId}_${roundId}.log`)
+
+        try {
+            // 确保日志目录存在
+            await fs.promises.mkdir(logDir, { recursive: true })
+        } catch (mkdirError) {
+            logger().error({
+                msg: 'Failed to create log directory',
+                data: {
+                    error: mkdirError instanceof Error ? mkdirError.message : 'Unknown error',
+                    logDir
+                }
+            })
+            throw mkdirError
+        }
+
+        // 添加时间戳
+        const timestamp = new Date().toISOString()
+        const logEntry = `[${timestamp}] ${content}\n`
+
+        // 追加写入日志
+        await fs.promises.appendFile(logFile, logEntry, { encoding: 'utf8', flag: 'a' })
+
+        logger().info({
+            msg: 'SSE log written successfully',
+            data: {
+                logFile,
+                chatId,
+                roundId
+            }
+        })
+    } catch (error) {
+        logger().error({
+            msg: 'Failed to write SSE log',
+            data: {
+                error: error instanceof Error ? error.message : 'Unknown error',
+                chatId,
+                roundId
+            }
+        })
     }
 }
 
@@ -146,6 +196,10 @@ async function handleJsonContent(
         if (parsedJson.type === 'normal') {
             // 处理普通消息
             res.write(`data: ${parsedJson.content}\n\n`)
+
+            // 写入完整消息到日志
+            await appendToSSELog(updateTarget.chatId, updateTarget.roundId, parsedJson.content);
+
             // 创建新的对话记录
             await prisma().chatRecord.create({
                 data: {
@@ -160,6 +214,7 @@ async function handleJsonContent(
                     updateTime: new Date()
                 }
             });
+
             res.write('data: [NEW_STEP]\n\n')
         } else if (parsedJson.type === 'document') {
             // 处理文档块
@@ -178,7 +233,6 @@ async function handleJsonContent(
                 roundId: updateTarget.roundId
             }
         })
-        throw error
     }
 }
 
@@ -191,12 +245,11 @@ async function handleStreamEnd(
     try {
         const now = new Date()
 
-        // 更新原始对话记录的状态为完成
-        await prisma().$transaction([
+        // 更新状态为已完成
+        await Promise.all([
             prisma().chatRecord.update({
                 where: { id: updateTarget.roundId },
                 data: {
-                    answer: Buffer.from(completeMessage),
                     status: 3, // COMPLETED
                     updateTime: now
                 }
@@ -217,7 +270,6 @@ async function handleStreamEnd(
                 roundId: updateTarget.roundId
             }
         })
-        throw error
     }
 }
 
@@ -383,48 +435,7 @@ export async function handleReportStreamResponse(
                                 continue
                             }
 
-                            try {
-                                const parsedContent = JSON.parse(content);
-                                completeMessage += content;
-                                // 只发送 content 部分到前端
-                                res.write(`data: ${parsedContent.content}\n\n`);
-
-                                // 创建新的对话记录
-                                await prisma().chatRecord.create({
-                                    data: {
-                                        id: crypto.randomUUID(),  // 生成新的 UUID
-                                        chatId: updateTarget.chatId,
-                                        roundId: updateTarget.roundId,  // 使用原始记录的 ID 作为 roundId
-                                        question: '',  // 添加空的 question 字段
-                                        answer: Buffer.from(parsedContent.content),
-                                        speakerType: 'assistant',
-                                        status: 3, // COMPLETED
-                                        createdTime: new Date(),
-                                        updateTime: new Date()
-                                    }
-                                });
-
-                                res.write('data: [NEW_STEP]\n\n');
-                            } catch (parseError) {
-                                // 如果解析失败，说明不是 JSON 格式，直接发送原始内容
-                                completeMessage += content;
-                                res.write(`data: ${content}\n\n`);
-
-                                // 创建新的对话记录
-                                await prisma().chatRecord.create({
-                                    data: {
-                                        id: crypto.randomUUID(),  // 生成新的 UUID
-                                        chatId: updateTarget.chatId,
-                                        roundId: updateTarget.roundId,  // 使用原始记录的 ID 作为 roundId
-                                        question: '',  // 添加空的 question 字段
-                                        answer: Buffer.from(content),
-                                        speakerType: 'assistant',
-                                        status: 3, // COMPLETED
-                                        createdTime: new Date(),
-                                        updateTime: new Date()
-                                    }
-                                });
-                            }
+                            completeMessage += content
                         }
                     } catch (jsonError) {
                         logger().error({
