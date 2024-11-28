@@ -13,6 +13,7 @@ import fs from 'fs/promises'
 import path from 'path'
 import { titleUpdateEmitter } from './title-summarizer.js'
 import { handleReportStreamResponse } from './report-stream.js'
+import { IOServer } from '../../websocket/index.js'
 
 // 1. 将所有配置常量集中到一个对象中
 const CONFIG = {
@@ -766,8 +767,8 @@ async function fetchWithTimeout(
 }
 
 // 12. 路由设置
-const router = Router({ mergeParams: true })
-// router.use(apiLimiter)
+export default function chatRouter(socketServer: IOServer) {
+  const router = Router({ mergeParams: true })
 
 // Chat 创建路由
 router.post(
@@ -1551,6 +1552,7 @@ router.get(
             res,
             chatId,
             roundId,
+            socketServer,
             controller
           )
         } else { // rag类型
@@ -2195,4 +2197,5 @@ router.get('/title/update', authMiddleware, async (req: Request, res: Response) 
 // 初始化验证
 validateEnvVars()
 
-export default router
+return router
+}

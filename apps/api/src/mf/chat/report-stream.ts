@@ -19,6 +19,7 @@ import {
 import crypto from 'crypto'
 import fs from 'fs'
 import path from 'path'
+import { IOServer } from '../../websocket/index.js'
 
 // 定义更新目标类型
 export interface ReportUpdateTarget {
@@ -331,6 +332,7 @@ export async function handleReportStreamResponse(
     res: Response,
     chatId: string,
     roundId: string,
+    socketServer: IOServer,
     controller?: AbortController
 ): Promise<void> {
     if (!response.body) {
@@ -355,7 +357,7 @@ export async function handleReportStreamResponse(
     // 使用已有的getYDocForUpdate函数
     const { yDoc } = await getYDocForUpdate(
         chatDocRelation.documentId,  // id
-        req.app.locals['io'],        // socketServer - from app.locals using bracket notation
+        socketServer,        // socketServer
         chatDocRelation.documentId,  // documentId
         workspace.workspaceId,  // workspaceId - from user session
         (doc) => ({

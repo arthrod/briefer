@@ -6,10 +6,10 @@ import userRouter from './user/index.js'
 import uploadRouter from './upload/index.js'
 import { initializeTasks } from './tasks.js'
 
-export default function mfRouter() {
+export default function mfRouter(socketServer: IOServer) {
   const router = Router({ mergeParams: true })
 
-  router.use('/chat', chatRouter)
+  router.use('/chat', chatRouter(socketServer))
   router.use('/user', userRouter)
   router.use('/upload', uploadRouter)
 
