@@ -49,7 +49,19 @@ function createBlockFromRequest(blockRequest: BlockRequest): YBlock {
 
     switch (blockRequest.type) {
         case 'INPUT':
-            return makeInputBlock(id, blocks)
+            const inputBlock = makeInputBlock(id, blocks)
+            if (blockRequest.variable) {
+                inputBlock.setAttribute('variable', {
+                    value: blockRequest.variable,
+                    newValue: blockRequest.variable,
+                    status: 'idle',
+                    error: null
+                })
+            }
+            if (blockRequest.label) {
+                inputBlock.setAttribute('label', blockRequest.label)
+            }
+            return inputBlock
 
         case 'DROPDOWN_INPUT':
             const dropdownBlock = makeDropdownInputBlock(id, blocks)
@@ -151,27 +163,53 @@ async function handleDocumentBlock(
 
         // 在单个事务中执行所有YJS操作
         updateTarget.yLayout.doc?.transact(() => {
-            // 添加block到文档
-            const blockId = addBlockGroup(
-                updateTarget.yLayout,
-                updateTarget.yBlocks,
-                block,
-                updateTarget.yLayout.length
-            )
+            try {
+                // 添加block到文档
+                const blockId = addBlockGroup(
+                    updateTarget.yLayout,
+                    updateTarget.yBlocks,
+                    block,
+                    updateTarget.yLayout.length
+                )
 
-            // 使用创建的yBlock
-            updateTarget.yBlocks.set(blockId, yBlock)
+                // 使用创建的yBlock
+                updateTarget.yBlocks.set(blockId, yBlock)
 
-            // 确保block被正确添加到layout中
-            const blockGroup = updateTarget.yLayout.get(updateTarget.yLayout.length - 1)
-            if (blockGroup) {
-                const tabs = blockGroup.getAttribute('tabs')
-                if (tabs) {
-                    // 设置当前tab
-                    const currentRef = new Y.XmlElement('block-ref')
-                    currentRef.setAttribute('id', blockId)
-                    blockGroup.setAttribute('current', currentRef)
+                // 确保block被正确添加到layout中
+                const blockGroup = updateTarget.yLayout.get(updateTarget.yLayout.length - 1)
+                if (blockGroup) {
+                    const tabs = blockGroup.getAttribute('tabs')
+                    if (tabs) {
+                        // 设置当前tab
+                        const currentRef = new Y.XmlElement('block-ref')
+                        currentRef.setAttribute('id', blockId)
+                        blockGroup.setAttribute('current', currentRef)
+                    }
                 }
+
+                logger().info({
+                    msg: 'Block added to layout successfully',
+                    data: {
+                        blockId,
+                        blockType: blockData.type,
+                        chatId: updateTarget.chatId,
+                        roundId: updateTarget.roundId,
+                        layoutLength: updateTarget.yLayout.length,
+                        hasBlockGroup: !!blockGroup,
+                        hasTabs: !!(blockGroup && blockGroup.getAttribute('tabs'))
+                    }
+                })
+            } catch (error) {
+                logger().error({
+                    msg: 'Failed to add block to layout',
+                    data: {
+                        error: error instanceof Error ? error.message : 'Unknown error',
+                        blockData,
+                        chatId: updateTarget.chatId,
+                        roundId: updateTarget.roundId
+                    }
+                })
+                throw error
             }
         })
 
