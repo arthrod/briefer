@@ -136,7 +136,7 @@ async function appendToSSELog(chatId: string, roundId: string, content: string):
 async function handleDocumentBlock(
     blockData: any,
     updateTarget: ReportUpdateTarget
-): Promise<string> {
+): Promise<void> {
     try {
         // 创建block并转换为AddBlockGroupBlock类型
         const yBlock = createBlockFromRequest(blockData)
@@ -149,28 +149,41 @@ async function handleDocumentBlock(
             ...(blockData.tables && { tables: blockData.tables })
         }
 
-        // 添加block到文档
-        const blockId = addBlockGroup(
-            updateTarget.yLayout,
-            updateTarget.yBlocks,
-            block,
-            updateTarget.yLayout.length
-        )
+        // 在单个事务中执行所有YJS操作
+        updateTarget.yLayout.doc?.transact(() => {
+            // 添加block到文档
+            const blockId = addBlockGroup(
+                updateTarget.yLayout,
+                updateTarget.yBlocks,
+                block,
+                updateTarget.yLayout.length
+            )
 
-        // 使用创建的yBlock
-        updateTarget.yBlocks.set(blockId, yBlock)
+            // 使用创建的yBlock
+            updateTarget.yBlocks.set(blockId, yBlock)
+
+            // 确保block被正确添加到layout中
+            const blockGroup = updateTarget.yLayout.get(updateTarget.yLayout.length - 1)
+            if (blockGroup) {
+                const tabs = blockGroup.getAttribute('tabs')
+                if (tabs) {
+                    // 设置当前tab
+                    const currentRef = new Y.XmlElement('block-ref')
+                    currentRef.setAttribute('id', blockId)
+                    blockGroup.setAttribute('current', currentRef)
+                }
+            }
+        })
 
         logger().info({
             msg: 'Block created successfully',
             data: {
-                blockId,
+                blockId: updateTarget.yBlocks.keys().next().value,
                 blockType: blockData.type,
                 chatId: updateTarget.chatId,
                 roundId: updateTarget.roundId
             }
         })
-
-        return blockId
     } catch (error) {
         logger().error({
             msg: 'Failed to create block',
@@ -219,10 +232,7 @@ async function handleJsonContent(
             res.write('data: [NEW_STEP]\n\n')
         } else if (parsedJson.type === 'document') {
             // 处理文档块
-            const blockId = await handleDocumentBlock(parsedJson.block, updateTarget)
-
-            // 发送确认消息
-            res.write(`data: Block created: ${parsedJson.block.type} (${blockId})\n\n`)
+            await handleDocumentBlock(parsedJson.block, updateTarget)
         }
     } catch (error) {
         logger().error({
