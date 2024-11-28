@@ -3,7 +3,7 @@ import { Response as FetchResponse } from 'node-fetch'
 import { Request, Response } from 'express'
 import { prisma } from '@briefer/database'
 import { logger } from '../../logger.js'
-import { WSSharedDocV2, getYDocForUpdate } from '../../yjs/v2/index.js'
+import { WSSharedDocV2, getYDocForUpdate, getDocId } from '../../yjs/v2/index.js'
 import { DocumentPersistor } from '../../yjs/v2/persistors.js'
 import { YBlock, YBlockGroup } from '@briefer/editor'
 import { addBlockGroup, AddBlockGroupBlock } from '@briefer/editor'
@@ -403,15 +403,16 @@ export async function handleReportStreamResponse(
     }
 
     // 使用已有的getYDocForUpdate函数
+    const docId = getDocId(chatDocRelation.documentId, null);
     const { yDoc } = await getYDocForUpdate(
-        chatDocRelation.documentId,  // id
-        socketServer,        // socketServer
-        chatDocRelation.documentId,  // documentId
-        workspace.workspaceId,  // workspaceId - from user session
+        docId,  // 使用正确生成的docId
+        socketServer,
+        chatDocRelation.documentId,
+        workspace.workspaceId,
         (doc) => ({
             yDoc: doc
         }),
-        new DocumentPersistor(chatDocRelation.documentId)     // persistor - create new DocumentPersistor instance with documentId
+        new DocumentPersistor(chatDocRelation.documentId)
     );
 
     const updateTarget: ReportUpdateTarget = {
