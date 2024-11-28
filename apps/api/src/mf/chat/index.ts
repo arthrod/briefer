@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express'
 import { z } from 'zod'
-import { prisma } from '@briefer/database'
+import { prisma, createDocument } from '@briefer/database'
 import { v4 as uuidv4 } from 'uuid'
 import { logger } from '../../logger.js'
 import { authenticationMiddleware } from '../../auth/token.js'
@@ -848,15 +848,11 @@ router.post(
 
         let documentId = null
         if (type === 'report') {
-          const doc = await tx.document.create({
-            data: {
-              id: uuidv4(),
-              title: sanitizeInput('新的报告'),
-              workspaceId: workspace.workspaceId,
-              icon: 'DocumentIcon',
-              orderIndex: -1,
-            },
-          })
+          const doc = await createDocument(workspace.workspaceId, {
+            id: uuidv4(),
+            title: sanitizeInput('新的报告'),
+            orderIndex: -1,
+          }, tx)
           documentId = doc.id
 
           await Promise.all([
