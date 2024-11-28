@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid'
 import { XCircleIcon } from '@heroicons/react/20/solid'
-import Layout from '@/components/Layout'
+import WorkspaceLayout from '@/components/WorkspaceLayout'
 import {
   EnvVar,
   useEnvironmentVariables,
@@ -160,7 +160,7 @@ export default function EnvirontVariablesPage() {
   }, [])
 
   return (
-    <Layout pagePath={pagePath(workspaceId)}>
+    <WorkspaceLayout pagePath={pagePath(workspaceId)}>
       <div className="flex flex-col flex-grow h-full">
         <div className="w-full bg-white h-full overflow-scroll">
           <div className="px-4 sm:p-6 lg:p-8">
@@ -245,7 +245,7 @@ export default function EnvirontVariablesPage() {
           lastUpdatedAt={null}
         />
       </div>
-    </Layout>
+    </WorkspaceLayout>
   )
 }
 

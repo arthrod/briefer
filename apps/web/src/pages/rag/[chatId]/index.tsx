@@ -1,28 +1,21 @@
-import ChatDetail from '@/components/mf/ChatDetail'
+import ChatDetail, { ChatDetailRef } from '@/components/mf/ChatDetail'
 import ChatInput from '@/components/mf/ChatInput'
 import ChatLayout from '@/components/mf/ChatLayout'
 import styles from './index.module.scss'
 import { useRef, useState } from 'react'
 import { useRouter } from 'next/router'
-import { ChatSessionData } from '@/hooks/mf/chat/useChatSession'
+import { ChatSessionCreateData } from '@/hooks/mf/chat/useChatSessionCreate'
 
 function RagDetail() {
   const [loading, setLoading] = useState(false)
 
   const scrollRef = useRef<HTMLDivElement>(null)
-
-  const chatDetail = useRef<{
-    addSendMsg: (msg: string) => Promise<ChatSessionData>
-    addReceiveMsg: (msg: string) => string
-    stopSendMsg: () => void
-  }>(null)
+  const chatDetail = useRef<ChatDetailRef>(null)
   const router = useRouter()
   const { chatId } = router.query
 
   const send = async (question: string) => {
-    if (chatDetail.current) {
-      chatDetail.current.addSendMsg(question)
-    }
+    chatDetail.current?.addSendMsg(question)
   }
 
   const stop = () => {
@@ -47,7 +40,7 @@ function RagDetail() {
       </div>
 
       <div className={styles.input_layout}>
-        <ChatInput loading={loading} showUpload={false} send={send} stop={stop} />
+        <ChatInput loading={loading} showUpload={false} onSend={send} onStop={stop} />
       </div>
     </div>
   )

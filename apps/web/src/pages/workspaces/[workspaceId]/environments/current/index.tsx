@@ -7,7 +7,7 @@ import {
 import Link from 'next/link'
 import React from 'react'
 
-import Layout from '@/components/Layout'
+import WorkspaceLayout from '@/components/WorkspaceLayout'
 import { useStringQuery } from '@/hooks/useQueryArgs'
 import clsx from 'clsx'
 import ScrollBar from '@/components/ScrollBar'
@@ -32,7 +32,7 @@ export default function CurrentEnvironmentPage() {
   const workspaceId = useStringQuery('workspaceId')
 
   return (
-    <Layout pagePath={pagePath(workspaceId ?? '')}>
+    <WorkspaceLayout pagePath={pagePath(workspaceId ?? '')}>
       <ScrollBar className="w-full bg-white h-full overflow-scroll">
         <div className="px-4 sm:p-6 lg:p-8">
           <div className="border-b border-gray-200 pb-4 flex items-center justify-between">
@@ -156,7 +156,7 @@ export default function CurrentEnvironmentPage() {
           </div>
         </div>
       </ScrollBar>
-    </Layout>
+    </WorkspaceLayout>
   )
 }
 

@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react'
 import { PlusCircleIcon } from '@heroicons/react/20/solid'
-import Layout from '@/components/Layout'
+import WorkspaceLayout from '@/components/WorkspaceLayout'
 import { CircleStackIcon, Cog8ToothIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 import { useStringQuery } from '@/hooks/useQueryArgs'
@@ -49,7 +49,7 @@ export default function DataSourcesPage() {
   }, [])
 
   return (
-    <Layout pagePath={pagePath(workspaceId)}>
+    <WorkspaceLayout pagePath={pagePath(workspaceId)}>
       <div className="bg-white w-full h-full">
         <div className="px-4 sm:p-6 lg:p-8">
           <div className="border-b border-gray-200 pb-4 sm:flex sm:items-center sm:justify-between">
@@ -119,6 +119,6 @@ export default function DataSourcesPage() {
         visible={filesOpen}
         onHide={() => setFilesOpen(false)}
       />
-    </Layout>
+    </WorkspaceLayout>
   )
 }

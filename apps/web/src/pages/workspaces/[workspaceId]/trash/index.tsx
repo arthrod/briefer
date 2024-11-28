@@ -6,7 +6,7 @@ import {
 import React, { useCallback, useMemo } from 'react'
 
 import TrashList from '@/components/TrashList'
-import Layout from '@/components/Layout'
+import WorkspaceLayout from '@/components/WorkspaceLayout'
 import { useStringQuery } from '@/hooks/useQueryArgs'
 import { useDocuments } from '@/hooks/useDocuments'
 import { ApiDeletedDocument } from '@briefer/database'
@@ -49,7 +49,7 @@ export default function TrashPage() {
   )
 
   return (
-    <Layout pagePath={pagePath(workspaceId ?? '')}>
+    <WorkspaceLayout pagePath={pagePath(workspaceId ?? '')}>
       <div className="w-full bg-white h-full overflow-scroll">
         <div className="px-4 sm:p-6 lg:p-8">
           <div className="border-b border-gray-200 pb-4 sm:flex sm:items-center sm:justify-between">
@@ -70,7 +70,7 @@ export default function TrashPage() {
           )}
         </div>
       </div>
-    </Layout>
+    </WorkspaceLayout>
   )
 }
 

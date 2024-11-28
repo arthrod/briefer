@@ -1,4 +1,4 @@
-import Layout from '@/components/Layout'
+import WorkspaceLayout from '@/components/WorkspaceLayout'
 import { useRouter } from 'next/router'
 import {
   CircleStackIcon,
@@ -53,10 +53,10 @@ export default function NewDataSourceSnowflakePage() {
   )
 
   return (
-    <Layout pagePath={pagePath(workspaceId)} hideOnboarding>
+    <WorkspaceLayout pagePath={pagePath(workspaceId)} hideOnboarding>
       <div className="w-full overflow-scroll">
         <SnowflakeForm workspaceId={workspaceId} onSubmit={onSubmit} />
       </div>
-    </Layout>
+    </WorkspaceLayout>
   )
 }

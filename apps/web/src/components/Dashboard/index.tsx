@@ -4,7 +4,7 @@ import { SquaresPlusIcon } from '@heroicons/react/24/solid'
 import { BookUpIcon } from 'lucide-react'
 import { EyeIcon } from '@heroicons/react/24/outline'
 
-import Layout from '@/components/Layout'
+import WorkspaceLayout from '@/components/WorkspaceLayout'
 import { useLastUpdatedAt, useYDoc } from '@/hooks/useYDoc'
 import { ApiDocument, UserWorkspaceRole } from '@briefer/database'
 import DashboardView from './DashboardView'
@@ -216,7 +216,7 @@ export default function Dashboard(props: Props) {
   const lastUpdatedAt = useLastUpdatedAt(yDoc)
 
   return (
-    <Layout topBarContent={topBarContent}>
+    <WorkspaceLayout topBarContent={topBarContent}>
       <div className="w-full flex relative subpixel-antialiased bg-dashboard-gray">
         <div className="w-full flex flex-col relative">
           {syncing ? (
@@ -274,7 +274,7 @@ export default function Dashboard(props: Props) {
           </>
         )}
       </div>
-    </Layout>
+    </WorkspaceLayout>
   )
 }
 

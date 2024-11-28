@@ -1,6 +1,6 @@
 import React from 'react'
 import { PlusCircleIcon } from '@heroicons/react/20/solid'
-import Layout from '@/components/Layout'
+import WorkspaceLayout from '@/components/WorkspaceLayout'
 import { PuzzlePieceIcon, Cog8ToothIcon } from '@heroicons/react/24/outline'
 import { useStringQuery } from '@/hooks/useQueryArgs'
 import IntegrationsList from '@/components/IntegrationsList'
@@ -20,7 +20,7 @@ export default function IntegrationsPage() {
   const workspaceId = useStringQuery('workspaceId')
 
   return (
-    <Layout pagePath={pagePath(useStringQuery('workspaceId') ?? '')}>
+    <WorkspaceLayout pagePath={pagePath(useStringQuery('workspaceId') ?? '')}>
       <div className="bg-white w-full h-full">
         <div className="px-4 sm:p-6 lg:p-8">
           <div className="border-b border-gray-200 pb-4 sm:flex sm:items-center sm:justify-between">
@@ -40,6 +40,6 @@ export default function IntegrationsPage() {
           <IntegrationsList workspaceId={workspaceId} />
         </div>
       </div>
-    </Layout>
+    </WorkspaceLayout>
   )
 }

@@ -5,7 +5,7 @@ import {
 } from '@heroicons/react/24/outline'
 import React, { useMemo, useState } from 'react'
 
-import Layout from '@/components/Layout'
+import WorkspaceLayout from '@/components/WorkspaceLayout'
 import { useStringQuery } from '@/hooks/useQueryArgs'
 import { useSession } from '@/hooks/useAuth'
 import { ApiWorkspace, UserWorkspaceRole } from '@briefer/database'
@@ -66,7 +66,7 @@ export default function SettingsPage() {
   const domain = getDomain(owner?.email ?? '')
 
   return (
-    <Layout pagePath={pagePath(workspaceId ?? '')}>
+    <WorkspaceLayout pagePath={pagePath(workspaceId ?? '')}>
       <div className="w-full bg-white h-full">
         <div className="px-4 sm:p-6 lg:p-8">
           <div className="border-b border-gray-200 pb-4 sm:flex sm:items-center sm:justify-between">
@@ -400,6 +400,6 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
-    </Layout>
+    </WorkspaceLayout>
   )
 }

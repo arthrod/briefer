@@ -5,7 +5,7 @@ import useDocument from '@/hooks/useDocument'
 import { useEffect } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
-import Layout from '@/components/Layout'
+import WorkspaceLayout from '@/components/WorkspaceLayout'
 import clsx from 'clsx'
 import { widthClasses } from '@/components/v2Editor/constants'
 import { ContentSkeleton, TitleSkeleton } from '@/components/v2Editor/ContentSkeleton'
@@ -17,14 +17,14 @@ export default function NotebookPage() {
 
   if (!session.data && session.isLoading && !session.error) {
     return (
-      <Layout>
+      <WorkspaceLayout>
         <div className="flex w-full justify-center">
           <div className={clsx(widthClasses, 'py-20')}>
             <TitleSkeleton visible />
             <ContentSkeleton visible />
           </div>
         </div>
-      </Layout>
+      </WorkspaceLayout>
     )
   }
 
@@ -61,14 +61,14 @@ function Notebook(props: Props) {
 
   if (loading || !document || document.publishedAt === null) {
     return (
-      <Layout>
+      <WorkspaceLayout>
         <div className="flex w-full justify-center">
           <div className={clsx(widthClasses, 'py-20')}>
             <TitleSkeleton visible />
             <ContentSkeleton visible />
           </div>
         </div>
-      </Layout>
+      </WorkspaceLayout>
     )
   }
 

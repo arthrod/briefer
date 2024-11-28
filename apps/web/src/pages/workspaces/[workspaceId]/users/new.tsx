@@ -1,4 +1,4 @@
-import Layout from '@/components/Layout'
+import WorkspaceLayout from '@/components/WorkspaceLayout'
 import { useRouter } from 'next/router'
 import {
   UsersIcon,
@@ -64,12 +64,12 @@ export default function NewUserPage() {
   }, [router, workspaceId])
 
   return (
-    <Layout pagePath={pagePath(workspaceId)}>
+    <WorkspaceLayout pagePath={pagePath(workspaceId)}>
       <div className="w-full overflow-scroll">
         <UserForm workspaceId={workspaceId} onSubmit={onSubmit} />
       </div>
       <PasswordDialog user={user} onClose={onClosePasswordDialog} isReset={false} />
-    </Layout>
+    </WorkspaceLayout>
   )
 }
 
