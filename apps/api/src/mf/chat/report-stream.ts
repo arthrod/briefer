@@ -376,6 +376,152 @@ async function handleStreamError(
     }
 }
 
+// Types and interfaces
+interface StreamResponse {
+    choices?: Array<{
+        delta?: {
+            content?: string;
+        };
+    }>;
+}
+
+interface StreamProcessorConfig {
+    chatId: string;
+    roundId: string;
+    response: FetchResponse;
+    req: Request;
+    res: Response;
+    socketServer: IOServer;
+    controller?: AbortController;
+}
+
+class ReportStreamProcessor {
+    private textDecoder = new TextDecoder();
+    private buffer = '';
+    private completeMessage = '';
+    private jsonBuffer = '';
+    private isCollectingJson = false;
+    private updateTarget: ReportUpdateTarget;
+
+    constructor(
+        private config: StreamProcessorConfig,
+        private yDoc: WSSharedDocV2
+    ) {
+        this.updateTarget = {
+            type: 'chat_record',
+            chatId: config.chatId,
+            roundId: config.roundId,
+            yDoc,
+            yLayout: yDoc.ydoc.getArray('layout'),
+            yBlocks: yDoc.ydoc.getMap('blocks')
+        };
+    }
+
+    private async processJsonContent(content: string): Promise<void> {
+        if (content.includes('```json')) {
+            this.isCollectingJson = true;
+            this.jsonBuffer = '';
+            return;
+        }
+
+        if (this.isCollectingJson && content.includes('```')) {
+            this.isCollectingJson = false;
+            await handleJsonContent(this.jsonBuffer, this.config.res, this.updateTarget);
+            this.jsonBuffer = '';
+            return;
+        }
+
+        if (this.isCollectingJson) {
+            this.jsonBuffer += content;
+            return;
+        }
+
+        this.completeMessage += content;
+        this.config.res.write(`data: ${content}\n\n`);
+    }
+
+    private async processStreamData(data: string): Promise<boolean> {
+        if (data === '[DONE]') {
+            await handleStreamEnd(this.config.res, this.updateTarget, this.completeMessage);
+            return true;
+        }
+
+        try {
+            const jsonData = JSON.parse(data) as StreamResponse;
+            const content = jsonData.choices?.[0]?.delta?.content || '';
+
+            if (content && typeof content === 'string') {
+                await this.processJsonContent(content);
+            }
+        } catch (jsonError) {
+            logger().error({
+                msg: 'Failed to parse SSE data',
+                data: {
+                    rawData: data,
+                    error: jsonError instanceof Error ? jsonError.message : 'Unknown error',
+                    chatId: this.config.chatId,
+                    roundId: this.config.roundId
+                }
+            });
+        }
+        return false;
+    }
+
+    private async processLine(line: string): Promise<boolean> {
+        const trimmedLine = line.trim();
+        if (!trimmedLine) return false;
+
+        if (trimmedLine.startsWith('data:')) {
+            const data = trimmedLine.slice(5).trim();
+            return await this.processStreamData(data);
+        }
+        return false;
+    }
+
+    async process(): Promise<void> {
+        if (!this.config.response.body) {
+            throw new Error('Response body is empty');
+        }
+
+        const stream = this.config.response.body;
+
+        try {
+            await prisma().chatRecord.update({
+                where: { id: this.config.roundId },
+                data: { status: 2 } // CHATTING
+            });
+
+            for await (const chunk of stream) {
+                if (this.config.controller?.signal.aborted) {
+                    logger().info({
+                        msg: 'Stream processing aborted',
+                        data: { roundId: this.config.roundId }
+                    });
+                    break;
+                }
+
+                this.buffer += this.textDecoder.decode(chunk as Buffer, { stream: true });
+                const lines = this.buffer.split('\n');
+                this.buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                    const isDone = await this.processLine(line);
+                    if (isDone) return;
+                }
+            }
+
+            // Process remaining buffer
+            if (this.buffer.trim()) {
+                await this.processLine(this.buffer);
+            }
+
+            await handleStreamEnd(this.config.res, this.updateTarget, this.completeMessage);
+        } catch (error) {
+            await handleStreamError(error, this.config.res, this.updateTarget, this.completeMessage);
+        }
+    }
+}
+
 // 主处理函数
 export async function handleReportStreamResponse(
     response: FetchResponse,
@@ -386,29 +532,23 @@ export async function handleReportStreamResponse(
     socketServer: IOServer,
     controller?: AbortController
 ): Promise<void> {
-    if (!response.body) {
-        throw new Error('Response body is empty')
-    }
-
-    // 获取关联的文档ID
     const chatDocRelation = await prisma().chatDocumentRelation.findFirst({
         where: { chatId },
         select: { documentId: true }
-    })
+    });
 
     if (!chatDocRelation) {
-        throw new Error('Document relation not found')
+        throw new Error('Document relation not found');
     }
 
-    const workspace = Object.values(req.session.userWorkspaces ?? {})[0]
+    const workspace = Object.values(req.session.userWorkspaces ?? {})[0];
     if (!workspace?.workspaceId) {
-        throw new Error('未找到有效的工作区')
+        throw new Error('未找到有效的工作区');
     }
 
-    // 使用已有的getYDocForUpdate函数
     const docId = getDocId(chatDocRelation.documentId, null);
     const { yDoc } = await getYDocForUpdate(
-        docId,  // 使用正确生成的docId
+        docId,
         socketServer,
         chatDocRelation.documentId,
         workspace.workspaceId,
@@ -418,119 +558,18 @@ export async function handleReportStreamResponse(
         new DocumentPersistor(chatDocRelation.documentId)
     );
 
-    const updateTarget: ReportUpdateTarget = {
-        type: 'chat_record',
-        chatId,
-        roundId,
-        yDoc,
-        yLayout: yDoc.ydoc.getArray('layout'),
-        yBlocks: yDoc.ydoc.getMap('blocks')
-    }
+    const processor = new ReportStreamProcessor(
+        {
+            chatId,
+            roundId,
+            response,
+            req,
+            res,
+            socketServer,
+            controller
+        },
+        yDoc
+    );
 
-    const stream = response.body
-    const textDecoder = new TextDecoder()
-    let buffer = ''
-    let completeMessage = ''
-    let jsonBuffer = ''
-    let isCollectingJson = false
-
-    try {
-        // 更新状态为聊天中
-        await prisma().chatRecord.update({
-            where: { id: roundId },
-            data: { status: 2 } // CHATTING
-        })
-
-        for await (const chunk of stream) {
-            if (controller?.signal.aborted) {
-                logger().info({
-                    msg: 'Stream processing aborted',
-                    data: { roundId }
-                })
-                break
-            }
-
-            buffer += textDecoder.decode(chunk as Buffer, { stream: true })
-            const lines = buffer.split('\n')
-            buffer = lines.pop() || ''
-
-            for (const line of lines) {
-                const trimmedLine = line.trim()
-                if (!trimmedLine) continue
-
-                if (trimmedLine.startsWith('data:')) {
-                    const data = trimmedLine.slice(5).trim()
-
-                    if (data === '[DONE]') {
-                        await handleStreamEnd(res, updateTarget, completeMessage)
-                        return
-                    }
-
-                    try {
-                        const jsonData = JSON.parse(data)
-                        const content = jsonData.choices?.[0]?.delta?.content || ''
-
-                        if (content && typeof content === 'string') {
-                            if (content.includes('```json')) {
-                                isCollectingJson = true
-                                jsonBuffer = ''
-                                continue
-                            }
-
-                            if (isCollectingJson && content.includes('```')) {
-                                isCollectingJson = false
-                                await handleJsonContent(jsonBuffer, res, updateTarget)
-                                jsonBuffer = ''
-                                continue
-                            }
-
-                            if (isCollectingJson) {
-                                jsonBuffer += content
-                                continue
-                            }
-
-                            completeMessage += content
-                        }
-                    } catch (jsonError) {
-                        logger().error({
-                            msg: 'Failed to parse SSE data',
-                            data: {
-                                rawData: data,
-                                error: jsonError instanceof Error ? jsonError.message : 'Unknown error',
-                                chatId,
-                                roundId
-                            }
-                        })
-                    }
-                }
-            }
-        }
-
-        // 处理最后的缓冲区
-        if (buffer.trim()) {
-            const data = buffer.trim()
-            if (data.startsWith('data:')) {
-                try {
-                    const jsonData = JSON.parse(data.slice(5).trim())
-                    const content = jsonData.choices?.[0]?.delta?.content || ''
-                    if (content && typeof content === 'string') {
-                        completeMessage += content
-                        res.write(`data: ${content}\n\n`)
-                    }
-                } catch (parseError) {
-                    logger().error({
-                        msg: 'Failed to parse final buffer',
-                        data: {
-                            buffer: data,
-                            error: parseError instanceof Error ? parseError.message : 'Unknown error'
-                        }
-                    })
-                }
-            }
-        }
-
-        await handleStreamEnd(res, updateTarget, completeMessage)
-    } catch (error) {
-        await handleStreamError(error, res, updateTarget, completeMessage)
-    }
+    await processor.process();
 }
