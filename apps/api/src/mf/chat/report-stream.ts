@@ -385,39 +385,148 @@ interface StreamResponse {
     }>;
 }
 
-interface StreamProcessorConfig {
-    chatId: string;
-    roundId: string;
-    response: FetchResponse;
-    req: Request;
-    res: Response;
-    socketServer: IOServer;
-    controller?: AbortController;
+interface StreamProcessor {
+    process(): Promise<void>;
 }
 
-class ReportStreamProcessor {
-    private textDecoder = new TextDecoder();
-    private buffer = '';
+// Abstract base class for SSE stream processing
+abstract class BaseStreamProcessor implements StreamProcessor {
+    protected textDecoder = new TextDecoder();
+    protected buffer = '';
+
+    constructor(
+        protected response: FetchResponse,
+        protected controller?: AbortController
+    ) {}
+
+    protected abstract handleData(data: string): Promise<boolean>;
+    protected abstract handleError(error: unknown): Promise<void>;
+    protected abstract handleAbort(): void;
+
+    protected async processLine(line: string): Promise<boolean> {
+        const trimmedLine = line.trim();
+        if (!trimmedLine) return false;
+
+        if (trimmedLine.startsWith('data:')) {
+            const data = trimmedLine.slice(5).trim();
+            return await this.handleData(data);
+        }
+        return false;
+    }
+
+    async process(): Promise<void> {
+        if (!this.response.body) {
+            throw new Error('Response body is empty');
+        }
+
+        try {
+            await this.beforeProcess();
+            await this.processStream();
+            await this.afterProcess();
+        } catch (error) {
+            await this.handleError(error);
+        }
+    }
+
+    protected async beforeProcess(): Promise<void> {}
+    protected async afterProcess(): Promise<void> {}
+
+    private async processStream(): Promise<void> {
+        const stream = this.response.body;
+        if (!stream) {
+            throw new Error('Response body is empty');
+        }
+
+        for await (const chunk of stream) {
+            if (this.controller?.signal.aborted) {
+                this.handleAbort();
+                break;
+            }
+
+            this.buffer += this.textDecoder.decode(chunk as Buffer, { stream: true });
+            const lines = this.buffer.split('\n');
+            this.buffer = lines.pop() || '';
+
+            for (const line of lines) {
+                const isDone = await this.processLine(line);
+                if (isDone) return;
+            }
+        }
+
+        // Process remaining buffer
+        if (this.buffer.trim()) {
+            await this.processLine(this.buffer);
+        }
+    }
+}
+
+// Report specific types and interfaces
+interface ReportStreamConfig {
+    chatId: string;
+    roundId: string;
+    res: Response;
+    yDoc: WSSharedDocV2;
+}
+
+// Report stream processor implementation
+class ReportStreamProcessor extends BaseStreamProcessor {
     private completeMessage = '';
     private jsonBuffer = '';
     private isCollectingJson = false;
     private updateTarget: ReportUpdateTarget;
 
     constructor(
-        private config: StreamProcessorConfig,
-        private yDoc: WSSharedDocV2
+        response: FetchResponse,
+        private config: ReportStreamConfig,
+        controller?: AbortController
     ) {
+        super(response, controller);
         this.updateTarget = {
             type: 'chat_record',
             chatId: config.chatId,
             roundId: config.roundId,
-            yDoc,
-            yLayout: yDoc.ydoc.getArray('layout'),
-            yBlocks: yDoc.ydoc.getMap('blocks')
+            yDoc: config.yDoc,
+            yLayout: config.yDoc.ydoc.getArray('layout'),
+            yBlocks: config.yDoc.ydoc.getMap('blocks')
         };
     }
 
-    private async processJsonContent(content: string): Promise<void> {
+    protected async beforeProcess(): Promise<void> {
+        // 更新状态为聊天中
+        await prisma().chatRecord.update({
+            where: { id: this.config.roundId },
+            data: { status: 2 } // CHATTING
+        });
+    }
+
+    protected async handleData(data: string): Promise<boolean> {
+        if (data === '[DONE]') {
+            await handleStreamEnd(this.config.res, this.updateTarget, this.completeMessage);
+            return true;
+        }
+
+        try {
+            const jsonData = JSON.parse(data) as StreamResponse;
+            const content = jsonData.choices?.[0]?.delta?.content || '';
+
+            if (content && typeof content === 'string') {
+                await this.processContent(content);
+            }
+        } catch (jsonError) {
+            logger().error({
+                msg: 'Failed to parse SSE data',
+                data: {
+                    rawData: data,
+                    error: jsonError instanceof Error ? jsonError.message : 'Unknown error',
+                    chatId: this.config.chatId,
+                    roundId: this.config.roundId
+                }
+            });
+        }
+        return false;
+    }
+
+    private async processContent(content: string): Promise<void> {
         if (content.includes('```json')) {
             this.isCollectingJson = true;
             this.jsonBuffer = '';
@@ -440,85 +549,15 @@ class ReportStreamProcessor {
         this.config.res.write(`data: ${content}\n\n`);
     }
 
-    private async processStreamData(data: string): Promise<boolean> {
-        if (data === '[DONE]') {
-            await handleStreamEnd(this.config.res, this.updateTarget, this.completeMessage);
-            return true;
-        }
-
-        try {
-            const jsonData = JSON.parse(data) as StreamResponse;
-            const content = jsonData.choices?.[0]?.delta?.content || '';
-
-            if (content && typeof content === 'string') {
-                await this.processJsonContent(content);
-            }
-        } catch (jsonError) {
-            logger().error({
-                msg: 'Failed to parse SSE data',
-                data: {
-                    rawData: data,
-                    error: jsonError instanceof Error ? jsonError.message : 'Unknown error',
-                    chatId: this.config.chatId,
-                    roundId: this.config.roundId
-                }
-            });
-        }
-        return false;
+    protected handleAbort(): void {
+        logger().info({
+            msg: 'Stream processing aborted',
+            data: { roundId: this.config.roundId }
+        });
     }
 
-    private async processLine(line: string): Promise<boolean> {
-        const trimmedLine = line.trim();
-        if (!trimmedLine) return false;
-
-        if (trimmedLine.startsWith('data:')) {
-            const data = trimmedLine.slice(5).trim();
-            return await this.processStreamData(data);
-        }
-        return false;
-    }
-
-    async process(): Promise<void> {
-        if (!this.config.response.body) {
-            throw new Error('Response body is empty');
-        }
-
-        const stream = this.config.response.body;
-
-        try {
-            await prisma().chatRecord.update({
-                where: { id: this.config.roundId },
-                data: { status: 2 } // CHATTING
-            });
-
-            for await (const chunk of stream) {
-                if (this.config.controller?.signal.aborted) {
-                    logger().info({
-                        msg: 'Stream processing aborted',
-                        data: { roundId: this.config.roundId }
-                    });
-                    break;
-                }
-
-                this.buffer += this.textDecoder.decode(chunk as Buffer, { stream: true });
-                const lines = this.buffer.split('\n');
-                this.buffer = lines.pop() || '';
-
-                for (const line of lines) {
-                    const isDone = await this.processLine(line);
-                    if (isDone) return;
-                }
-            }
-
-            // Process remaining buffer
-            if (this.buffer.trim()) {
-                await this.processLine(this.buffer);
-            }
-
-            await handleStreamEnd(this.config.res, this.updateTarget, this.completeMessage);
-        } catch (error) {
-            await handleStreamError(error, this.config.res, this.updateTarget, this.completeMessage);
-        }
+    protected async handleError(error: unknown): Promise<void> {
+        await handleStreamError(error, this.config.res, this.updateTarget, this.completeMessage);
     }
 }
 
@@ -559,16 +598,14 @@ export async function handleReportStreamResponse(
     );
 
     const processor = new ReportStreamProcessor(
+        response,
         {
             chatId,
             roundId,
-            response,
-            req,
             res,
-            socketServer,
-            controller
+            yDoc
         },
-        yDoc
+        controller
     );
 
     await processor.process();
