@@ -77,8 +77,11 @@ function createBlockFromRequest(blockRequest: BlockRequest): YBlock {
             const richTextBlock = makeRichTextBlock(id)
             if (blockRequest.content) {
                 const content = new Y.XmlFragment()
+                // Create paragraph element for proper structure
+                const paragraph = new Y.XmlElement('paragraph')
                 const text = new Y.XmlText(blockRequest.content)
-                content.insert(0, [text])
+                paragraph.insert(0, [text])
+                content.insert(0, [paragraph])
                 richTextBlock.setAttribute('content', content)
             }
             return richTextBlock
