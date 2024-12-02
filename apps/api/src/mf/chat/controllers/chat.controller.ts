@@ -3,7 +3,7 @@ import { chatService } from '../services/chat.service.js'
 import { createErrorResponse, handleError } from '../utils/validation.js'
 import { AuthorizationError, ValidationError } from '../types/errors.js'
 import { z } from 'zod'
-import { setupSSEConnection } from '../utils/sse.js'
+import { sendSSEError, setupSSEConnection } from '../utils/sse.js'
 import { IOServer } from '../../../websocket/index.js'
 
 export class ChatController {
@@ -309,6 +309,9 @@ export class ChatController {
   }
 
   async handleChatCompletions(req: Request, res: Response, socketServer: IOServer) {
+    // 在路由开始就建立 SSE 连接
+    setupSSEConnection(res)
+
     try {
       const schema = z.object({
         chatId: z.string(),
@@ -317,16 +320,19 @@ export class ChatController {
 
       const result = schema.safeParse(req.query)
       if (!result.success) {
-        return res.status(400).json(createErrorResponse(400, '参数校验失败'))
+        await sendSSEError(res, new ValidationError('参数校验失败'), {
+          type: 'chat_record',
+          chatId: req.query['chatId'] as string,
+          roundId: req.query['roundId'] as string,
+        })
+        return
       }
 
       const { chatId, roundId } = result.data
       const userId = req.session.user.id
 
-      setupSSEConnection(res)
-
       try {
-        await chatService.handleChatCompletions(res, chatId, roundId, userId, socketServer)
+        await chatService.handleChatCompletions(req, res, chatId, roundId, userId, socketServer)
       } catch (error) {
         return handleError(error, req, res, 'chat completions')
       }

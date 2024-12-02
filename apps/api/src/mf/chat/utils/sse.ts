@@ -31,20 +31,42 @@ export function setupSSEConnection(res: Response) {
 }
 
 // 发送SSE错误
-export function sendSSEError(res: Response, error: unknown, updateTarget?: UpdateTarget) {
-  const errorMessage = formatErrorMessage(error)
-  logger().error('SSE Error:', { error: errorMessage, updateTarget })
+export async function sendSSEError(res: Response, error: unknown, updateTarget?: UpdateTarget) {
+  const formattedError = formatErrorMessage(error)
 
-  const errorData = {
-    type: 'error',
-    data: {
-      message: errorMessage,
-      ...(updateTarget && { updateTarget })
+  // 如果存在更新目标，将错误消息保存到数据库
+  if (updateTarget?.type === 'chat_record' && updateTarget.roundId) {
+    try {
+      await prisma().$transaction([
+        prisma().chatRecord.update({
+          where: { id: updateTarget.roundId },
+          data: {
+            answer: Buffer.from(formattedError),
+            speakerType: 'assistant',
+            status: CONFIG.CHAT_STATUS.FAILED,
+            updateTime: new Date(),
+          },
+        }),
+        prisma().chat.update({
+          where: { id: updateTarget.chatId },
+          data: { updateTime: new Date() },
+        }),
+      ])
+    } catch (dbError) {
+      logger().error({
+        msg: 'Failed to save error message to database',
+        data: { error: dbError },
+      })
     }
   }
 
-  res.write(`data: ${JSON.stringify(errorData)}\n\n`)
-  res.end()
+  // 分行发送错误消息，确保格式正确
+  formattedError.split('\n').forEach((line) => {
+    res.write(`data: ${line}\n`)
+  })
+  res.write('\n') // 表示该消息结束
+  res.write('data: [DONE]\n\n')
+  // res.end() // 统一不关闭
 }
 
 // 发送SSE消息
