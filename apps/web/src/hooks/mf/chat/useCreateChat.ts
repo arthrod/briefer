@@ -7,7 +7,7 @@ export type ChatType = 'rag' | 'report'
 export type MessageRoleType = 'system' | 'user' | 'assistant'
 export type ReportFileType = 'word' | 'pdf'
 
-export const useCreateChat = () => {
+export const useChatCreate = () => {
   const createChat = useCallback(async (type: ChatType, fileId?: string) => {
     const res: Response = await fetch(`${NEXT_PUBLIC_MF_API_URL()}/chat/create`, {
       credentials: 'include',

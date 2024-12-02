@@ -1,14 +1,9 @@
 import ChatDetail from '@/components/mf/ChatDetail'
 import ChatInput from '@/components/mf/ChatInput'
-import ChatLayout, {
-  ChatRound,
-  ChatSession,
-  useChatLayoutContext,
-} from '@/components/mf/ChatLayout'
+import ChatLayout, { useChatLayoutContext } from '@/components/mf/ChatLayout'
 import styles from './index.module.scss'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/router'
-import { MessageContent, RagDetailData, useChatDetail } from '@/hooks/mf/chat/useChatDetail'
 import { ChatStatus, useChatStatus } from '@/hooks/mf/chat/useChatStatus'
 import { useStringQuery } from '@/hooks/useQueryArgs'
 import { showToast } from '@/components/mf/Toast'
@@ -23,12 +18,10 @@ function RagDetailPage() {
 
   const getChatStatus = useChatStatus()
 
-  const { loadDetail, setRoundList, roundList, startChat, stopChat, generating } =
-    useChatLayoutContext()
+  const { loadDetail, roundList, startRoundChat, stopChat, generating } = useChatLayoutContext()
 
   useEffect(() => {
     if (chatId) {
-      setRoundList([])
       loadDetail(chatId).then(() => {
         watchStatus(true)
       })
@@ -70,7 +63,7 @@ function RagDetailPage() {
       return
     }
     setLoading(true)
-    startChat(chatId, msg)
+    startRoundChat(chatId, msg)
       .catch((e) => {
         showToast('消息发送失败，请检查网络', 'error')
       })
@@ -82,7 +75,7 @@ function RagDetailPage() {
   return (
     <div className={styles.rag_layout}>
       <div ref={scrollRef} className={styles.detail_layout}>
-        <ChatDetail loading={generating} list={roundList} onRegenerate={() => {}}></ChatDetail>
+        <ChatDetail loading={generating} roundList={roundList} onRegenerate={() => {}}></ChatDetail>
       </div>
 
       <div className={styles.input_layout}>

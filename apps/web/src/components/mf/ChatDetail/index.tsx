@@ -8,11 +8,11 @@ import Pointer from '../Pointer'
 import Markdown from '../markdown'
 export interface ChatDetailProps {
   loading?: boolean
-  list: MessageContent[]
+  roundList: MessageContent[]
   onRegenerate: (message: MessageContent) => void
 }
 
-const ChatDetail = ({ list, loading = false, onRegenerate }: ChatDetailProps) => {
+const ChatDetail = ({ roundList, loading = false, onRegenerate }: ChatDetailProps) => {
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const session = useSession()
@@ -21,7 +21,7 @@ const ChatDetail = ({ list, loading = false, onRegenerate }: ChatDetailProps) =>
 
   useEffect(() => {
     setTimeout(scrollToBottom, 100)
-  }, [list])
+  }, [roundList])
 
   const scrollToBottom = useCallback(() => {
     if (scrollRef.current) {
@@ -71,7 +71,7 @@ const ChatDetail = ({ list, loading = false, onRegenerate }: ChatDetailProps) =>
             ) : (
               <div className={styles.content}>
                 <Markdown>{message.content}</Markdown>
-                {!!(loading && index === list.length - 1) ? <Pointer /> : null}
+                {!!(loading && index === roundList.length - 1) ? <Pointer /> : null}
               </div>
             )}
           </div>
@@ -87,12 +87,12 @@ const ChatDetail = ({ list, loading = false, onRegenerate }: ChatDetailProps) =>
         )
       }
     },
-    [loading, list]
+    [loading, roundList]
   )
 
   return (
     <ScrollBar ref={scrollRef} className={styles.chatDetailLayout}>
-      {(list || []).map((message, index) => getMessageElm(message, index))}
+      {(roundList || []).map((message, index) => getMessageElm(message, index))}
     </ScrollBar>
   )
 }

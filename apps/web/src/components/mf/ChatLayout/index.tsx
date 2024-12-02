@@ -39,12 +39,12 @@ import Spin from '@/components/Spin'
 import ArrowRight from '@/icons/arrow-right-line.svg'
 import { useChatRoundCreate } from '@/hooks/mf/chat/useChatSessionCreate'
 import { v4 as uuidv4 } from 'uuid'
-import { MessageContent, useChatDetail } from '@/hooks/mf/chat/useChatDetail'
+import { ChatType, MessageContent, useChatDetail } from '@/hooks/mf/chat/useChatDetail'
 import { useChatStop } from '@/hooks/mf/chat/useChatStop'
 import { ChatStatus } from '@/hooks/mf/chat/useChatStatus'
+import { useChatCreate } from '@/hooks/mf/chat/useCreateChat'
 
-const defaultMsg = '我是你的AI小助手'
-
+const defaultMsg: MessageContent = { id: '', role: 'system', content: '我是你的AI小助手' }
 interface Item {
   type: string
   label: string
@@ -63,10 +63,10 @@ const MoreBtn = ({ items, onItemClick }: IMoreBtnProps) => {
     setDialogOpen(false)
   }
   return (
-    <Popover className="relative">
+    <Popover className={styles.moreOpt}>
       {({ open, close }) => (
         <>
-          <PopoverButton as="div" className={styles.moreOpt} onClick={() => setIsOpen(!open)}>
+          <PopoverButton as="div" onClick={() => setIsOpen(!open)}>
             <img src="/icons/more.svg" width={16} />
           </PopoverButton>
           <PopoverPanel
@@ -164,13 +164,14 @@ export type ChatRound = {
 interface ChatLayoutContextType {
   chatList: HistoryChat[]
   setChatList: Dispatch<SetStateAction<HistoryChat[]>>
-  newChat: (chat: HistoryChat) => void
+  addChatList: (chat: HistoryChat) => void
   refreshChatList: () => void
   roundList: MessageContent[]
   setRoundList: Dispatch<SetStateAction<MessageContent[]>>
   loadDetail: (chatId: string) => Promise<void>
-  startChat: (chatId: string, msg: string) => Promise<void>
+  startRoundChat: (chatId: string, msg: string) => Promise<void>
   stopChat: () => Promise<void>
+  createChat: (type: ChatType, _fileId?: string) => Promise<HistoryChat>
   getRound: (roundId: string) => ChatSession | undefined
   chat: (chatId: string, roundId: string) => ChatSession
   generating: boolean
@@ -186,34 +187,46 @@ export function ChatLayoutProvider(props: { children: ReactNode }) {
   const [loading, setLoading] = useState(false)
   const [generating, setGenerating] = useState(false)
 
-  const chatSession = useRef<ChatSession | null>(null)
+  const curChatSession = useRef<ChatSession | null>(null)
 
-  const chatRoundCreate = useChatRoundCreate()
-  const getChatList = useChatList()
-  const stopChatApi = useChatStop()
-  const getChatDetail = useChatDetail()
+  const getChatListApi = useChatList()
+  const chatStopApi = useChatStop()
+  const getChatDetailApi = useChatDetail()
 
-  const newChat = useCallback((chat: HistoryChat) => {
+  const chatCreateApi = useChatCreate()
+  const chatRoundCreateApi = useChatRoundCreate()
+
+  const addChatList = (chat: HistoryChat) => {
     setChatList((prevChatList) => [chat, ...prevChatList])
-  }, [])
+  }
 
-  const refreshChatList = useCallback(() => {
-    getChatList().then((data: ChatList) => {
+  const refreshChatList = () => {
+    getChatListApi().then((data: ChatList) => {
       setChatList(data.list)
     })
-  }, [])
+  }
+
+  const createChat = (type: ChatType, _fileId?: string) => {
+    setRoundList([defaultMsg])
+    return chatCreateApi(type, _fileId).then((data) => {
+      addChatList(data)
+      return data
+    })
+  }
 
   const loadDetail = (chatId: string) => {
     if (loading) {
       return Promise.reject()
     }
+    if (curChatSession.current?.chatId === chatId) {
+      return Promise.resolve()
+    }
     setLoading(true)
-    return getChatDetail(chatId)
+    return getChatDetailApi(chatId)
       .then((data) => {
         if (data) {
           const { messages } = data
-          messages.unshift({ id: '', role: 'system', content: defaultMsg })
-          setRoundList(messages || [])
+          setRoundList([defaultMsg, ...(messages || [])])
         }
       })
       .finally(() => {
@@ -221,21 +234,23 @@ export function ChatLayoutProvider(props: { children: ReactNode }) {
       })
   }
 
-  const startChat = async (
+  const startRoundChat = async (
     chatId: string,
     question: string,
     receiveMsgDone?: (isError: boolean) => void
   ) => {
-    const { id: roundId } = await chatRoundCreate(question, chatId)
+    const { id: roundId } = await chatRoundCreateApi(question, chatId)
     const msgId = uuidv4()
-    const newMsg: MessageContent = {
+    const userMsg: MessageContent = {
       id: msgId,
       role: 'user',
       content: question,
     }
-    setRoundList((messageList) => [...messageList, newMsg])
-    const assistantMsg = addAssistantMsg('')
+    const assistantMsg = createAssistantMsg('')
     assistantMsg.roundId = roundId
+    setRoundList((preList) => {
+      return [...preList, userMsg, assistantMsg]
+    })
 
     sendChat(chatId, roundId, msgId, {
       receiveMsgDone: () => {
@@ -256,14 +271,16 @@ export function ChatLayoutProvider(props: { children: ReactNode }) {
       return
     }
     setGenerating(true)
+
     const _chatSession = chat(chatId, roundId)
-    chatSession.current = _chatSession
+    curChatSession.current = _chatSession
 
     _chatSession.listener.onopen = () => {}
 
     _chatSession.listener.onerror = () => {
       setGenerating(false)
       updateMsg(msgId, '服务错误', true)
+      _receiveMsgDone()
     }
 
     _chatSession.listener.onmessage = (event) => {
@@ -271,6 +288,7 @@ export function ChatLayoutProvider(props: { children: ReactNode }) {
       if (data === '[DONE]') {
         setGenerating(false)
         receiveMsgDone()
+        _receiveMsgDone()
         return null
       }
       setRoundList((prevList) => {
@@ -285,7 +303,7 @@ export function ChatLayoutProvider(props: { children: ReactNode }) {
     }
 
     _chatSession.listener.close = () => {
-      updateMsgStatus(msgId)
+      // updateMsgStatus(msgId)
     }
   }
 
@@ -318,21 +336,21 @@ export function ChatLayoutProvider(props: { children: ReactNode }) {
     )
   }, [])
 
-  const receiveMsgDone = () => {
-    chatSession.current?.eventSource.close()
-    chatSession.current?.listener.close()
-    chatSession.current = null
+  const _receiveMsgDone = () => {
+    if (curChatSession && curChatSession.current) {
+      curChatSession.current?.listener.close()
+      curChatSession.current?.eventSource.close()
+      curChatSession.current = null
+    }
   }
 
-  const addAssistantMsg = (msg: string) => {
-    const msgContent: MessageContent = {
+  const createAssistantMsg = (msg: string): MessageContent => {
+    return {
       id: uuidv4(),
       role: 'assistant',
       content: msg,
       roundId: '',
     }
-    setRoundList((messageList) => [...messageList, msgContent])
-    return msgContent
   }
 
   const getRound = useCallback((roundId: string) => {
@@ -394,9 +412,9 @@ export function ChatLayoutProvider(props: { children: ReactNode }) {
   }
 
   const stopChat = useCallback(async (): Promise<void> => {
-    if (chatSession.current) {
-      const { roundId, eventSource, listener } = chatSession.current
-      return stopChatApi(roundId)
+    if (curChatSession.current) {
+      const { roundId, eventSource, listener } = curChatSession.current
+      return chatStopApi(roundId)
         .then(() => {
           eventSource.close()
           listener.close()
@@ -413,11 +431,12 @@ export function ChatLayoutProvider(props: { children: ReactNode }) {
         chatList,
         loadDetail,
         setChatList,
-        newChat,
+        addChatList,
         refreshChatList,
         roundList,
         setRoundList,
-        startChat,
+        createChat,
+        startRoundChat,
         stopChat,
         getRound,
         chat,
@@ -586,9 +605,10 @@ export default function ChatLayout({ children }: Props) {
               return (
                 <div
                   key={chat.id}
-                  className={clsx(styles.chatItem, {
-                    [styles.chatItem_active]: isActive, // 添加选中样式
-                  })}
+                  className={clsx(
+                    styles.chatItem,
+                    isActive ? styles.active : '' // 添加选中样式
+                  )}
                   onClick={() => {
                     if (chat.id === chatId) {
                       return
@@ -602,7 +622,7 @@ export default function ChatLayout({ children }: Props) {
                     }
                   }}>
                   {chat.isEditing ? (
-                    <div className={styles.itemTitleInputLayout}>
+                    <div className={styles.inputLayout}>
                       <input
                         type="text"
                         className={styles.itemTitleInput}

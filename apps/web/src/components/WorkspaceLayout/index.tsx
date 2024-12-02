@@ -90,7 +90,7 @@ function ChatLayout() {
       </div>
       <div className={styles.middle}>
         <ChatDetail
-          list={roundList}
+          roundList={roundList}
           loading={loading}
           onRegenerate={function (message: MessageContent): void {
             throw new Error('Function not implemented.')

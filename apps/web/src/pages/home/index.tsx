@@ -7,7 +7,6 @@ import RagIcon from '@/icons/rag.svg'
 import ReportIcon from '@/icons/report.svg'
 import ChatLayout, { useChatLayoutContext } from '@/components/mf/ChatLayout'
 import clsx from 'clsx'
-import { useCreateChat } from '@/hooks/mf/chat/useCreateChat'
 import { ChatType } from '@/hooks/mf/chat/useChatList'
 import { useRouter } from 'next/router'
 import { showToast } from '@/components/mf/Toast'
@@ -24,9 +23,8 @@ function HomePage() {
   const [loading, setLoading] = useState(false)
   const chatInputRef = useRef<HTMLDivElement>(null)
 
-  const createChat = useCreateChat()
   const router = useRouter()
-  const { newChat, startChat, setRoundList } = useChatLayoutContext()
+  const { createChat, startRoundChat } = useChatLayoutContext()
 
   const send = async (msg: string, _fileId?: string) => {
     if (loading) {
@@ -36,50 +34,39 @@ function HomePage() {
       showToast('请上传报告模版', 'warning')
       return Promise.reject('noFile')
     }
-    chatCreate(msg, _fileId)
+    setLoading(true)
+    try {
+      // 创建对话
+      createChat(type, _fileId).then((data) => {
+        createRound(data.id, msg, data.workspaceId, data.documentId)
+      })
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const chatCreate = useCallback(
-    (msg: string, _fileId?: string) => {
-      setLoading(true)
-      try {
-        createChat(type, _fileId).then((data) => {
-          newChat(data)
-          createRound(data.id, data.workspaceId || '', data.documentId || '', msg)
-        })
-      } finally {
-        setLoading(false)
-      }
-    },
-    [type]
-  )
-
-  const createRound = useCallback(
-    (chatId: string, workspaceId: string, documentId: string, msg: string) => {
-      startChat(chatId, msg).then(() => {
-        setRoundList([])
-        if (type === 'rag') {
-          if (chatInputRef.current) {
-            const rect = chatInputRef.current.getBoundingClientRect()
-            const distanceFromBottom = window.innerHeight - rect.bottom
-            const translationValue = distanceFromBottom - 40 // Calculate translateY value
-            setTranslateY(translationValue) // Update state to trigger CSS transformation
-          }
-          setChangePage(true)
-          setTimeout(() => {
-            router.push(`/rag/${chatId}`, undefined, { shallow: true })
-          }, 300)
-        } else {
-          router.push(
-            `/workspaces/${workspaceId}/documents/${documentId}/notebook/edit?chatId=${chatId}`,
-            undefined,
-            { shallow: true }
-          )
+  const createRound = (chatId: string, msg: string, workspaceId?: string, documentId?: string) => {
+    startRoundChat(chatId, msg).then(() => {
+      if (type === 'rag') {
+        if (chatInputRef.current) {
+          const rect = chatInputRef.current.getBoundingClientRect()
+          const distanceFromBottom = window.innerHeight - rect.bottom
+          const translationValue = distanceFromBottom - 40
+          setTranslateY(translationValue)
         }
-      })
-    },
-    [type]
-  )
+        setChangePage(true)
+        setTimeout(() => {
+          router.push(`/rag/${chatId}`, undefined, { shallow: true })
+        }, 300)
+      } else {
+        router.push(
+          `/workspaces/${workspaceId}/documents/${documentId}/notebook/edit?chatId=${chatId}`,
+          undefined,
+          { shallow: true }
+        )
+      }
+    })
+  }
 
   useEffect(() => {
     let index = 0
