@@ -4,6 +4,7 @@ import { createErrorResponse, handleError } from '../utils/validation.js'
 import { AuthorizationError, ValidationError } from '../types/errors.js'
 import { z } from 'zod'
 import { setupSSEConnection } from '../utils/sse.js'
+import { IOServer } from '../../../websocket/index.js'
 
 export class ChatController {
 
@@ -307,7 +308,7 @@ export class ChatController {
     }
   }
 
-  async handleChatCompletions(req: Request, res: Response) {
+  async handleChatCompletions(req: Request, res: Response, socketServer: IOServer) {
     try {
       const schema = z.object({
         chatId: z.string(),
@@ -325,7 +326,7 @@ export class ChatController {
       setupSSEConnection(res)
 
       try {
-        await chatService.handleChatCompletions(res, chatId, roundId, userId)
+        await chatService.handleChatCompletions(res, chatId, roundId, userId, socketServer)
       } catch (error) {
         return handleError(error, req, res, 'chat completions')
       }
