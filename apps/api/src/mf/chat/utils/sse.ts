@@ -5,6 +5,8 @@ import { logger } from '../../../logger.js'
 import { CONFIG } from '../config/constants.js'
 import { formatErrorMessage } from './format.js'
 import { TimeoutError } from '../types/errors.js'
+import { prisma } from '@briefer/database'
+import { ChatRecordStatus } from '../services/chat.service.js'
 
 // 设置SSE连接
 export function setupSSEConnection(res: Response) {
@@ -140,5 +142,47 @@ export function sendSSEComplete(res: Response, updateTarget?: UpdateTarget) {
   }
 
   res.write(`data: ${JSON.stringify(completeData)}\n\n`)
+  res.end()
+}
+
+// SSE相关工具函数
+export type SSEUpdateTarget = {
+  type: 'chat_record' | 'chat'
+  chatId: string
+  roundId?: string
+}
+
+export const setupSSEConnectionUtil = (res: Response) => {
+  res.setHeader('Content-Type', 'text/event-stream')
+  res.setHeader('Cache-Control', 'no-cache')
+  res.setHeader('Connection', 'keep-alive')
+  res.flushHeaders()
+}
+
+export const sendSSEMessageUtil = (res: Response, data: any) => {
+  res.write(`data: ${JSON.stringify(data)}\n\n`)
+}
+
+export const sendSSEErrorUtil = async (res: Response, error: Error, target: SSEUpdateTarget) => {
+  logger().error({
+    msg: 'SSE error',
+    data: {
+      error: error.message,
+      target,
+    },
+  })
+
+  if (target.type === 'chat_record' && target.roundId) {
+    await prisma().chatRecord.update({
+      where: {
+        id: target.roundId,
+      },
+      data: {
+        status: ChatRecordStatus.ERROR,
+        updateTime: new Date(),
+      },
+    })
+  }
+
   res.end()
 }

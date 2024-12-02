@@ -244,6 +244,7 @@ export class ChatController {
   async stopChat(req: Request, res: Response) {
     try {
       const schema = z.object({
+        chatId: z.string(),
         roundId: z.string(),
       })
 
@@ -252,10 +253,10 @@ export class ChatController {
         return res.status(400).json(createErrorResponse(400, '参数校验失败'))
       }
 
-      const { roundId } = result.data
+      const { chatId, roundId } = result.data
       const userId = req.session.user.id
 
-      await chatService.stopChat(userId, roundId)
+      await chatService.stopChat(chatId, roundId)
 
       return res.json({
         code: 0,
@@ -282,13 +283,12 @@ export class ChatController {
         return res.status(400).json(createErrorResponse(400, '参数校验失败'))
       }
 
-      const { chatId, roundId } = result.data
-      const userId = req.session.user.id
+      const { chatId } = result.data
 
       setupSSEConnection(res)
 
       try {
-        await chatService.updateTitle(res, chatId, roundId, userId)
+        await chatService.updateTitle(chatId, res)
       } catch (error) {
         return handleError(error, req, res, 'update title')
       }

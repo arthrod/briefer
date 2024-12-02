@@ -11,6 +11,7 @@ export const CONFIG = {
     DATA_COMPLETIONS: '/v1/ai/chat/data/completions',
     RELATION_CHECK: '/v1/ai/chat/relation',
     SUMMARIZE: '/v1/ai/chat/summarize',
+    STOP_CHAT: '/v1/ai/chat/stop',
   },
 
   // 缓存相关
