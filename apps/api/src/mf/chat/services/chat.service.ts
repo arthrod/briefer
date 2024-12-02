@@ -1,4 +1,4 @@
-import { Response } from 'express'
+import { Request, Response } from 'express'
 import { prisma, createDocument } from '@briefer/database'
 import { ChatSpeakerType } from '@prisma/client'
 import { AuthorizationError, ValidationError } from '../types/errors.js'
@@ -10,6 +10,7 @@ import { ChatDetailResponse, Message, RelationCheckResponse, UpdateTarget } from
 import * as fs from 'fs/promises'
 import { v4 as uuidv4 } from 'uuid'
 import { sanitizeInput, formatDate } from '../utils/format.js'
+import { titleUpdateEmitter } from '../title-summarizer.js'
 
 // 聊天记录状态枚举
 export enum ChatRecordStatus {
@@ -1046,77 +1047,130 @@ export class ChatService {
     }
   }
 
-  async updateTitle(chatId: string, res: Response) {
+  async updateTitle(chatId: string, userId: string, req: Request, res: Response) {
     logger().info({
       msg: 'Updating chat title',
       data: { chatId },
     })
 
     try {
-      // 获取最近的对话记录
-      const recentMessages = await prisma().chatRecord.findMany({
-        where: {
-          chatId,
-        },
-        orderBy: {
-          updateTime: 'desc', // 修改为 updateTime
-        },
-        take: 5,
-        select: {
-          question: true,
-          answer: true,
+      logger().info({
+        msg: 'Title update SSE connection established',
+        data: {
+          userId,
+          currentListeners: titleUpdateEmitter.listenerCount('titleUpdate'),
         },
       })
 
-      if (recentMessages.length === 0) {
-        throw new ValidationError('没有找到对话记录')
-      }
-
-      // 构建对话历史
-      const messages = recentMessages.reverse().flatMap(record => [
-        {
-          role: 'user',
-          content: record.question,
-        },
-        {
-          role: 'assistant',
-          content: record.answer || '',
-        },
-      ])
-
-      // 调用 AI Agent 生成标题
-      const response = await fetchWithTimeout(
-        `${CONFIG.AI_AGENT_URL}${CONFIG.AI_AGENT_ENDPOINTS.SUMMARIZE}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'text/event-stream',
+      // 创建标题更新处理函数
+      const handleTitleUpdate = async (data: { chatId: string; title: string }) => {
+        logger().info({
+          msg: 'Received title update event',
+          data: {
+            userId,
+            chatId: data.chatId,
+            title: data.title,
           },
-          body: JSON.stringify({
-            messages,
-          }),
+        })
+
+        try {
+          // 验证该聊天是否属于当前用户
+          const chat = await prisma().chat.findUnique({
+            where: { id: data.chatId },
+            select: { userId: true }
+          })
+
+          if (chat && chat.userId === userId) {
+            const message = JSON.stringify({
+              chatId: data.chatId,
+              title: data.title,
+            })
+
+            logger().info({
+              msg: 'Sending title update via SSE',
+              data: {
+                userId,
+                chatId: data.chatId,
+                title: data.title,
+                messageContent: message,
+              },
+            })
+
+            // 确保连接仍然打开
+            if (!res.writableEnded) {
+              res.write(`data: ${message}\n\n`)
+            } else {
+              logger().warn({
+                msg: 'SSE connection already closed',
+                data: { userId, chatId: data.chatId },
+              })
+            }
+          } else {
+            logger().warn({
+              msg: 'Attempted to send title update for unauthorized chat',
+              data: {
+                userId,
+                chatId: data.chatId,
+              },
+            })
+          }
+        } catch (error) {
+          logger().error({
+            msg: 'Error processing title update',
+            data: {
+              error: error instanceof Error ? error.message : 'Unknown error',
+              stack: error instanceof Error ? error.stack : undefined,
+              userId,
+              chatId: data.chatId,
+            },
+          })
+        }
+      }
+
+      // 注册事件监听器
+      titleUpdateEmitter.on('titleUpdate', handleTitleUpdate)
+
+      logger().info({
+        msg: 'Title update event listener registered',
+        data: {
+          userId,
+          totalListeners: titleUpdateEmitter.listenerCount('titleUpdate'),
         },
-        CONFIG.AI_AGENT_TIMEOUT
-      )
+      })
 
-      if (!response.ok) {
-        throw new Error(`生成标题请求失败: ${response.status}`)
-      }
+      // 发送初始连接成功消息
+      res.write('data: {"connected":true}\n\n')
 
-      const updateTarget: UpdateTarget = {
-        type: 'chat_title',
-        chatId,
-      }
+      // 当客户端断开连接时清理
+      req.on('close', () => {
+        titleUpdateEmitter.off('titleUpdate', handleTitleUpdate)
 
-      await handleStreamResponse(response, res, updateTarget)
+        logger().info({
+          msg: 'Title update SSE connection closed',
+          data: {
+            userId,
+            remainingListeners: titleUpdateEmitter.listenerCount('titleUpdate'),
+          },
+        })
+
+        // 确保连接被正确关闭
+        if (!res.writableEnded) {
+          res.end()
+        }
+      })
 
     } catch (error) {
-      logger().error('Update title error:', {
-        error,
-        chatId,
+      logger().error({
+        msg: 'Title update SSE error',
+        data: {
+          error: error instanceof Error ? error.message : 'Unknown error',
+          stack: error instanceof Error ? error.stack : undefined,
+          userId,
+        },
       })
-      throw error
+      if (!res.writableEnded) {
+        res.end()
+      }
     }
   }
 }

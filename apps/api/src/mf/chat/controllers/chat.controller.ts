@@ -287,11 +287,12 @@ export class ChatController {
       }
 
       const { chatId } = result.data
+      const userId = req.session.user.id
 
       setupSSEConnection(res)
 
       try {
-        await chatService.updateTitle(chatId, res)
+        await chatService.updateTitle(chatId, userId, req, res)
       } catch (error) {
         return handleError(error, req, res, 'update title')
       }
