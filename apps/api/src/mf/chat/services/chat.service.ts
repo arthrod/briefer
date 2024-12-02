@@ -921,43 +921,43 @@ export class ChatService {
     })
 
     const chat = await prisma().chat.findFirst({
-        where: {
-          id: chatId,
-          userId,
-        },
-        select: {
-          id: true,
-          records: {
-            orderBy: {
-              createdTime: 'desc',
-            },
-            take: 1,
-            select: {
-              status: true,
-              id: true,
-            },
+      where: {
+        id: chatId,
+        userId,
+      },
+      select: {
+        id: true,
+        records: {
+          orderBy: {
+            createdTime: 'desc',
+          },
+          take: 1,
+          select: {
+            status: true,
+            id: true,
           },
         },
-      })
+      },
+    })
 
-      if (!chat) {
-        throw new AuthorizationError('聊天记录不存在或无权访问')
-      }
+    if (!chat) {
+      throw new AuthorizationError('聊天记录不存在或无权访问')
+    }
 
-      const status = chat.records[0]?.status === CONFIG.CHAT_STATUS.CHATTING ? 'chatting' : 'idle'
-      const roundId = status === 'chatting' ? chat.records[0]?.id : ''
+    const status = chat.records[0]?.status === CONFIG.CHAT_STATUS.CHATTING ? 'chatting' : 'idle'
+    const roundId = status === 'chatting' ? chat.records[0]?.id : ''
 
-      logger().info({
-        msg: 'Chat status retrieved successfully',
-        data: {
-          chatId,
-          userId,
-          status,
-          roundId,
-        },
-      })
+    logger().info({
+      msg: 'Chat status retrieved successfully',
+      data: {
+        chatId,
+        userId,
+        status,
+        roundId,
+      },
+    })
 
-    return {status, roundId}
+    return { status, roundId }
   }
 
   async stopChat(roundId: string, userId: string) {
