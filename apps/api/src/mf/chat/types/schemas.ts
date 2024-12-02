@@ -34,12 +34,7 @@ export const createChatRoundSchema = z.object({
 })
 
 export const getChatDetailSchema = z.object({
-  chatId: baseId.describe('对话ID'),
-})
-
-export const relationCheckSchema = z.object({
-  question: z.string().min(1, '问题不能为空'),
-  fileId: baseId.describe('文件ID'),
+  id: baseId.describe('对话ID'),
 })
 
 export const updateTitleSchema = z.object({

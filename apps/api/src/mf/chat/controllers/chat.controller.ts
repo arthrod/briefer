@@ -5,17 +5,21 @@ import { AuthorizationError, ValidationError } from '../types/errors.js'
 import { z } from 'zod'
 import { sendSSEError, setupSSEConnection } from '../utils/sse.js'
 import { IOServer } from '../../../websocket/index.js'
+import { 
+  createChatSchema, 
+  updateChatSchema, 
+  deleteChatSchema, 
+  createChatRoundSchema, 
+  getChatDetailSchema,
+  getChatStatusSchema,
+  chatCompletionsSchema
+} from '../types/schemas.js'
 
 export class ChatController {
 
   async createChat(req: Request, res: Response) {
     try {
-      const schema = z.object({
-        type: z.enum(['rag', 'report']),
-        fileId: z.string(),
-      })
-
-      const result = schema.safeParse(req.body)
+      const result = createChatSchema.safeParse(req.body)
       if (!result.success) {
         return res.status(400).json(createErrorResponse(400, '参数校验失败'))
       }
@@ -65,12 +69,7 @@ export class ChatController {
 
   async updateChat(req: Request, res: Response) {
     try {
-      const schema = z.object({
-        id: z.string(),
-        title: z.string(),
-      })
-
-      const result = schema.safeParse(req.body)
+      const result = updateChatSchema.safeParse(req.body)
       if (!result.success) {
         return res.status(400).json(createErrorResponse(400, '参数校验失败'))
       }
@@ -98,11 +97,7 @@ export class ChatController {
 
   async deleteChat(req: Request, res: Response) {
     try {
-      const schema = z.object({
-        id: z.string(),
-      })
-
-      const result = schema.safeParse(req.body)
+      const result = deleteChatSchema.safeParse(req.body)
       if (!result.success) {
         return res.status(400).json(createErrorResponse(400, '参数校验失败'))
       }
@@ -127,12 +122,7 @@ export class ChatController {
 
   async createChatRound(req: Request, res: Response) {
     try {
-      const schema = z.object({
-        chatId: z.string(),
-        question: z.string()
-      })
-
-      const result = schema.safeParse(req.body)
+      const result = createChatRoundSchema.safeParse(req.body)
       if (!result.success) {
         return res.status(400).json(createErrorResponse(400, '参数校验失败'))
       }
@@ -165,11 +155,7 @@ export class ChatController {
 
   async getChatDetail(req: Request, res: Response) {
     try {
-      const schema = z.object({
-        id: z.string(),
-      })
-
-      const result = schema.safeParse(req.body)
+      const result = getChatDetailSchema.safeParse(req.body)
       if (!result.success) {
         return res.status(400).json(createErrorResponse(400, '参数校验失败'))
       }
@@ -192,38 +178,9 @@ export class ChatController {
     }
   }
 
-  async checkRelation(req: Request, res: Response) {
-    try {
-      const schema = z.object({
-        question: z.string(),
-        fileId: z.string(),
-      })
-
-      const result = schema.safeParse(req.query)
-      if (!result.success) {
-        return res.status(400).json(createErrorResponse(400, '参数校验失败'))
-      }
-
-      const { question, fileId } = result.data
-      const related = await chatService.checkRelation(question, fileId)
-
-      return res.json({
-        code: 0,
-        data: { related },
-        msg: '检查成功',
-      })
-    } catch (err) {
-      return handleError(err, req, res, 'check relation')
-    }
-  }
-
   async getChatStatus(req: Request, res: Response) {
     try {
-      const schema = z.object({
-        chatId: z.string(),
-      })
-
-      const result = schema.safeParse(req.body)
+      const result = getChatStatusSchema.safeParse(req.body)
       if (!result.success) {
         return res.status(400).json(createErrorResponse(400, '参数校验失败'))
       }
@@ -302,12 +259,7 @@ export class ChatController {
     setupSSEConnection(res)
 
     try {
-      const schema = z.object({
-        chatId: z.string(),
-        roundId: z.string(),
-      })
-
-      const result = schema.safeParse(req.query)
+      const result = chatCompletionsSchema.safeParse(req.query)
       if (!result.success) {
         await sendSSEError(res, new ValidationError('参数校验失败'), {
           type: 'chat_record',
