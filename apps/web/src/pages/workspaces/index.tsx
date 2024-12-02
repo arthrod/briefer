@@ -17,7 +17,7 @@ export default function WorkspacesPage() {
     if (!workspace) {
       signOut()
     } else {
-      router.replace(`/workspaces/${workspace.id}/documents`)
+      router.replace(`/workspaces/${workspace.id}/documents${window.location.search}`)
     }
   }, [isLoading, data, signOut, router])
 

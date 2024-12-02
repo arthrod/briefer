@@ -17,14 +17,12 @@ export default function NotebookPage() {
 
   if (!session.data && session.isLoading && !session.error) {
     return (
-      <WorkspaceLayout>
-        <div className="flex w-full justify-center">
-          <div className={clsx(widthClasses, 'py-20')}>
-            <TitleSkeleton visible />
-            <ContentSkeleton visible />
-          </div>
+      <div className="flex w-full justify-center">
+        <div className={clsx(widthClasses, 'py-20')}>
+          <TitleSkeleton visible />
+          <ContentSkeleton visible />
         </div>
-      </WorkspaceLayout>
+      </div>
     )
   }
 
@@ -34,12 +32,13 @@ export default function NotebookPage() {
 
   return null
 }
-
+NotebookPage.layout = WorkspaceLayout
 interface Props {
   workspaceId: string
   documentId: string
   user: SessionUser
 }
+
 function Notebook(props: Props) {
   const [{ document, loading }] = useDocument(props.workspaceId, props.documentId)
   const router = useRouter()
@@ -55,20 +54,20 @@ function Notebook(props: Props) {
     }
 
     if (document.publishedAt === null) {
-      router.replace(`/workspaces/${props.workspaceId}/documents/${props.documentId}/notebook/edit`)
+      router.replace(
+        `/workspaces/${props.workspaceId}/documents/${props.documentId}/notebook/edit${window.location.search}`
+      )
     }
   }, [document, loading, props.user])
 
   if (loading || !document || document.publishedAt === null) {
     return (
-      <WorkspaceLayout>
-        <div className="flex w-full justify-center">
-          <div className={clsx(widthClasses, 'py-20')}>
-            <TitleSkeleton visible />
-            <ContentSkeleton visible />
-          </div>
+      <div className="flex w-full justify-center">
+        <div className={clsx(widthClasses, 'py-20')}>
+          <TitleSkeleton visible />
+          <ContentSkeleton visible />
         </div>
-      </WorkspaceLayout>
+      </div>
     )
   }
 

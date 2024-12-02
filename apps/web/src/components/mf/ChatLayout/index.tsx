@@ -37,6 +37,13 @@ import { showToast } from '../Toast'
 import { useChatEdit } from '@/hooks/mf/chat/useChatEdit'
 import Spin from '@/components/Spin'
 import ArrowRight from '@/icons/arrow-right-line.svg'
+import { useChatRoundCreate } from '@/hooks/mf/chat/useChatSessionCreate'
+import { v4 as uuidv4 } from 'uuid'
+import { MessageContent, useChatDetail } from '@/hooks/mf/chat/useChatDetail'
+import { useChatStop } from '@/hooks/mf/chat/useChatStop'
+import { ChatStatus } from '@/hooks/mf/chat/useChatStatus'
+
+const defaultMsg = '我是你的AI小助手'
 
 interface Item {
   type: string
@@ -149,39 +156,46 @@ export type EventListener = {
   onerror?: (error: Event) => void
   close: () => void
 }
+export type ChatRound = {
+  data: ChatStatus | null
+  timeoutId: number
+}
 
 interface ChatLayoutContextType {
   chatList: HistoryChat[]
   setChatList: Dispatch<SetStateAction<HistoryChat[]>>
-  newChat: (chat: HistoryChat, msg: string) => void
+  newChat: (chat: HistoryChat) => void
   refreshChatList: () => void
-  getCache: () => string
-  startRound: (chatId: string, roundId: string) => ChatSession
+  roundList: MessageContent[]
+  setRoundList: Dispatch<SetStateAction<MessageContent[]>>
+  loadDetail: (chatId: string) => Promise<void>
+  startChat: (chatId: string, msg: string) => Promise<void>
+  stopChat: () => Promise<void>
   getRound: (roundId: string) => ChatSession | undefined
-  endRound: (roundId: string) => void
+  chat: (chatId: string, roundId: string) => ChatSession
+  generating: boolean
 }
 
 export const ChatLayoutContext = createContext<ChatLayoutContextType | null>(null)
 
 export function ChatLayoutProvider(props: { children: ReactNode }) {
   const [chatList, setChatList] = useState<HistoryChat[]>([])
-  const [chatSession, setChatSession] = useState<ChatSession[]>([])
-  const [cache, setCache] = useState('')
+  const [roundList, setRoundList] = useState<MessageContent[]>([])
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
+
+  const [loading, setLoading] = useState(false)
+  const [generating, setGenerating] = useState(false)
+
+  const chatSession = useRef<ChatSession | null>(null)
+
+  const chatRoundCreate = useChatRoundCreate()
   const getChatList = useChatList()
+  const stopChatApi = useChatStop()
+  const getChatDetail = useChatDetail()
 
-  const newChat = useCallback(
-    (chat: HistoryChat, msg: string) => {
-      setChatList((prevChatList) => [chat, ...prevChatList])
-      setCache(msg)
-    },
-    [cache]
-  )
-
-  const getCache = useCallback(() => {
-    const msg = cache
-    setCache('')
-    return msg
-  }, [cache])
+  const newChat = useCallback((chat: HistoryChat) => {
+    setChatList((prevChatList) => [chat, ...prevChatList])
+  }, [])
 
   const refreshChatList = useCallback(() => {
     getChatList().then((data: ChatList) => {
@@ -189,22 +203,147 @@ export function ChatLayoutProvider(props: { children: ReactNode }) {
     })
   }, [])
 
+  const loadDetail = (chatId: string) => {
+    if (loading) {
+      return Promise.reject()
+    }
+    setLoading(true)
+    return getChatDetail(chatId)
+      .then((data) => {
+        if (data) {
+          const { messages } = data
+          messages.unshift({ id: '', role: 'system', content: defaultMsg })
+          setRoundList(messages || [])
+        }
+      })
+      .finally(() => {
+        setLoading(false)
+      })
+  }
+
+  const startChat = async (
+    chatId: string,
+    question: string,
+    receiveMsgDone?: (isError: boolean) => void
+  ) => {
+    const { id: roundId } = await chatRoundCreate(question, chatId)
+    const msgId = uuidv4()
+    const newMsg: MessageContent = {
+      id: msgId,
+      role: 'user',
+      content: question,
+    }
+    setRoundList((messageList) => [...messageList, newMsg])
+    const assistantMsg = addAssistantMsg('')
+    assistantMsg.roundId = roundId
+
+    sendChat(chatId, roundId, msgId, {
+      receiveMsgDone: () => {
+        receiveMsgDone && receiveMsgDone(true)
+      },
+    }).catch((e) => {
+      receiveMsgDone && receiveMsgDone(true)
+    })
+  }
+
+  const sendChat = async (
+    chatId: string,
+    roundId: string,
+    msgId: string,
+    { receiveMsgDone }: { receiveMsgDone: () => void }
+  ) => {
+    if (generating) {
+      return
+    }
+    setGenerating(true)
+    const _chatSession = chat(chatId, roundId)
+    chatSession.current = _chatSession
+
+    _chatSession.listener.onopen = () => {}
+
+    _chatSession.listener.onerror = () => {
+      setGenerating(false)
+      updateMsg(msgId, '服务错误', true)
+    }
+
+    _chatSession.listener.onmessage = (event) => {
+      let { data } = event
+      if (data === '[DONE]') {
+        setGenerating(false)
+        receiveMsgDone()
+        return null
+      }
+      setRoundList((prevList) => {
+        const lastIndex = prevList.length - 1 // 获取最后一条消息的索引
+        const updatedList = [...prevList]
+        if (lastIndex >= 0 && updatedList[lastIndex]) {
+          const lastItem = updatedList[lastIndex]
+          lastItem.content += data
+        }
+        return updatedList
+      })
+    }
+
+    _chatSession.listener.close = () => {
+      updateMsgStatus(msgId)
+    }
+  }
+
+  const updateMsg = (id: string, msg: string, error: boolean) => {
+    setRoundList((prevList) =>
+      prevList.map(
+        (item) =>
+          item.id === id
+            ? { ...item, content: msg, isError: error } // 如果找到匹配的 id，更新内容
+            : item // 否则保持不变
+      )
+    )
+  }
+
+  const handleRegenerate = (message: MessageContent) => {
+    updateMsg(message.id, '', false)
+    if (message.roundId) {
+      // waitingReceive(message.id, message.roundId)
+    }
+  }
+
+  const updateMsgStatus = useCallback((id: string): void => {
+    setRoundList((prevList) =>
+      prevList.map(
+        (item) =>
+          item.id === id
+            ? { ...item, status: status } // 如果找到匹配的 id，更新内容
+            : item // 否则保持不变
+      )
+    )
+  }, [])
+
+  const receiveMsgDone = () => {
+    chatSession.current?.eventSource.close()
+    chatSession.current?.listener.close()
+    chatSession.current = null
+  }
+
+  const addAssistantMsg = (msg: string) => {
+    const msgContent: MessageContent = {
+      id: uuidv4(),
+      role: 'assistant',
+      content: msg,
+      roundId: '',
+    }
+    setRoundList((messageList) => [...messageList, msgContent])
+    return msgContent
+  }
+
   const getRound = useCallback((roundId: string) => {
-    for (let i = 0; i < chatSession.length; i++) {
-      if (chatSession[i].roundId === roundId) {
-        return chatSession[i]
+    for (let i = 0; i < chatSessions.length; i++) {
+      if (chatSessions[i].roundId === roundId) {
+        return chatSessions[i]
       }
     }
   }, [])
 
-  const endRound = useCallback((roundId: string) => {
-    const chatSession = getRound(roundId)
-    if (chatSession) {
-      chatSession.eventSource.close()
-    }
-  }, [])
-
-  const startRound = (chatId: string, roundId: string) => {
+  const chat = (chatId: string, roundId: string) => {
     const eventSource = new EventSource(
       `${process.env.NEXT_PUBLIC_API_URL}/v1/mf/chat/completions?chatId=${chatId}&roundId=${roundId}`,
       {
@@ -224,7 +363,7 @@ export function ChatLayoutProvider(props: { children: ReactNode }) {
       eventSource: eventSource,
     }
 
-    setChatSession((sessions) => [...sessions, chatSession])
+    setChatSessions((sessions) => [...sessions, chatSession])
 
     eventSource.onopen = () => {
       if (listener.onopen) {
@@ -253,17 +392,36 @@ export function ChatLayoutProvider(props: { children: ReactNode }) {
 
     return chatSession
   }
+
+  const stopChat = useCallback(async (): Promise<void> => {
+    if (chatSession.current) {
+      const { roundId, eventSource, listener } = chatSession.current
+      return stopChatApi(roundId)
+        .then(() => {
+          eventSource.close()
+          listener.close()
+        })
+        .catch(() => {
+          showToast('停止失败，请重试', 'error')
+        })
+    }
+  }, [roundList])
+
   return (
     <ChatLayoutContext.Provider
       value={{
         chatList,
+        loadDetail,
         setChatList,
         newChat,
         refreshChatList,
-        getCache,
+        roundList,
+        setRoundList,
+        startChat,
+        stopChat,
         getRound,
-        endRound,
-        startRound,
+        chat,
+        generating,
       }}>
       {props.children}
     </ChatLayoutContext.Provider>
@@ -284,6 +442,7 @@ export default function ChatLayout({ children }: Props) {
   const [routeTitle, setRouteTitle] = useState('')
   const [currentTitle, setCurrentTitle] = useState('')
   const [isCommit, setIsCommit] = useState(false)
+
   const eventTimeoutId = useRef(-1)
   const lastedTimeoutId = useRef(-1)
   const lastedEvent = useRef<EventSource | null>(updateTitleEvent)
@@ -299,7 +458,6 @@ export default function ChatLayout({ children }: Props) {
   useEffect(() => {
     setChatId(String(router.query.chatId))
     refreshChatList()
-
     titleUpdate()
     return () => {
       if (lastedEvent.current) {

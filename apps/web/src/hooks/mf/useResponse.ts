@@ -10,7 +10,7 @@ export const getData = async <T>(res: Response): Promise<T> => {
     window.location.href = '/login'
   }
   if (!res) {
-    return null as T
+    return {} as T
   }
 
   if (res.status === 500) {

@@ -26,43 +26,59 @@ function HomePage() {
 
   const createChat = useCreateChat()
   const router = useRouter()
-  const { newChat } = useChatLayoutContext()
+  const { newChat, startChat, setRoundList } = useChatLayoutContext()
 
-  const send = useCallback(
-    async (msg: string, _fileId?: string) => {
-      if (loading) {
-        return Promise.reject('')
-      }
-      if (type === 'report' && !_fileId) {
-        showToast('请上传报告模版', 'warning')
-        return Promise.reject('noFile')
-      }
+  const send = async (msg: string, _fileId?: string) => {
+    if (loading) {
+      return Promise.reject('')
+    }
+    if (type === 'report' && !_fileId) {
+      showToast('请上传报告模版', 'warning')
+      return Promise.reject('noFile')
+    }
+    chatCreate(msg, _fileId)
+  }
+
+  const chatCreate = useCallback(
+    (msg: string, _fileId?: string) => {
       setLoading(true)
       try {
         createChat(type, _fileId).then((data) => {
-          newChat(data, msg)
-          if (type === 'rag') {
-            if (chatInputRef.current) {
-              const rect = chatInputRef.current.getBoundingClientRect()
-              const distanceFromBottom = window.innerHeight - rect.bottom
-              const translationValue = distanceFromBottom - 40 // Calculate translateY value
-              setTranslateY(translationValue) // Update state to trigger CSS transformation
-            }
-            setChangePage(true)
-            setTimeout(() => {
-              router.push(`/rag/${data.id}`, undefined, { shallow: true })
-            }, 300)
-          } else {
-            router.push(
-              `/workspaces/${data.workspaceId}/documents/${data.documentId}/notebook/edit?chatId=${data.id}`
-            )
-          }
+          newChat(data)
+          createRound(data.id, data.workspaceId || '', data.documentId || '', msg)
         })
       } finally {
         setLoading(false)
       }
     },
-    [router, type]
+    [type]
+  )
+
+  const createRound = useCallback(
+    (chatId: string, workspaceId: string, documentId: string, msg: string) => {
+      startChat(chatId, msg).then(() => {
+        setRoundList([])
+        if (type === 'rag') {
+          if (chatInputRef.current) {
+            const rect = chatInputRef.current.getBoundingClientRect()
+            const distanceFromBottom = window.innerHeight - rect.bottom
+            const translationValue = distanceFromBottom - 40 // Calculate translateY value
+            setTranslateY(translationValue) // Update state to trigger CSS transformation
+          }
+          setChangePage(true)
+          setTimeout(() => {
+            router.push(`/rag/${chatId}`, undefined, { shallow: true })
+          }, 300)
+        } else {
+          router.push(
+            `/workspaces/${workspaceId}/documents/${documentId}/notebook/edit?chatId=${chatId}`,
+            undefined,
+            { shallow: true }
+          )
+        }
+      })
+    },
+    [type]
   )
 
   useEffect(() => {
