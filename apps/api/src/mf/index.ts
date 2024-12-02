@@ -1,5 +1,4 @@
 import { Router } from 'express'
-import { authenticationMiddleware } from '../auth/token.js'
 import { IOServer } from '../websocket/index.js'
 import chatRouter from './chat/index.js'
 import userRouter from './user/index.js'
