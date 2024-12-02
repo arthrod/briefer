@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { setupSSEConnection } from '../utils/sse.js'
 
 export class ChatController {
+
   async createChat(req: Request, res: Response) {
     try {
       const schema = z.object({
@@ -229,11 +230,11 @@ export class ChatController {
       const { chatId } = result.data
       const userId = req.session.user.id
 
-      const status = await chatService.getChatStatus(userId, chatId)
+      const { status, roundId } = await chatService.getChatStatus(userId, chatId)
 
       return res.json({
         code: 0,
-        data: { status },
+        data: { status, roundId },
         msg: '获取成功',
       })
     } catch (err) {
@@ -247,7 +248,6 @@ export class ChatController {
   async stopChat(req: Request, res: Response) {
     try {
       const schema = z.object({
-        chatId: z.string(),
         roundId: z.string(),
       })
 
@@ -256,10 +256,10 @@ export class ChatController {
         return res.status(400).json(createErrorResponse(400, '参数校验失败'))
       }
 
-      const { chatId, roundId } = result.data
+      const {roundId } = result.data
       const userId = req.session.user.id
 
-      await chatService.stopChat(chatId, roundId)
+      await chatService.stopChat(roundId, userId)
 
       return res.json({
         code: 0,

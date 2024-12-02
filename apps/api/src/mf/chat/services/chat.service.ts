@@ -2,11 +2,11 @@ import { Response } from 'express'
 import { prisma, createDocument } from '@briefer/database'
 import { ChatSpeakerType } from '@prisma/client'
 import { AuthorizationError, ValidationError } from '../types/errors.js'
-import { fetchWithTimeout } from '../utils/fetch.js'
+import { activeRequests, fetchWithTimeout } from '../utils/fetch.js'
 import { CONFIG } from '../config/constants.js'
 import { logger } from '../../../logger.js'
 import { handleStreamResponse } from '../utils/sse.js'
-import { Message, RelationCheckResponse, UpdateTarget } from '../types/interfaces.js'
+import { ChatDetailResponse, Message, RelationCheckResponse, UpdateTarget } from '../types/interfaces.js'
 import * as fs from 'fs/promises'
 import { v4 as uuidv4 } from 'uuid'
 import { sanitizeInput, formatDate } from '../utils/format.js'
@@ -22,7 +22,7 @@ export enum ChatRecordStatus {
 }
 
 export class ChatService {
-  
+
   async createChat(userId: string, type: 'rag' | 'report', fileId: string, workspaceId: string) {
     logger().info({
       msg: 'Attempting to create chat',
@@ -216,61 +216,96 @@ export class ChatService {
       },
     })
 
+    // 先检查聊天是否存在且属于当前用户
     const chat = await prisma().chat.findFirst({
       where: {
         id: chatId,
-        userId,
+        userId: userId,
       },
     })
 
     if (!chat) {
-      throw new AuthorizationError('对话不存在或无权限删除')
+      return new AuthorizationError('对话不存在或无权限删除');
     }
 
-    let filesToDelete: { fileId: string; filePath: string }[] = []
+    let filesToDelete: { fileId: string, filePath: string }[] = []
 
+    // 使用事务确保数据一致性
     await prisma().$transaction(async (tx) => {
-      // 获取关联的文件信息
+      // 0. 获取关联的文件信息
       const fileRelations = await tx.chatFileRelation.findMany({
-        where: { chatId },
+        where: { chatId: chatId },
         include: {
-          userFile: true,
-        },
+          userFile: {
+            select: {
+              fileId: true,
+              filePath: true
+            }
+          }
+        }
       })
-      filesToDelete = fileRelations.map((relation) => ({
+      filesToDelete = fileRelations.map(relation => ({
         fileId: relation.userFile.fileId,
-        filePath: relation.userFile.filePath,
+        filePath: relation.userFile.filePath
       }))
 
-      // 删除聊天记录
+      // 1. 获取关联的文档ID
+      const documentRelation = await tx.chatDocumentRelation.findFirst({
+        where: { chatId: chatId },
+        select: { documentId: true }
+      })
+
+      // 2. 删除聊天记录
       await tx.chatRecord.deleteMany({
-        where: { chatId },
+        where: { chatId: chatId }
       })
 
-      // 删除文档关联
+      // 3. 删除文档关联
       await tx.chatDocumentRelation.deleteMany({
-        where: { chatId },
+        where: { chatId: chatId }
       })
 
-      // 删除文件关联
+      // 4. 删除文件关联
       await tx.chatFileRelation.deleteMany({
-        where: { chatId },
+        where: { chatId: chatId }
       })
 
-      // 删除聊天
+      // 5. 删除关联的UserFile记录
+      if (filesToDelete.length > 0) {
+        await tx.userFile.deleteMany({
+          where: {
+            fileId: {
+              in: filesToDelete.map(file => file.fileId)
+            }
+          }
+        })
+      }
+
+      // 6. 如果存在关联文档，删除文档
+      if (documentRelation?.documentId) {
+        await tx.document.delete({
+          where: { id: documentRelation.documentId }
+        })
+      }
+
+      // 7. 删除聊天主记录
       await tx.chat.delete({
-        where: { id: chatId },
+        where: { id: chatId }
       })
     })
 
-    // 删除物理文件
+    // 事务成功后，删除磁盘文件
     for (const file of filesToDelete) {
       try {
         await fs.unlink(file.filePath)
       } catch (error) {
-        logger().error('Failed to delete file:', {
-          error,
-          filePath: file.filePath,
+        logger().error({
+          msg: 'Failed to delete file from disk',
+          data: {
+            error,
+            fileId: file.fileId,
+            filePath: file.filePath
+          }
         })
       }
     }
@@ -278,33 +313,26 @@ export class ChatService {
     logger().info({
       msg: 'Chat deleted successfully',
       data: {
-        chatId,
-        userId,
-        deletedFiles: filesToDelete.length,
+        chatId: chatId,
+        userId: userId,
       },
     })
   }
 
   async createChatRound(chatId: string, userId: string, question: string) {
     logger().info({
-      msg: 'Creating chat round',
-      data: { chatId, userId, question },
+      msg: 'Attempting to create chat round',
+      data: { chatId, userId },
     })
 
     const chat = await prisma().chat.findFirst({
       where: {
         id: chatId,
-        userId,
+        userId: userId,
       },
       include: {
-        fileRelations: {
-          select: {
-            userFile: {
-              select: {
-                fileId: true,
-              },
-            },
-          },
+        records: {
+          orderBy: { createdTime: 'asc' },
         },
       },
     })
@@ -313,49 +341,52 @@ export class ChatService {
       throw new AuthorizationError('对话不存在或无权访问')
     }
 
-    // 检查问题与文档内容的关联性
-    if (chat.type !== 2) { // 非报告类型需要检查关联性
-      const fileId = chat.fileRelations[0]?.userFile?.fileId
-      if (!fileId) {
-        throw new ValidationError('未找到关联的文件')
-      }
+    let chatRecord
+    if (chat.records && chat.records.length === 1 && chat.records[0]?.status === CONFIG.CHAT_STATUS.START) {
+      // 更新现有记录
+      chatRecord = await prisma().chatRecord.update({
+        where: { id: chat.records[0].id },
+        data: {
+          question: sanitizeInput(question),
+          status: CONFIG.CHAT_STATUS.START,
+          updateTime: new Date(),
+        },
+      })
 
-      const isRelated = await this.checkRelation(chatId, question)
-      if (!isRelated) {
-        throw new ValidationError('问题与文档内容无关，请重新提问')
-      }
+      logger().info({
+        msg: 'Updated existing chat record',
+        data: {
+          recordId: chatRecord.id,
+          chatId,
+          userId,
+        },
+      })
+    } else {
+      // 创建新记录
+      chatRecord = await prisma().chatRecord.create({
+        data: {
+          id: uuidv4(),
+          chatId,
+          roundId: uuidv4(), // 使用新的 ID 作为 roundId
+          question: sanitizeInput(question),
+          answer: Buffer.from(''),
+          speakerType: 'user',
+          status: CONFIG.CHAT_STATUS.START,
+        },
+      })
+
+      logger().info({
+        msg: 'Created new chat record',
+        data: {
+          recordId: chatRecord.roundId,
+          chatId,
+          userId,
+        },
+      })
     }
 
-    // 生成轮次 ID
-    const roundId = uuidv4()
-
-    // 创建聊天记录
-    const record = await prisma().chatRecord.create({
-      data: {
-        id: uuidv4(),
-        chatId,
-        roundId,
-        question,
-        answer: Buffer.from(''),
-        speakerType: ChatSpeakerType.user,
-        status: ChatRecordStatus.PENDING,
-        createdTime: new Date(),
-        updateTime: new Date(),
-      },
-    })
-
-    logger().info({
-      msg: 'Chat round created successfully',
-      data: {
-        chatId,
-        roundId,
-        recordId: record.id,
-      },
-    })
-
     return {
-      roundId,
-      recordId: record.id,
+      roundId: chatRecord.roundId
     }
   }
 
@@ -613,7 +644,7 @@ export class ChatService {
         }
 
         const relationResult = (await relationCheckResponse.json()) as RelationCheckResponse
-        
+
         logger().info({
           msg: 'Relation check response',
           data: {
@@ -679,66 +710,128 @@ export class ChatService {
         id: chatId,
         userId,
       },
-      include: {
-        fileRelations: {
-          include: {
-            userFile: true,
-          },
-        },
+      select: {
+        id: true,
+        type: true,
         records: {
           orderBy: {
             createdTime: 'asc',
           },
           select: {
             id: true,
-            speakerType: true,
             question: true,
+            speakerType: true,
             answer: true,
+            status: true,
+            createdTime: true,
           },
         },
         documentRelations: {
           select: {
-            documentId: true,
+            document: {
+              select: {
+                id: true,
+                title: true,
+              },
+            },
+          },
+        },
+        fileRelations: {
+          select: {
+            userFile: {
+              select: {
+                fileId: true,
+                fileName: true,
+              },
+            },
           },
         },
       },
     })
 
     if (!chat) {
-      throw new AuthorizationError('对话不存在或无权访问')
+      throw new AuthorizationError('聊天记录不存在或无权访问')
     }
 
-    const messages = chat.records.map((record) => ({
-      id: record.id,
-      role: record.speakerType,
-      content: record.speakerType === 'user' ? record.question : record.answer.toString(),
-    }))
+    // 首先按时间排序聊天记录
+    const sortedRecords = [...chat.records].sort((a, b) =>
+      a.createdTime.getTime() - b.createdTime.getTime()
+    );
 
-    const file = chat.fileRelations[0]?.userFile
-      ? {
-          id: chat.fileRelations[0].userFile.id,
-          name: chat.fileRelations[0].userFile.fileName,
-          type: chat.fileRelations[0].userFile.fileId.split('.').pop() || '',
-        }
-      : null
+    // 转换聊天记录为消息格式
+    const messages = sortedRecords.flatMap((record) => {
+      const messages = [];
 
-    const response = {
+      // 只有当 question 有内容时才添加 user 消息
+      if (record.question) {
+        messages.push({
+          id: record.id,
+          role: 'user',
+          content: sanitizeInput(record.question),
+          status: 'success',
+        });
+      }
+
+      // 只有当 answer 有内容时才添加 assistant 消息
+      const answerContent = record.answer.toString();
+      if (answerContent) {
+        messages.push({
+          id: record.id,
+          role: 'assistant',
+          content: answerContent,
+          status: (() => {
+            switch (record.status) {
+              case CONFIG.CHAT_STATUS.FAILED:
+                return 'error'
+              case CONFIG.CHAT_STATUS.CHATTING:
+                return 'chatting'
+              case CONFIG.CHAT_STATUS.START:
+              case CONFIG.CHAT_STATUS.COMPLETED:
+              default:
+                return 'success'
+            }
+          })(),
+        });
+      }
+
+      return messages;
+    });
+
+    const responseData: ChatDetailResponse = {
       type: chat.type === 1 ? 'rag' : 'report',
       messages,
-      documentId: chat.documentRelations[0]?.documentId || null,
-      file,
+      documentId: null,
+      file: null,
+    }
+
+    if (chat.type === 2) {
+      const documentRelation = chat.documentRelations[0]
+      const fileRelation = chat.fileRelations[0]
+
+      if (documentRelation?.document) {
+        responseData.documentId = documentRelation.document.id
+      }
+
+      if (fileRelation?.userFile) {
+        responseData.file = {
+          id: fileRelation.userFile.fileId,
+          name: sanitizeInput(fileRelation.userFile.fileName),
+          type: fileRelation.userFile.fileName.split('.').pop() || '',
+        }
+      }
     }
 
     logger().info({
-      msg: 'Chat detail fetched successfully',
+      msg: 'Chat detail retrieved successfully',
       data: {
-        chatId,
+        chatId: chatId,
         userId,
+        type: responseData.type,
         messageCount: messages.length,
       },
     })
 
-    return response
+    return responseData
   }
 
   async checkRelation(
@@ -828,90 +921,128 @@ export class ChatService {
     })
 
     const chat = await prisma().chat.findFirst({
-      where: {
-        id: chatId,
-        userId,
-      },
-      include: {
-        records: {
-          orderBy: {
-            createdTime: 'desc',
-          },
-          take: 1,
-          select: {
-            status: true,
+        where: {
+          id: chatId,
+          userId,
+        },
+        select: {
+          id: true,
+          records: {
+            orderBy: {
+              createdTime: 'desc',
+            },
+            take: 1,
+            select: {
+              status: true,
+              id: true,
+            },
           },
         },
-      },
-    })
+      })
 
-    if (!chat) {
-      throw new AuthorizationError('对话不存在或无权访问')
-    }
+      if (!chat) {
+        throw new AuthorizationError('聊天记录不存在或无权访问')
+      }
 
-    const status = chat.records[0]?.status || CONFIG.CHAT_STATUS.COMPLETED
+      const status = chat.records[0]?.status === CONFIG.CHAT_STATUS.CHATTING ? 'chatting' : 'idle'
+      const roundId = status === 'chatting' ? chat.records[0]?.id : ''
 
-    logger().info({
-      msg: 'Chat status fetched successfully',
-      data: {
-        chatId,
-        userId,
-        status,
-      },
-    })
+      logger().info({
+        msg: 'Chat status retrieved successfully',
+        data: {
+          chatId,
+          userId,
+          status,
+          roundId,
+        },
+      })
 
-    return status
+    return {status, roundId}
   }
 
-  async stopChat(chatId: string, roundId: string) {
-    logger().info({
-      msg: 'Stopping chat',
-      data: { chatId, roundId },
-    })
-
+  async stopChat(roundId: string, userId: string) {
     try {
-      // 调用 AI Agent 停止接口
-      const response = await fetchWithTimeout(
-        `${CONFIG.AI_AGENT_URL}${CONFIG.AI_AGENT_ENDPOINTS.STOP_CHAT}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            chatId,
-            roundId,
-          }),
-        },
-        CONFIG.AI_AGENT_TIMEOUT
-      )
+      logger().info({
+        msg: 'Attempting to stop chat',
+        data: { roundId, userId },
+      })
 
-      if (!response.ok) {
-        throw new Error(`停止对话请求失败: ${response.status}`)
-      }
-
-      // 更新对话状态
-      await prisma().chatRecord.update({
+      // 查找对话记录并验证权限
+      const chatRecord = await prisma().chatRecord.findFirst({
         where: {
           id: roundId,
+          chat: {
+            userId,
+          },
         },
-        data: {
-          status: ChatRecordStatus.STOPPED,
-          updateTime: new Date(),
+        select: {
+          id: true,
+          chatId: true,
+          status: true,
+          answer: true,
         },
       })
 
-      return {
-        code: 0,
-        msg: '对话已停止',
+      if (!chatRecord) {
+        throw new AuthorizationError('对话记录不存在或无权访问')
       }
-    } catch (error) {
-      logger().error('Stop chat error:', {
-        error,
-        chatId,
-        roundId,
+
+      if (chatRecord.status !== CONFIG.CHAT_STATUS.CHATTING) {
+        logger().info({
+          msg: 'Chat already stopped or completed',
+          data: { roundId, status: chatRecord.status },
+        })
+        return
+      }
+
+      // 尝试中断正在进行的请求
+      const controller = activeRequests.get(roundId)
+      if (controller) {
+        logger().info({
+          msg: 'Aborting active request',
+          data: { roundId },
+        })
+        controller.abort()
+        activeRequests.delete(roundId)
+      }
+
+      // 更新对话态为完成
+      const currentAnswer = chatRecord.answer.toString()
+      const updatedAnswer = currentAnswer.includes('[DONE]')
+        ? currentAnswer
+        : `${currentAnswer}\n[DONE]`
+
+      await prisma().$transaction([
+        prisma().chatRecord.update({
+          where: { id: roundId },
+          data: {
+            status: CONFIG.CHAT_STATUS.COMPLETED,
+            answer: Buffer.from(updatedAnswer),
+            speakerType: 'assistant',
+            updateTime: new Date(),
+          },
+        }),
+        prisma().chat.update({
+          where: { id: chatRecord.chatId },
+          data: {
+            updateTime: new Date(),
+          },
+        }),
+      ])
+
+      logger().info({
+        msg: 'Chat stopped successfully',
+        data: {
+          roundId,
+          chatId: chatRecord.chatId,
+          userId,
+        },
       })
-      throw error
+    } catch (error) {
+      if (error instanceof AuthorizationError) {
+        return new AuthorizationError(error.message)
+      }
+      return error;
     }
   }
 
