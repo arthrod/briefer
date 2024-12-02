@@ -277,23 +277,12 @@ export class ChatController {
 
   async updateTitle(req: Request, res: Response) {
     try {
-      const schema = z.object({
-        chatId: z.string(),
-        roundId: z.string(),
-      })
-
-      const result = schema.safeParse(req.query)
-      if (!result.success) {
-        return res.status(400).json(createErrorResponse(400, '参数校验失败'))
-      }
-
-      const { chatId } = result.data
       const userId = req.session.user.id
 
       setupSSEConnection(res)
 
       try {
-        await chatService.updateTitle(chatId, userId, req, res)
+        await chatService.updateTitle(userId, req, res)
       } catch (error) {
         return handleError(error, req, res, 'update title')
       }
