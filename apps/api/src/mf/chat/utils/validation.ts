@@ -7,7 +7,7 @@ import { ErrorResponse } from '../types/index.js'
 
 // 环境变量验证
 export function validateEnvVars() {
-  const requiredEnvVars = ['AI_AGENT_URL', 'AI_AGENT_TIMEOUT', 'LOG_LEVEL']
+  const requiredEnvVars = ['AI_AGENT_URL']
   for (const envVar of requiredEnvVars) {
     if (!process.env[envVar]) {
       throw new Error(`Missing required environment variable: ${envVar}`)
