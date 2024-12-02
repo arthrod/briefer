@@ -21,7 +21,7 @@ export default function DocumentsPage() {
     const first = documents.first()
     if (!state.loading && first) {
       router.replace(
-        `/workspaces/${workspaceId}/documents/${first.id}/notebook/edit?${window.location.search}`
+        `/workspaces/${workspaceId}/documents/${first.id}/notebook/edit${window.location.search}`
       )
     }
   }, [documents, workspaceId])

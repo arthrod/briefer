@@ -70,7 +70,7 @@ function PrivateDocumentPage(props: PrivateDocumentPageProps) {
 
     if (document.publishedAt === null) {
       router.replace(
-        `/workspaces/${props.workspaceId}/documents/${props.documentId}/notebook/edit?${window.location.search}`
+        `/workspaces/${props.workspaceId}/documents/${props.documentId}/notebook/edit${window.location.search}`
       )
     }
 
