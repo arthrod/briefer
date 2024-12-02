@@ -367,6 +367,91 @@ export class ChatService {
     }
   }
 
+  async handleChatCompletions(res: Response, chatId: string, roundId: string, userId: string) {
+    logger().info({
+      msg: 'Attempting to handle chat completions',
+      data: { chatId, roundId, userId },
+    })
+
+    const chatRecord = await prisma().chatRecord.findFirst({
+      where: {
+        id: roundId,
+        chatId: chatId,
+        chat: {
+          userId,
+        },
+      },
+      select: {
+        id: true,
+        question: true,
+        speakerType: true,
+        chat: {
+          select: {
+            id: true,
+            type: true,
+            fileRelations: {
+              select: {
+                userFile: {
+                  select: {
+                    fileId: true,
+                    fileName: true,
+                    filePath: true,
+                  }
+                }
+              }
+            }
+          },
+        },
+      },
+    })
+
+    if (!chatRecord) {
+      throw new AuthorizationError('对话记录不存在或无权访问')
+    }
+
+    const updateTarget: UpdateTarget = {
+      type: 'chat_record',
+      chatId,
+      roundId,
+    }
+
+    try {
+      const endpoint = chatRecord.chat.type === 2
+        ? CONFIG.AI_AGENT_ENDPOINTS.REPORT_COMPLETIONS
+        : CONFIG.AI_AGENT_ENDPOINTS.DATA_COMPLETIONS
+
+      const response = await fetchWithTimeout(
+        `${CONFIG.AI_AGENT_URL}${endpoint}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            chatId,
+            roundId,
+            recordId: chatRecord.id,
+            question: chatRecord.question,
+          }),
+        },
+        CONFIG.AI_AGENT_TIMEOUT
+      )
+
+      if (!response.ok) {
+        throw new Error(`AI Agent request failed with status ${response.status}`)
+      }
+
+      await handleStreamResponse(response, res, updateTarget)
+    } catch (error) {
+      logger().error('Chat completion error:', {
+        error,
+        chatId,
+        roundId,
+      })
+      throw error
+    }
+  }
+
   async getChatDetail(userId: string, chatId: string) {
     logger().info({
       msg: 'Attempting to fetch chat detail',

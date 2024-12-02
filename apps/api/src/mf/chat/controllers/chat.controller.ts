@@ -302,6 +302,39 @@ export class ChatController {
       return handleError(err, req, res, 'update title')
     }
   }
+
+  async handleChatCompletions(req: Request, res: Response) {
+    try {
+      const schema = z.object({
+        chatId: z.string(),
+        roundId: z.string(),
+      })
+
+      const result = schema.safeParse(req.query)
+      if (!result.success) {
+        return res.status(400).json(createErrorResponse(400, '参数校验失败'))
+      }
+
+      const { chatId, roundId } = result.data
+      const userId = req.session.user.id
+
+      setupSSEConnection(res)
+
+      try {
+        await chatService.handleChatCompletions(res, chatId, roundId, userId)
+      } catch (error) {
+        return handleError(error, req, res, 'chat completions')
+      }
+    } catch (err) {
+      if (err instanceof AuthorizationError) {
+        return res.status(403).json(createErrorResponse(403, err.message))
+      }
+      if (err instanceof ValidationError) {
+        return res.status(400).json(createErrorResponse(400, err.message))
+      }
+      return handleError(err, req, res, 'chat completions')
+    }
+  }
 }
 
 export const chatController = new ChatController()

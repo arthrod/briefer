@@ -15,11 +15,11 @@ const chatRouter = (socketServer: IOServer) => {
   router.post('/update', chatController.updateChat.bind(chatController))
   router.post('/delete', chatController.deleteChat.bind(chatController))
   router.post('/round/create', chatController.createChatRound.bind(chatController))
-  router.get('/detail', chatController.getChatDetail.bind(chatController))
-  router.post('/relation/check', chatController.checkRelation.bind(chatController))
-  router.get('/status', chatController.getChatStatus.bind(chatController))
+  router.post('/detail', chatController.getChatDetail.bind(chatController))
+  router.post('/status', chatController.getChatStatus.bind(chatController))
   router.post('/stop', chatController.stopChat.bind(chatController))
-  router.post('/title/update', chatController.updateTitle.bind(chatController))
+  router.get('/title/update', chatController.updateTitle.bind(chatController))
+  router.get('/completions', chatController.handleChatCompletions.bind(chatController))
 
   return router
 }
