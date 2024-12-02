@@ -16,7 +16,7 @@ import clsx from 'clsx'
 import { useRouter } from 'next/router'
 import { Page } from '@/components/PagePath'
 import { useWorkspaces } from '@/hooks/useWorkspaces'
-import { extractQueryParamValue, useStringQuery } from '@/hooks/useQueryArgs'
+import { useStringQuery, getQueryParam } from '@/hooks/useQueryArgs'
 import { useSession, useSignout } from '@/hooks/useAuth'
 import { isBanned } from '@/utils/isBanned'
 import BannedPage from '../BannedPage'
@@ -42,10 +42,9 @@ interface Props extends PropsWithChildren {
   hideOnboarding?: boolean
 }
 
-function ChatLayout() {
+function ChatLayout({ chatId }: { chatId: string }) {
   const [loading, setLoading] = useState(false)
-  const { roundList, stopChat, startChat } = useChatLayoutContext()
-  const chatId = extractQueryParamValue('chatId')
+  const { roundList, stopChat, startRoundChat } = useChatLayoutContext()
 
   const router = useRouter()
 
@@ -54,7 +53,7 @@ function ChatLayout() {
       return
     }
     setLoading(true)
-    startChat(chatId, question)
+    startRoundChat(chatId, question)
       .catch((e) => {
         showToast('消息发送失败，请检查网络', 'error')
       })
@@ -117,6 +116,7 @@ export default function WorkspaceLayout({ children, pagePath, topBarClassname }:
   const session = useSession()
   const router = useRouter()
   const signOut = useSignout()
+  const chatId = getQueryParam('chatId')
 
   const [{ data: workspaces, isLoading: isLoadingWorkspaces }] = useWorkspaces()
   const [isSideBarOpen, setSideBarOpen] = useSideBar()
@@ -192,7 +192,7 @@ export default function WorkspaceLayout({ children, pagePath, topBarClassname }:
             ? `flex h-full min-w-[33%] max-w-[33%] flex-col overflow-auto lg:min-w-[25%] lg:max-w-[25%]`
             : `hidden md:max-w-[0] lg:max-w-[0]`
         }>
-        <ChatLayout />
+        <ChatLayout chatId={chatId} />
       </div>
 
       <main

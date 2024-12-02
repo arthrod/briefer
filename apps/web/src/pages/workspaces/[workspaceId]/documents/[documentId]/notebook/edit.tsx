@@ -1,4 +1,4 @@
-import { extractQueryParamValue, useStringQuery } from '@/hooks/useQueryArgs'
+import { getQueryParam, useStringQuery } from '@/hooks/useQueryArgs'
 import { SessionUser, useSession } from '@/hooks/useAuth'
 import PrivateDocumentPage from '@/components/PrivateDocumentPage'
 import useDocument from '@/hooks/useDocument'
@@ -25,7 +25,7 @@ export default function EditNotebookPage(props: WorkspaceLayoutChildrenProps) {
   const session = useSession()
   const workspaceId = useStringQuery('workspaceId')
   const documentId = useStringQuery('documentId')
-  const chatId = extractQueryParamValue('chatId')
+  const chatId = getQueryParam('chatId')
 
   const { loadDetail } = useChatLayoutContext()
 
