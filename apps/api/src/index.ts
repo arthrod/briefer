@@ -90,7 +90,7 @@ async function main() {
 
   app.use('/auth', authRouter(socketServer.io))
   app.use('/v1', v1Router(socketServer.io))
-  app.use('/v1/mf', mfRouter())
+  app.use('/v1/mf', mfRouter(socketServer.io))
   let shuttingDown = false
   app.get('/livez', (_req, res) => {
     if (shuttingDown) {

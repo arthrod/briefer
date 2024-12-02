@@ -506,6 +506,8 @@ model UserFile {
 
   fileRelations ChatFileRelation[]
 
+  chatRecordFileRelations ChatRecordFileRelation[]
+
   @@index([fileId])
 }
 
@@ -558,6 +560,7 @@ enum ChatSpeakerType {
 model ChatRecord {
   id          String          @id @default(uuid()) @db.Uuid
   chatId      String          @db.Uuid
+  roundId     String?         @db.Uuid
   question    String
   answer      Bytes
   speakerType ChatSpeakerType @default(user)
@@ -566,7 +569,23 @@ model ChatRecord {
   updateTime  DateTime?       @updatedAt
 
   chat        Chat            @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  fileRelations ChatRecordFileRelation[]
 
   @@map("ChatRecord")
   @@index([chatId])
+  @@index([roundId])
+}
+
+model ChatRecordFileRelation {
+  id           String    @id @default(uuid()) @db.Uuid
+  chatRecordId String    @db.Uuid
+  fileId       String
+  createdTime  DateTime  @default(now())
+
+  chatRecord  ChatRecord @relation(fields: [chatRecordId], references: [id], onDelete: Cascade)
+  userFile    UserFile   @relation(fields: [fileId], references: [fileId])
+
+  @@map("ChatRecordFileRelation")
+  @@index([chatRecordId])
+  @@index([fileId])
 }
