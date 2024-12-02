@@ -127,8 +127,7 @@ export class ChatController {
     try {
       const schema = z.object({
         chatId: z.string(),
-        question: z.string(),
-        type: z.enum(['rag', 'report']),
+        question: z.string()
       })
 
       const result = schema.safeParse(req.body)
@@ -136,16 +135,20 @@ export class ChatController {
         return res.status(400).json(createErrorResponse(400, '参数校验失败'))
       }
 
-      const { chatId, question, type } = result.data
+      const { chatId, question } = result.data
       const userId = req.session.user.id
 
-      setupSSEConnection(res)
-
       try {
-        const { roundId, recordId } = await chatService.createChatRound(chatId, userId, question)
-        await chatService.handleChatCompletion(res, chatId, roundId, recordId, question, type)
+        const { roundId } = await chatService.createChatRound(chatId, userId, question)
+        return res.json({
+          code: 0,
+          data: {
+            id: roundId,
+          },
+          msg: '创建成功',
+        })
       } catch (error) {
-        return handleError(error, req, res, 'chat completion')
+        return handleError(error, req, res, 'create chat round')
       }
     } catch (err) {
       if (err instanceof AuthorizationError) {
@@ -164,7 +167,7 @@ export class ChatController {
         id: z.string(),
       })
 
-      const result = schema.safeParse(req.query)
+      const result = schema.safeParse(req.body)
       if (!result.success) {
         return res.status(400).json(createErrorResponse(400, '参数校验失败'))
       }

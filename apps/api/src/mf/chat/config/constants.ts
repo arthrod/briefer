@@ -1,6 +1,6 @@
 export const CONFIG = {
   // 认证相关
-  USE_TEST_AUTH: true, // 测试模式开关，true 时使用测试数据，false 时使用正常认证
+  USE_TEST_AUTH: false, // 测试模式开关，true 时使用测试数据，false 时使用正常认证
 
   // AI Agent相关
   AI_AGENT_URL: process.env['AI_AGENT_URL'],
