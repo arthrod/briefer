@@ -14,7 +14,7 @@ type UseDocument = [
     loading: boolean
     publishing: boolean
   },
-  API
+  API,
 ]
 
 function useDocument(workspaceId: string, documentId: string): UseDocument {
@@ -26,10 +26,7 @@ function useDocument(workspaceId: string, documentId: string): UseDocument {
 
   const currRunUnexecutedBlocks = document?.runUnexecutedBlocks ?? false
 
-  const setIcon = useCallback(
-    (icon: string) => api.setIcon(documentId, icon),
-    [api, documentId]
-  )
+  const setIcon = useCallback((icon: string) => api.setIcon(documentId, icon), [api, documentId])
 
   const [publishing, setPublishing] = useState(false)
   const publish = useCallback(async () => {
@@ -52,12 +49,7 @@ function useDocument(workspaceId: string, documentId: string): UseDocument {
     } catch (err) {
       alert('Failed to update document settings')
     }
-  }, [
-    workspaceId,
-    documentId,
-    currRunUnexecutedBlocks,
-    api.updateDocumentSettings,
-  ])
+  }, [workspaceId, documentId, currRunUnexecutedBlocks, api.updateDocumentSettings])
 
   return useMemo(
     () => [

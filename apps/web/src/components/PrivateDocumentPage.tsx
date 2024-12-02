@@ -2,12 +2,11 @@ import dynamic from 'next/dynamic'
 
 import { useDataSources } from '@/hooks/useDatasources'
 import useDocument from '@/hooks/useDocument'
-import { useCallback, useMemo, useState } from 'react'
+import React, { ReactElement, useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/router'
 import type { ApiDocument, ApiUser, UserWorkspaceRole } from '@briefer/database'
 import { isNil } from 'ramda'
 import { useDocuments } from '@/hooks/useDocuments'
-import WorkspaceLayout from './WorkspaceLayout'
 import Comments from './Comments'
 import RunAllV2 from './RunAllV2'
 import useFullScreenDocument from '@/hooks/useFullScreenDocument'
@@ -36,6 +35,7 @@ const V2Editor = dynamic(() => import('@/components/v2Editor'), {
 })
 
 interface Props {
+  updateTopBar?: (ele: ReactElement) => void
   workspaceId: string
   documentId: string
   user: ApiUser & { roles: Record<string, UserWorkspaceRole> }
@@ -44,17 +44,14 @@ interface Props {
 
 export default function PrivateDocumentPage(props: Props) {
   const [{ document, publishing }, { publish }] = useDocument(props.workspaceId, props.documentId)
-
   if (!document) {
     return (
-      <WorkspaceLayout>
-        <div className="flex w-full justify-center">
-          <div className={clsx(widthClasses, 'py-20')}>
-            <TitleSkeleton visible />
-            <ContentSkeleton visible />
-          </div>
+      <div className="flex w-full justify-center">
+        <div className={clsx(widthClasses, 'py-20')}>
+          <TitleSkeleton visible />
+          <ContentSkeleton visible />
         </div>
-      </WorkspaceLayout>
+      </div>
     )
   }
 
@@ -189,163 +186,162 @@ function PrivateDocumentPageInner(
     }
 
     await props.publish()
+
     router.push(
       `/workspaces/${props.document.workspaceId}/documents/${props.document.id}/notebook${window.location.search}`
     )
   }, [props.publishing, props.publish])
 
-  const onGoToApp = useCallback(() => {
-    router.push(
-      `/workspaces/${props.document.workspaceId}/documents/${props.document.id}/notebook${window.location.search}`
-    )
-  }, [router])
-
-  const topBarContent = (
-    <div className="flex w-full items-center justify-between gap-x-6">
-      <div className="flex w-full items-center gap-x-1.5 overflow-hidden font-sans text-sm text-gray-400">
-        <span className="flex w-full items-center truncate">
-          {documentTitle}
-          <span className="ml-1 font-semibold">
-            {props.isApp ? <span className="text-ceramic-500 mr-1">查看中</span> : '编辑中'}
+  const topBarContent = useMemo(() => {
+    return (
+      <div className="flex w-full items-center justify-between gap-x-6">
+        <div className="flex w-full items-center gap-x-1.5 overflow-hidden font-sans text-sm text-gray-400">
+          <span className="flex w-full items-center truncate">
+            {documentTitle}
+            {/* <span className="ml-1 font-semibold">
+        {props.isApp ? <span className="text-ceramic-500 mr-1">查看中</span> : '编辑中'}
+      </span> */}
+            {/* {props.isApp ? (
+        <EyeIcon className="h-4 w-4" />
+      ) : (
+        <img className="h-4 w-4" src="/icons/edit.svg" alt="" />
+      )} */}
           </span>
+        </div>
+
+        <div className="flex h-[30px] w-full items-center justify-end gap-x-4">
+          {!isViewer && <RunAllV2 disabled={false} yDoc={yDoc} primary={props.isApp} />}
           {props.isApp ? (
-            <EyeIcon className="h-4 w-4" />
+            <Link
+              className="flex items-center gap-x-1.5 rounded-sm px-3 py-1 text-sm"
+              href={`/workspaces/${props.document.workspaceId}/documents/${props.document.id}/notebook/edit${window.location.search}`}>
+              <img className="h-4 w-4" src="/icons/edit.svg" alt="" />
+              <span>编辑</span>
+            </Link>
           ) : (
-            <img className="h-4 w-4" src="/icons/edit.svg" alt="" />
+            <>
+              <Tooltip
+                title="Click to publish"
+                message="This notebook has unpublished changes."
+                active={props.document.publishedAt !== null && isDirty}
+                position="bottom"
+                tooltipClassname="w-40">
+                <button
+                  className="bg-primary-200 hover:bg-primary-300 group relative flex items-center gap-x-1.5 rounded-sm px-3 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={onPublish}
+                  disabled={props.publishing}>
+                  <BookUpIcon
+                    className="duration-400 h-4 w-4 rotate-12 transition-transform group-hover:rotate-0"
+                    strokeWidth={1}
+                  />
+                  <span>预览</span>
+                  {isDirty && props.document.publishedAt && <PublishBlinkingSignal />}
+                </button>
+              </Tooltip>
+            </>
           )}
-        </span>
-      </div>
 
-      <div className="flex h-[30px] w-full items-center justify-end gap-x-4">
-        {!isViewer && <RunAllV2 disabled={false} yDoc={yDoc} primary={props.isApp} />}
-        {props.isApp ? (
-          <Link
-            className="flex items-center gap-x-1.5 rounded-sm px-3 py-1 text-sm"
-            href={`/workspaces/${props.document.workspaceId}/documents/${props.document.id}/notebook/edit`}>
-            <img className="h-4 w-4" src="/icons/edit.svg" alt="" />
-            <span>编辑</span>
-          </Link>
-        ) : (
-          <>
-            <Tooltip
-              title="Click to publish"
-              message="This notebook has unpublished changes."
-              active={props.document.publishedAt !== null && isDirty}
-              position="bottom"
-              tooltipClassname="w-40">
-              <button
-                className="bg-primary-200 hover:bg-primary-300 group relative flex items-center gap-x-1.5 rounded-sm px-3 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-                onClick={onPublish}
-                disabled={props.publishing}>
-                <BookUpIcon
-                  className="duration-400 h-4 w-4 rotate-12 transition-transform group-hover:rotate-0"
-                  strokeWidth={1}
-                />
-                <span>预览</span>
-                {isDirty && props.document.publishedAt && <PublishBlinkingSignal />}
-              </button>
-            </Tooltip>
-          </>
-        )}
-
-        <EllipsisDropdown
-          onToggleSchedules={onToggleSchedules}
-          onToggleSnapshots={onToggleSnapshots}
-          onToggleComments={onToggleComments}
-          onToggleFullScreen={onToggleFullScreen}
-          onToggleFiles={onToggleFiles}
-          onToggleSchemaExplorer={onToggleSchemaExplorerEllipsis}
-          onToggleReusableComponents={onToggleReusableComponents}
-          onToggleShortcuts={onToggleShortcuts}
-          onTogglePageSettings={onTogglePageSettings}
-          isViewer={isViewer}
-          isDeleted={isDeleted}
-          isFullScreen={isFullScreen}
-        />
+          <EllipsisDropdown
+            onToggleSchedules={onToggleSchedules}
+            onToggleSnapshots={onToggleSnapshots}
+            onToggleComments={onToggleComments}
+            onToggleFullScreen={onToggleFullScreen}
+            onToggleFiles={onToggleFiles}
+            onToggleSchemaExplorer={onToggleSchemaExplorerEllipsis}
+            onToggleReusableComponents={onToggleReusableComponents}
+            onToggleShortcuts={onToggleShortcuts}
+            onTogglePageSettings={onTogglePageSettings}
+            isViewer={isViewer}
+            isDeleted={isDeleted}
+            isFullScreen={isFullScreen}
+          />
+        </div>
       </div>
-    </div>
-  )
+    )
+  }, [documentTitle, yDoc])
+
+  useEffect(() => {
+    props.updateTopBar && props.updateTopBar(topBarContent)
+  }, [topBarContent])
 
   return (
-    <WorkspaceLayout topBarContent={topBarContent}>
-      <div className="relative flex w-full">
-        <V2Editor
-          document={props.document}
-          dataSources={dataSources}
-          isPublicViewer={false}
-          isDeleted={isDeleted}
-          onRestoreDocument={onRestoreDocument}
-          isEditable={!props.isApp}
-          isPDF={false}
-          isApp={props.isApp}
-          userId={props.user.id}
-          role={props.user.roles[props.workspaceId]}
-          isFullScreen={isFullScreen}
-          yDoc={yDoc}
-          provider={provider}
-          isSyncing={syncing}
-          onOpenFiles={onToggleFiles}
-          onSchemaExplorer={onToggleSchemaExplorerSQLBlock}
-        />
+    <div className="relative flex w-full">
+      <V2Editor
+        document={props.document}
+        dataSources={dataSources}
+        isPublicViewer={false}
+        isDeleted={isDeleted}
+        onRestoreDocument={onRestoreDocument}
+        isEditable={!props.isApp}
+        isPDF={false}
+        isApp={props.isApp}
+        userId={props.user.id}
+        role={props.user.roles[props.workspaceId]}
+        isFullScreen={isFullScreen}
+        yDoc={yDoc}
+        provider={provider}
+        isSyncing={syncing}
+        onOpenFiles={onToggleFiles}
+        onSchemaExplorer={onToggleSchemaExplorerSQLBlock}
+      />
 
-        <Comments
-          workspaceId={props.workspaceId}
-          documentId={props.documentId}
-          visible={selectedSidebar?._tag === 'comments'}
-          onHide={onHideSidebar}
-        />
+      <Comments
+        workspaceId={props.workspaceId}
+        documentId={props.documentId}
+        visible={selectedSidebar?._tag === 'comments'}
+        onHide={onHideSidebar}
+      />
 
-        <SchemaExplorer
-          workspaceId={props.workspaceId}
-          visible={selectedSidebar?._tag === 'schemaExplorer'}
-          onHide={onHideSidebar}
-          dataSourceId={
-            selectedSidebar?._tag === 'schemaExplorer' ? selectedSidebar.dataSourceId : null
-          }
-          canRetrySchema={!isViewer}
-        />
+      <SchemaExplorer
+        workspaceId={props.workspaceId}
+        visible={selectedSidebar?._tag === 'schemaExplorer'}
+        onHide={onHideSidebar}
+        dataSourceId={
+          selectedSidebar?._tag === 'schemaExplorer' ? selectedSidebar.dataSourceId : null
+        }
+        canRetrySchema={!isViewer}
+      />
 
-        <ShortcutsModal visible={selectedSidebar?._tag === 'shortcuts'} onHide={onHideSidebar} />
+      <ShortcutsModal visible={selectedSidebar?._tag === 'shortcuts'} onHide={onHideSidebar} />
 
-        {!isViewer && !isDeleted && (
-          <>
-            <Schedules
-              workspaceId={props.workspaceId}
-              documentId={props.documentId}
-              isPublished={props.document.publishedAt !== null}
-              visible={selectedSidebar?._tag === 'schedules'}
-              onHide={onHideSidebar}
-              onPublish={onPublish}
-              publishing={props.publishing}
-            />
-            <Snapshots
-              workspaceId={props.workspaceId}
-              documentId={props.documentId}
-              visible={selectedSidebar?._tag === 'snapshots'}
-              onHide={onHideSidebar}
-              isPublished={props.document.publishedAt !== null}
-            />
-            <Files
-              workspaceId={props.workspaceId}
-              visible={selectedSidebar?._tag === 'files'}
-              onHide={onHideSidebar}
-              yDoc={yDoc}
-            />
-            <ReusableComponents
-              workspaceId={props.workspaceId}
-              visible={selectedSidebar?._tag === 'reusableComponents'}
-              onHide={onHideSidebar}
-              yDoc={yDoc}
-            />
-            <PageSettingsPanel
-              workspaceId={props.workspaceId}
-              documentId={props.documentId}
-              visible={selectedSidebar?._tag === 'pageSettings'}
-              onHide={onHideSidebar}
-            />
-          </>
-        )}
-      </div>
-    </WorkspaceLayout>
+      {!isViewer && !isDeleted && (
+        <>
+          <Schedules
+            workspaceId={props.workspaceId}
+            documentId={props.documentId}
+            isPublished={props.document.publishedAt !== null}
+            visible={selectedSidebar?._tag === 'schedules'}
+            onHide={onHideSidebar}
+            onPublish={onPublish}
+            publishing={props.publishing}
+          />
+          <Snapshots
+            workspaceId={props.workspaceId}
+            documentId={props.documentId}
+            visible={selectedSidebar?._tag === 'snapshots'}
+            onHide={onHideSidebar}
+            isPublished={props.document.publishedAt !== null}
+          />
+          <Files
+            workspaceId={props.workspaceId}
+            visible={selectedSidebar?._tag === 'files'}
+            onHide={onHideSidebar}
+            yDoc={yDoc}
+          />
+          <ReusableComponents
+            workspaceId={props.workspaceId}
+            visible={selectedSidebar?._tag === 'reusableComponents'}
+            onHide={onHideSidebar}
+            yDoc={yDoc}
+          />
+          <PageSettingsPanel
+            workspaceId={props.workspaceId}
+            documentId={props.documentId}
+            visible={selectedSidebar?._tag === 'pageSettings'}
+            onHide={onHideSidebar}
+          />
+        </>
+      )}
+    </div>
   )
 }

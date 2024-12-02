@@ -7,7 +7,6 @@ import RagIcon from '@/icons/rag.svg'
 import ReportIcon from '@/icons/report.svg'
 import ChatLayout, { useChatLayoutContext } from '@/components/mf/ChatLayout'
 import clsx from 'clsx'
-import { useCreateChat } from '@/hooks/mf/chat/useCreateChat'
 import { ChatType } from '@/hooks/mf/chat/useChatList'
 import { useRouter } from 'next/router'
 import { showToast } from '@/components/mf/Toast'
@@ -24,46 +23,50 @@ function HomePage() {
   const [loading, setLoading] = useState(false)
   const chatInputRef = useRef<HTMLDivElement>(null)
 
-  const createChat = useCreateChat()
   const router = useRouter()
-  const { newChat } = useChatLayoutContext()
+  const { createChat, startRoundChat } = useChatLayoutContext()
 
-  const send = useCallback(
-    async (msg: string, _fileId?: string) => {
-      if (loading) {
-        return Promise.reject('')
+  const send = async (msg: string, _fileId?: string) => {
+    if (loading) {
+      return Promise.reject('')
+    }
+    if (type === 'report' && !_fileId) {
+      showToast('请上传报告模版', 'warning')
+      return Promise.reject('noFile')
+    }
+    setLoading(true)
+    try {
+      // 创建对话
+      createChat(type, _fileId).then((data) => {
+        createRound(data.id, msg, data.workspaceId, data.documentId)
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const createRound = (chatId: string, msg: string, workspaceId?: string, documentId?: string) => {
+    startRoundChat(chatId, msg).then(() => {
+      if (type === 'rag') {
+        if (chatInputRef.current) {
+          const rect = chatInputRef.current.getBoundingClientRect()
+          const distanceFromBottom = window.innerHeight - rect.bottom
+          const translationValue = distanceFromBottom - 40
+          setTranslateY(translationValue)
+        }
+        setChangePage(true)
+        setTimeout(() => {
+          router.push(`/rag/${chatId}`, undefined, { shallow: true })
+        }, 300)
+      } else {
+        router.push(
+          `/workspaces/${workspaceId}/documents/${documentId}/notebook/edit?chatId=${chatId}`,
+          undefined,
+          { shallow: true }
+        )
       }
-      if (type === 'report' && !_fileId) {
-        showToast('请上传报告模版', 'warning')
-        return Promise.reject('noFile')
-      }
-      setLoading(true)
-      try {
-        createChat(type, _fileId).then((data) => {
-          newChat(data, msg)
-          if (type === 'rag') {
-            if (chatInputRef.current) {
-              const rect = chatInputRef.current.getBoundingClientRect()
-              const distanceFromBottom = window.innerHeight - rect.bottom
-              const translationValue = distanceFromBottom - 40 // Calculate translateY value
-              setTranslateY(translationValue) // Update state to trigger CSS transformation
-            }
-            setChangePage(true)
-            setTimeout(() => {
-              router.push(`/rag/${data.id}`, undefined, { shallow: true })
-            }, 300)
-          } else {
-            router.push(
-              `/workspaces/${data.workspaceId}/documents/${data.documentId}/notebook/edit?chatId=${data.id}`
-            )
-          }
-        })
-      } finally {
-        setLoading(false)
-      }
-    },
-    [router, type]
-  )
+    })
+  }
 
   useEffect(() => {
     let index = 0

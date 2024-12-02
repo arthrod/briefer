@@ -37,7 +37,14 @@ import { showToast } from '../Toast'
 import { useChatEdit } from '@/hooks/mf/chat/useChatEdit'
 import Spin from '@/components/Spin'
 import ArrowRight from '@/icons/arrow-right-line.svg'
+import { useChatRoundCreate } from '@/hooks/mf/chat/useChatSessionCreate'
+import { v4 as uuidv4 } from 'uuid'
+import { ChatType, MessageContent, useChatDetail } from '@/hooks/mf/chat/useChatDetail'
+import { useChatStop } from '@/hooks/mf/chat/useChatStop'
+import { ChatStatus } from '@/hooks/mf/chat/useChatStatus'
+import { useChatCreate } from '@/hooks/mf/chat/useCreateChat'
 
+const defaultMsg: MessageContent = { id: '', role: 'system', content: '我是你的AI小助手' }
 interface Item {
   type: string
   label: string
@@ -56,10 +63,10 @@ const MoreBtn = ({ items, onItemClick }: IMoreBtnProps) => {
     setDialogOpen(false)
   }
   return (
-    <Popover className="relative">
+    <Popover className={styles.moreOpt}>
       {({ open, close }) => (
         <>
-          <PopoverButton as="div" className={styles.moreOpt} onClick={() => setIsOpen(!open)}>
+          <PopoverButton as="div" onClick={() => setIsOpen(!open)}>
             <img src="/icons/more.svg" width={16} />
           </PopoverButton>
           <PopoverPanel
@@ -149,62 +156,212 @@ export type EventListener = {
   onerror?: (error: Event) => void
   close: () => void
 }
+export type ChatRound = {
+  data: ChatStatus | null
+  timeoutId: number
+}
 
 interface ChatLayoutContextType {
   chatList: HistoryChat[]
   setChatList: Dispatch<SetStateAction<HistoryChat[]>>
-  newChat: (chat: HistoryChat, msg: string) => void
+  addChatList: (chat: HistoryChat) => void
   refreshChatList: () => void
-  getCache: () => string
-  startRound: (chatId: string, roundId: string) => ChatSession
+  roundList: MessageContent[]
+  setRoundList: Dispatch<SetStateAction<MessageContent[]>>
+  loadDetail: (chatId: string) => Promise<void>
+  startRoundChat: (chatId: string, msg: string) => Promise<void>
+  stopChat: () => Promise<void>
+  createChat: (type: ChatType, _fileId?: string) => Promise<HistoryChat>
   getRound: (roundId: string) => ChatSession | undefined
-  endRound: (roundId: string) => void
+  chat: (chatId: string, roundId: string) => ChatSession
+  generating: boolean
 }
 
 export const ChatLayoutContext = createContext<ChatLayoutContextType | null>(null)
 
 export function ChatLayoutProvider(props: { children: ReactNode }) {
   const [chatList, setChatList] = useState<HistoryChat[]>([])
-  const [chatSession, setChatSession] = useState<ChatSession[]>([])
-  const [cache, setCache] = useState('')
-  const getChatList = useChatList()
+  const [roundList, setRoundList] = useState<MessageContent[]>([])
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
 
-  const newChat = useCallback(
-    (chat: HistoryChat, msg: string) => {
-      setChatList((prevChatList) => [chat, ...prevChatList])
-      setCache(msg)
-    },
-    [cache]
-  )
+  const [loading, setLoading] = useState(false)
+  const [generating, setGenerating] = useState(false)
 
-  const getCache = useCallback(() => {
-    const msg = cache
-    setCache('')
-    return msg
-  }, [cache])
+  const curChatSession = useRef<ChatSession | null>(null)
 
-  const refreshChatList = useCallback(() => {
-    getChatList().then((data: ChatList) => {
+  const getChatListApi = useChatList()
+  const chatStopApi = useChatStop()
+  const getChatDetailApi = useChatDetail()
+
+  const chatCreateApi = useChatCreate()
+  const chatRoundCreateApi = useChatRoundCreate()
+
+  const addChatList = (chat: HistoryChat) => {
+    setChatList((prevChatList) => [chat, ...prevChatList])
+  }
+
+  const refreshChatList = () => {
+    getChatListApi().then((data: ChatList) => {
       setChatList(data.list)
     })
+  }
+
+  const createChat = (type: ChatType, _fileId?: string) => {
+    setRoundList([defaultMsg])
+    return chatCreateApi(type, _fileId).then((data) => {
+      addChatList(data)
+      return data
+    })
+  }
+
+  const loadDetail = (chatId: string) => {
+    if (loading) {
+      return Promise.reject()
+    }
+    if (curChatSession.current?.chatId === chatId) {
+      return Promise.resolve()
+    }
+    setLoading(true)
+    return getChatDetailApi(chatId)
+      .then((data) => {
+        if (data) {
+          const { messages } = data
+          setRoundList([defaultMsg, ...(messages || [])])
+        }
+      })
+      .finally(() => {
+        setLoading(false)
+      })
+  }
+
+  const startRoundChat = async (
+    chatId: string,
+    question: string,
+    receiveMsgDone?: (isError: boolean) => void
+  ) => {
+    const { id: roundId } = await chatRoundCreateApi(question, chatId)
+    const msgId = uuidv4()
+    const userMsg: MessageContent = {
+      id: msgId,
+      role: 'user',
+      content: question,
+    }
+    const assistantMsg = createAssistantMsg('')
+    assistantMsg.roundId = roundId
+    setRoundList((preList) => {
+      return [...preList, userMsg, assistantMsg]
+    })
+
+    sendChat(chatId, roundId, msgId, {
+      receiveMsgDone: () => {
+        receiveMsgDone && receiveMsgDone(true)
+      },
+    }).catch((e) => {
+      receiveMsgDone && receiveMsgDone(true)
+    })
+  }
+
+  const sendChat = async (
+    chatId: string,
+    roundId: string,
+    msgId: string,
+    { receiveMsgDone }: { receiveMsgDone: () => void }
+  ) => {
+    if (generating) {
+      return
+    }
+    setGenerating(true)
+
+    const _chatSession = chat(chatId, roundId)
+    curChatSession.current = _chatSession
+
+    _chatSession.listener.onopen = () => {}
+
+    _chatSession.listener.onerror = () => {
+      setGenerating(false)
+      updateMsg(msgId, '服务错误', true)
+      _receiveMsgDone()
+    }
+
+    _chatSession.listener.onmessage = (event) => {
+      let { data } = event
+      if (data === '[DONE]') {
+        setGenerating(false)
+        receiveMsgDone()
+        _receiveMsgDone()
+        return null
+      }
+      setRoundList((prevList) => {
+        const lastIndex = prevList.length - 1 // 获取最后一条消息的索引
+        const updatedList = [...prevList]
+        if (lastIndex >= 0 && updatedList[lastIndex]) {
+          const lastItem = updatedList[lastIndex]
+          lastItem.content += data
+        }
+        return updatedList
+      })
+    }
+
+    _chatSession.listener.close = () => {
+      // updateMsgStatus(msgId)
+    }
+  }
+
+  const updateMsg = (id: string, msg: string, error: boolean) => {
+    setRoundList((prevList) =>
+      prevList.map(
+        (item) =>
+          item.id === id
+            ? { ...item, content: msg, isError: error } // 如果找到匹配的 id，更新内容
+            : item // 否则保持不变
+      )
+    )
+  }
+
+  const handleRegenerate = (message: MessageContent) => {
+    updateMsg(message.id, '', false)
+    if (message.roundId) {
+      // waitingReceive(message.id, message.roundId)
+    }
+  }
+
+  const updateMsgStatus = useCallback((id: string): void => {
+    setRoundList((prevList) =>
+      prevList.map(
+        (item) =>
+          item.id === id
+            ? { ...item, status: status } // 如果找到匹配的 id，更新内容
+            : item // 否则保持不变
+      )
+    )
   }, [])
 
+  const _receiveMsgDone = () => {
+    if (curChatSession && curChatSession.current) {
+      curChatSession.current?.listener.close()
+      curChatSession.current?.eventSource.close()
+      curChatSession.current = null
+    }
+  }
+
+  const createAssistantMsg = (msg: string): MessageContent => {
+    return {
+      id: uuidv4(),
+      role: 'assistant',
+      content: msg,
+      roundId: '',
+    }
+  }
+
   const getRound = useCallback((roundId: string) => {
-    for (let i = 0; i < chatSession.length; i++) {
-      if (chatSession[i].roundId === roundId) {
-        return chatSession[i]
+    for (let i = 0; i < chatSessions.length; i++) {
+      if (chatSessions[i].roundId === roundId) {
+        return chatSessions[i]
       }
     }
   }, [])
 
-  const endRound = useCallback((roundId: string) => {
-    const chatSession = getRound(roundId)
-    if (chatSession) {
-      chatSession.eventSource.close()
-    }
-  }, [])
-
-  const startRound = (chatId: string, roundId: string) => {
+  const chat = (chatId: string, roundId: string) => {
     const eventSource = new EventSource(
       `${process.env.NEXT_PUBLIC_API_URL}/v1/mf/chat/completions?chatId=${chatId}&roundId=${roundId}`,
       {
@@ -224,7 +381,7 @@ export function ChatLayoutProvider(props: { children: ReactNode }) {
       eventSource: eventSource,
     }
 
-    setChatSession((sessions) => [...sessions, chatSession])
+    setChatSessions((sessions) => [...sessions, chatSession])
 
     eventSource.onopen = () => {
       if (listener.onopen) {
@@ -253,17 +410,37 @@ export function ChatLayoutProvider(props: { children: ReactNode }) {
 
     return chatSession
   }
+
+  const stopChat = useCallback(async (): Promise<void> => {
+    if (curChatSession.current) {
+      const { roundId, eventSource, listener } = curChatSession.current
+      return chatStopApi(roundId)
+        .then(() => {
+          eventSource.close()
+          listener.close()
+        })
+        .catch(() => {
+          showToast('停止失败，请重试', 'error')
+        })
+    }
+  }, [roundList])
+
   return (
     <ChatLayoutContext.Provider
       value={{
         chatList,
+        loadDetail,
         setChatList,
-        newChat,
+        addChatList,
         refreshChatList,
-        getCache,
+        roundList,
+        setRoundList,
+        createChat,
+        startRoundChat,
+        stopChat,
         getRound,
-        endRound,
-        startRound,
+        chat,
+        generating,
       }}>
       {props.children}
     </ChatLayoutContext.Provider>
@@ -284,6 +461,7 @@ export default function ChatLayout({ children }: Props) {
   const [routeTitle, setRouteTitle] = useState('')
   const [currentTitle, setCurrentTitle] = useState('')
   const [isCommit, setIsCommit] = useState(false)
+
   const eventTimeoutId = useRef(-1)
   const lastedTimeoutId = useRef(-1)
   const lastedEvent = useRef<EventSource | null>(updateTitleEvent)
@@ -299,7 +477,6 @@ export default function ChatLayout({ children }: Props) {
   useEffect(() => {
     setChatId(String(router.query.chatId))
     refreshChatList()
-
     titleUpdate()
     return () => {
       if (lastedEvent.current) {
@@ -428,9 +605,10 @@ export default function ChatLayout({ children }: Props) {
               return (
                 <div
                   key={chat.id}
-                  className={clsx(styles.chatItem, {
-                    [styles.chatItem_active]: isActive, // 添加选中样式
-                  })}
+                  className={clsx(
+                    styles.chatItem,
+                    isActive ? styles.active : '' // 添加选中样式
+                  )}
                   onClick={() => {
                     if (chat.id === chatId) {
                       return
@@ -444,7 +622,7 @@ export default function ChatLayout({ children }: Props) {
                     }
                   }}>
                   {chat.isEditing ? (
-                    <div className={styles.itemTitleInputLayout}>
+                    <div className={styles.inputLayout}>
                       <input
                         type="text"
                         className={styles.itemTitleInput}

@@ -7,7 +7,7 @@ export default function WorkspacesPage() {
   const router = useRouter()
 
   useEffect(() => {
-    router.replace(`/workspaces/${workspaceId}/documents`)
+    router.replace(`/workspaces/${workspaceId}/documents${window.location.search}`)
   }, [workspaceId])
 
   return null

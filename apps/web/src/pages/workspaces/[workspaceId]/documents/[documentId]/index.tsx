@@ -24,14 +24,12 @@ export default function DocumentPage() {
 
   if (!session.data && session.isLoading && !session.error) {
     return (
-      <WorkspaceLayout>
-        <div className="flex w-full justify-center">
-          <div className={clsx(widthClasses, 'py-20')}>
-            <TitleSkeleton visible />
-            <ContentSkeleton visible />
-          </div>
+      <div className="flex w-full justify-center">
+        <div className={clsx(widthClasses, 'py-20')}>
+          <TitleSkeleton visible />
+          <ContentSkeleton visible />
         </div>
-      </WorkspaceLayout>
+      </div>
     )
   }
 
@@ -49,6 +47,7 @@ export default function DocumentPage() {
   return null
 }
 
+DocumentPage.layout = WorkspaceLayout
 interface PrivateDocumentPageProps {
   workspaceId: string
   documentId: string
@@ -65,29 +64,31 @@ function PrivateDocumentPage(props: PrivateDocumentPageProps) {
     }
 
     if (!document) {
-      router.replace(`/workspaces/${props.workspaceId}`)
+      router.replace(`/workspaces/${props.workspaceId}${window.location.search}`)
       return
     }
 
     if (document.publishedAt === null) {
-      router.replace(`/workspaces/${props.workspaceId}/documents/${props.documentId}/notebook/edit`)
+      router.replace(
+        `/workspaces/${props.workspaceId}/documents/${props.documentId}/notebook/edit?${window.location.search}`
+      )
     }
 
     if (document.hasDashboard) {
       router.replace(`/workspaces/${props.workspaceId}/documents/${props.documentId}/dashboard`)
     } else {
-      router.replace(`/workspaces/${props.workspaceId}/documents/${props.documentId}/notebook`)
+      router.replace(
+        `/workspaces/${props.workspaceId}/documents/${props.documentId}/notebook${window.location.search}`
+      )
     }
   }, [document, loading, props.user])
 
   return (
-    <WorkspaceLayout>
-      <div className="flex w-full justify-center">
-        <div className={clsx(widthClasses, 'py-20')}>
-          <TitleSkeleton visible />
-          <ContentSkeleton visible />
-        </div>
+    <div className="flex w-full justify-center">
+      <div className={clsx(widthClasses, 'py-20')}>
+        <TitleSkeleton visible />
+        <ContentSkeleton visible />
       </div>
-    </WorkspaceLayout>
+    </div>
   )
 }

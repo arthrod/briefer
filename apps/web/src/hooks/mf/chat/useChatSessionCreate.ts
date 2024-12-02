@@ -2,11 +2,11 @@ import { useCallback, useMemo } from 'react'
 import { NEXT_PUBLIC_MF_API_URL } from '@/utils/env'
 import { getData, MFResponse } from '../useResponse'
 
-export type ChatSessionCreateData = {
+export type ChatRoundCreateData = {
   id: string
 }
 
-export const useChatSessionCreate = () => {
+export const useChatRoundCreate = () => {
   const createChatSession = useCallback(async (question: string, chatId: string) => {
     const res = await fetch(`${NEXT_PUBLIC_MF_API_URL()}/chat/round/create`, {
       credentials: 'include',
@@ -19,7 +19,7 @@ export const useChatSessionCreate = () => {
         chatId: chatId,
       }),
     })
-    return getData<ChatSessionCreateData>(res)
+    return getData<ChatRoundCreateData>(res)
   }, [])
   return useMemo(() => createChatSession, [createChatSession])
 }

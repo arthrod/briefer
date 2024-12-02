@@ -107,10 +107,7 @@ async function innerExecuteCode(
   onOutputs: (outputs: Output[]) => void,
   { storeHistory }: { storeHistory: boolean }
 ): Promise<void> {
-  logger().trace(
-    { workspaceId, sessionId },
-    'Starting Jupyter for code execution.'
-  )
+  logger().trace({ workspaceId, sessionId }, 'Starting Jupyter for code execution.')
   const jupyterManager = getJupyterManager()
   await jupyterManager.ensureRunning(workspaceId)
   logger().trace({ workspaceId, sessionId }, 'Jupyter is up.')
@@ -167,21 +164,15 @@ async function innerExecuteCode(
           'data' in message.content &&
           'application/vnd.plotly.v1+json' in message.content.data &&
           message.content.data['application/vnd.plotly.v1+json'] &&
-          typeof message.content.data['application/vnd.plotly.v1+json'] ===
-            'object' &&
+          typeof message.content.data['application/vnd.plotly.v1+json'] === 'object' &&
           'data' in message.content.data['application/vnd.plotly.v1+json']
           // :guitar:
         ) {
           onOutputs([
             {
               type: 'plotly',
-              data: message.content.data['application/vnd.plotly.v1+json'][
-                'data'
-              ],
-              layout:
-                message.content.data['application/vnd.plotly.v1+json'][
-                  'layout'
-                ],
+              data: message.content.data['application/vnd.plotly.v1+json']['data'],
+              layout: message.content.data['application/vnd.plotly.v1+json']['layout'],
             },
           ])
         } else if (
@@ -196,20 +187,14 @@ async function innerExecuteCode(
               format: 'png',
             },
           ])
-        } else if (
-          'data' in message.content &&
-          'text/html' in message.content.data
-        ) {
+        } else if ('data' in message.content && 'text/html' in message.content.data) {
           onOutputs([
             {
               type: 'html',
               html: message.content.data['text/html'] as string,
             },
           ])
-        } else if (
-          'data' in message.content &&
-          'text/plain' in message.content.data
-        ) {
+        } else if ('data' in message.content && 'text/plain' in message.content.data) {
           onOutputs([
             {
               type: 'stdio',
@@ -218,10 +203,7 @@ async function innerExecuteCode(
             },
           ])
         } else {
-          logger().warn(
-            { message },
-            `Got unsupported \`${message.header.msg_type}\` message`
-          )
+          logger().warn({ message }, `Got unsupported \`${message.header.msg_type}\` message`)
         }
         break
       case 'error':
@@ -289,24 +271,15 @@ async function innerExecuteCode(
         }
 
         if (timeout) {
-          logger().trace(
-            { workspaceId, sessionId, status, newStatus },
-            'Clearing timeout'
-          )
+          logger().trace({ workspaceId, sessionId, status, newStatus }, 'Clearing timeout')
           clearTimeout(timeout)
         }
 
         if (newStatus === 'idle') {
-          logger().trace(
-            { workspaceId, sessionId, status, newStatus },
-            'Setting timeout'
-          )
+          logger().trace({ workspaceId, sessionId, status, newStatus }, 'Setting timeout')
           timeout = setTimeout(() => {
             if (!done) {
-              logger().trace(
-                { workspaceId, sessionId, status, newStatus },
-                'Timeout reached'
-              )
+              logger().trace({ workspaceId, sessionId, status, newStatus }, 'Timeout reached')
               done = true
             }
 
@@ -319,10 +292,7 @@ async function innerExecuteCode(
 
       kernel.statusChanged.connect(onStatusChanged)
       if (status === 'idle') {
-        logger().trace(
-          { workspaceId, sessionId, status },
-          'Initial idle status, setting timeout'
-        )
+        logger().trace({ workspaceId, sessionId, status }, 'Initial idle status, setting timeout')
         timeout = setTimeout(() => {
           if (!done) {
             done = true
@@ -413,10 +383,7 @@ type Jupyter = {
   kernel: services.Kernel.IKernelConnection
 }
 const sessions = new Map<string, Jupyter>()
-async function getSession(
-  workspaceId: string,
-  sessionId: string
-): Promise<Jupyter> {
+async function getSession(workspaceId: string, sessionId: string): Promise<Jupyter> {
   const key = `${workspaceId}-${sessionId}`
   let jupyter = sessions.get(key)
   if (jupyter) {
@@ -434,9 +401,7 @@ async function getSession(
 
   const session = sessionModel
     ? sessionManager.connectTo({ model: sessionModel })
-    : await withRetry(() =>
-        startNewSession(sessionManager, workspaceId, sessionId)
-      )
+    : await withRetry(() => startNewSession(sessionManager, workspaceId, sessionId))
 
   if (!session.kernel) {
     throw new Error('session.kernel is null')
@@ -460,11 +425,7 @@ export async function updateEnvironmentVariables(
   )
 }
 
-async function withRetry<T>(
-  fn: () => Promise<T>,
-  maxRetries = 5,
-  maxTimeout = 15000
-): Promise<T> {
+async function withRetry<T>(fn: () => Promise<T>, maxRetries = 5, maxTimeout = 15000): Promise<T> {
   let attempt = 1
   while (attempt <= maxRetries) {
     try {
@@ -477,9 +438,7 @@ async function withRetry<T>(
       logger().warn({ attempt, err }, 'Retrying')
       attempt++
       // exponential backoff
-      await new Promise((resolve) =>
-        setTimeout(resolve, Math.min(2 ** attempt * 1000, maxTimeout))
-      )
+      await new Promise((resolve) => setTimeout(resolve, Math.min(2 ** attempt * 1000, maxTimeout)))
     }
   }
 

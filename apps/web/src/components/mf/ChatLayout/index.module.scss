@@ -16,6 +16,7 @@
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
+  width: 15rem;
 
   .top {
     padding: 16px;
@@ -45,29 +46,24 @@
 
     .chatItem {
       position: relative;
-      width: 13rem;
-      border-radius: 0.5rem;
-      cursor: pointer;
       display: flex;
       flex-direction: row;
       align-items: center;
+      border-radius: 0.5rem;
+      padding: 0.75rem 1.75rem 0.75rem 0.75rem;
+      cursor: pointer;
 
       .itemTitle {
-        padding: 12px;
         text-overflow: ellipsis;
         overflow: hidden;
         white-space: nowrap;
         flex-grow: 1;
-        max-width: 152px;
       }
-      .itemTitleInputLayout {
+      .inputLayout {
         display: flex;
         justify-content: center;
         align-items: center;
-        padding-right: 12px;
         width: 100%;
-        padding-top: 2px;
-        padding-bottom: 2px;
         .itemTitleInput {
           font-size: 14px;
           border-radius: 8px;
@@ -88,10 +84,17 @@
       }
 
       .moreOpt {
-        margin-left: 16px;
-        padding: 12px;
-        flex-shrink: 0;
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        right: 0.75rem;
         visibility: hidden;
+        width: 1rem;
+        height: 1rem;
+      }
+      &.active {
+        color: #2f69fe;
+        background: rgba(220, 230, 250);
       }
 
       &:hover {
@@ -102,11 +105,6 @@
           visibility: visible;
         }
       }
-    }
-
-    .chatItem_active {
-      color: #2f69fe;
-      background: rgba(220, 230, 250);
     }
 
     .empty {

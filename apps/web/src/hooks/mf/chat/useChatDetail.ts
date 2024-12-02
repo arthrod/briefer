@@ -39,7 +39,7 @@ export type ChatDetail = {
 }
 
 export const useChatDetail = () => {
-  const getChatDetail = useCallback(async <T>(id: string, type?: ChatType): Promise<T> => {
+  const getChatDetail = useCallback(async (id: string, type?: ChatType): Promise<RagDetailData> => {
     const res = await fetch(`${NEXT_PUBLIC_MF_API_URL()}/chat/detail`, {
       credentials: 'include',
       method: 'POST',
@@ -51,7 +51,7 @@ export const useChatDetail = () => {
       }),
     })
 
-    return getData<T>(res) as T
+    return getData<RagDetailData>(res)
   }, [])
   return getChatDetail
 }

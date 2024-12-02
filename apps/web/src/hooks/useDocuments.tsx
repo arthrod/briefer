@@ -1,14 +1,7 @@
 import { Map, List, Set } from 'immutable'
 import type { Document, ApiDocument } from '@briefer/database'
 import { v4 as uuidv4 } from 'uuid'
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  useMemo,
-  useCallback,
-} from 'react'
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react'
 import { useFavorites } from './useFavorites'
 import { equals } from 'ramda'
 import useWebsocket from './useWebsocket'
@@ -93,11 +86,7 @@ function upsertDocumentInMemory(
   return result.push(...Array.from(affectedDocuments.values()))
 }
 
-function deleteDocumentInMemory(
-  documents: List<ApiDocument>,
-  id: string,
-  isPermanent?: boolean
-) {
+function deleteDocumentInMemory(documents: List<ApiDocument>, id: string, isPermanent?: boolean) {
   let documentsToRemove = Set<string>()
   let affectedDocuments = Map<string, ApiDocument>()
 
@@ -199,15 +188,8 @@ type API = {
   deleteDocument: (id: string, isPermanent?: boolean) => Promise<void>
   restoreDocument: (id: string) => Promise<void>
   setIcon: (id: string, icon: string) => Promise<void>
-  updateParent: (
-    id: string,
-    parentId: string | null,
-    orderIndex: number
-  ) => Promise<void>
-  updateDocumentSettings: (
-    id: string,
-    settings: { runUnexecutedBlocks: boolean }
-  ) => Promise<void>
+  updateParent: (id: string, parentId: string | null, orderIndex: number) => Promise<void>
+  updateDocumentSettings: (id: string, settings: { runUnexecutedBlocks: boolean }) => Promise<void>
   publish: (id: string) => Promise<void>
 }
 
@@ -217,9 +199,10 @@ type UseDocumentsState = {
 }
 type UseDocuments = [UseDocumentsState, API]
 
-const Context = createContext<
-  [State, React.Dispatch<React.SetStateAction<State>>]
->([Map(), () => {}])
+const Context = createContext<[State, React.Dispatch<React.SetStateAction<State>>]>([
+  Map(),
+  () => {},
+])
 
 type Props = {
   children: React.ReactNode
@@ -233,10 +216,7 @@ export function DocumentsProvider(props: Props) {
       return
     }
 
-    const onDocuments = (data: {
-      workspaceId: string
-      documents: ApiDocument[]
-    }) => {
+    const onDocuments = (data: { workspaceId: string; documents: ApiDocument[] }) => {
       const now = new Date()
       const prepareForComparison = (stateValue: StateValue) => ({
         ...stateValue,
@@ -261,9 +241,7 @@ export function DocumentsProvider(props: Props) {
           documents: List(data.documents),
         }
 
-        if (
-          !equals(prepareForComparison(previous), prepareForComparison(next))
-        ) {
+        if (!equals(prepareForComparison(previous), prepareForComparison(next))) {
           return s.set(workspaceId, next)
         }
 
@@ -272,10 +250,7 @@ export function DocumentsProvider(props: Props) {
     }
     socket.on('workspace-documents', onDocuments)
 
-    const onDocumentUpdate = (data: {
-      workspaceId: string
-      document: ApiDocument
-    }) => {
+    const onDocumentUpdate = (data: { workspaceId: string; document: ApiDocument }) => {
       setState((s) => {
         const workspaceId = data.workspaceId
 
@@ -318,18 +293,14 @@ export function DocumentsProvider(props: Props) {
 export function useDocuments(workspaceId: string): UseDocuments {
   const [state, setState] = useContext(Context)
   const [_, { unfavoriteDocument }] = useFavorites(workspaceId)
+
   const { documents, loading } = useMemo(
-    (): StateValue =>
-      state.get(workspaceId) ?? { loading: true, documents: List() },
+    (): StateValue => state.get(workspaceId) ?? { loading: true, documents: List() },
     [state, workspaceId]
   )
 
   const createDocument = useCallback(
-    async (data: {
-      id?: string
-      parentId?: string | null
-      version: number
-    }) => {
+    async (data: { id?: string; parentId?: string | null; version: number }) => {
       if (loading) {
         throw new Error('Cannot create document while loading')
       }
@@ -354,17 +325,14 @@ export function useDocuments(workspaceId: string): UseDocuments {
       })
 
       try {
-        const res = await fetch(
-          `${NEXT_PUBLIC_API_URL()}/v1/workspaces/${workspaceId}/documents`,
-          {
-            credentials: 'include',
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(body),
-          }
-        )
+        const res = await fetch(`${NEXT_PUBLIC_API_URL()}/v1/workspaces/${workspaceId}/documents`, {
+          credentials: 'include',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(body),
+        })
         const doc: Document = await res.json()
         return doc
       } catch (e) {
@@ -388,9 +356,7 @@ export function useDocuments(workspaceId: string): UseDocuments {
       }
 
       if (!isPermanent && !thisDocument.parentId) {
-        const rootNonDeletedDocuments = documents.filter(
-          (d) => !d.deletedAt && !d.parentId
-        )
+        const rootNonDeletedDocuments = documents.filter((d) => !d.deletedAt && !d.parentId)
 
         if (rootNonDeletedDocuments.size === 1) {
           // prevent deleting the last root document
@@ -535,24 +501,19 @@ export function useDocuments(workspaceId: string): UseDocuments {
 
         return s.set(workspaceId, {
           loading,
-          documents: documents.map((doc) =>
-            doc.id === id ? { ...doc, icon } : doc
-          ),
+          documents: documents.map((doc) => (doc.id === id ? { ...doc, icon } : doc)),
         })
       })
 
       try {
-        await fetch(
-          `${NEXT_PUBLIC_API_URL()}/v1/workspaces/${workspaceId}/documents/${id}/icon`,
-          {
-            credentials: 'include',
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ icon }),
-          }
-        )
+        await fetch(`${NEXT_PUBLIC_API_URL()}/v1/workspaces/${workspaceId}/documents/${id}/icon`, {
+          credentials: 'include',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ icon }),
+        })
       } catch (e) {
         alert('Something went wrong')
         if (previousStateValue) {
@@ -567,20 +528,13 @@ export function useDocuments(workspaceId: string): UseDocuments {
   )
 
   const updateParent = useCallback(
-    async (
-      id: string,
-      futureParentId: string | null,
-      futureOrderIndex: number
-    ) => {
+    async (id: string, futureParentId: string | null, futureOrderIndex: number) => {
       const document = documents.find((doc) => doc.id === id)
       if (!document) {
         return
       }
 
-      if (
-        futureParentId === document.parentId &&
-        futureOrderIndex === document.orderIndex
-      ) {
+      if (futureParentId === document.parentId && futureOrderIndex === document.orderIndex) {
         return
       }
 
@@ -589,10 +543,7 @@ export function useDocuments(workspaceId: string): UseDocuments {
         // if changing parentId
         if (document.parentId !== futureParentId) {
           // we need to decrement orderIndex of all documents that belongs to the previous parent and comes after the current document
-          if (
-            doc.parentId === document.parentId &&
-            doc.orderIndex > document.orderIndex
-          ) {
+          if (doc.parentId === document.parentId && doc.orderIndex > document.orderIndex) {
             affectedDocuments = affectedDocuments.set(doc.id, {
               ...doc,
               orderIndex: doc.orderIndex - 1,
@@ -610,10 +561,7 @@ export function useDocuments(workspaceId: string): UseDocuments {
               orderIndex: doc.orderIndex + 1,
             })
           }
-        } else if (
-          document.orderIndex !== futureOrderIndex &&
-          futureOrderIndex !== -1
-        ) {
+        } else if (document.orderIndex !== futureOrderIndex && futureOrderIndex !== -1) {
           // if changing orderIndex
           if (doc.parentId === document.parentId) {
             // we ned to increment orderIndex of all documents that comes after futureOrderIndex
@@ -630,9 +578,7 @@ export function useDocuments(workspaceId: string): UseDocuments {
       let actualOrderIndex = futureOrderIndex
       if (futureOrderIndex === -1) {
         // find the actual order index, the last one
-        actualOrderIndex = documents.filter(
-          (doc) => doc.parentId === futureParentId
-        ).size
+        actualOrderIndex = documents.filter((doc) => doc.parentId === futureParentId).size
       }
 
       const previousStateValue = state.get(workspaceId)
