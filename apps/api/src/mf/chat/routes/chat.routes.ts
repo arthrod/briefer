@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { chatController } from '../controllers/chat.controller.js'
-import { authMiddleware } from '../controllers/middleware.js'
+import { authMiddleware } from '../middleware/middleware.js'
 import { IOServer } from '../../../websocket/index.js'
 
 const createChatRouter = (socketServer: IOServer) => {
