@@ -10,6 +10,8 @@ import clsx from 'clsx'
 import { ChatType } from '@/hooks/mf/chat/useChatList'
 import { useRouter } from 'next/router'
 import { showToast } from '@/components/mf/Toast'
+import { useDocuments } from '@/hooks/useDocuments'
+import { useWorkspaces } from '@/hooks/useWorkspaces'
 
 const fullText = '我能帮你做点什么？'
 
@@ -25,7 +27,9 @@ function HomePage() {
 
   const router = useRouter()
   const { createChat, startRoundChat } = useChatLayoutContext()
-
+  const [workspaces] = useWorkspaces()
+  const workspaceId = workspaces.data[0]?.id || ''
+  const [state, { createDocument }] = useDocuments(workspaceId)
   const send = async (msg: string, _fileId?: string) => {
     if (loading) {
       return Promise.reject('')
@@ -38,7 +42,10 @@ function HomePage() {
     try {
       // 创建对话
       createChat(type, _fileId).then((data) => {
-        createRound(data.id, msg, data.workspaceId, data.documentId)
+        createDocument({ version: 2 })
+        setTimeout(() => {
+          createRound(data.id, msg, data.workspaceId, data.documentId)
+        }, 600)
       })
     } finally {
       setLoading(false)

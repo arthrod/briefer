@@ -67,15 +67,16 @@ interface EditNotebookProps extends WorkspaceLayoutChildrenProps {
 function EditNotebook(props: EditNotebookProps) {
   const [{ document, loading }] = useDocument(props.workspaceId, props.documentId)
 
-  const router = useRouter()
+  // const router = useRouter()
 
   useEffect(() => {
     if (loading) {
       return
     }
-    if (!document) {
-      router.replace(`/workspaces/${props.workspaceId}${window.location.search}`)
-    }
+
+    // if (!document) {
+    //   router.replace(`/workspaces/${props.workspaceId}${window.location.search}`)
+    // }
     window.document.title = document?.title || 'Untitled'
   }, [document, loading, props.user])
 

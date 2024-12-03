@@ -176,14 +176,11 @@ type StateValue = {
 type State = Map<string, StateValue>
 
 type API = {
-  createDocument: (
-    data: {
-      id?: string
-      parentId?: string | null
-      version: number
-    },
-    skipAddingToDocument?: boolean
-  ) => Promise<Document>
+  createDocument: (data: {
+    id?: string
+    parentId?: string | null
+    version: number
+  }) => Promise<void>
   duplicateDocument: (id: string) => Promise<ApiDocument>
   deleteDocument: (id: string, isPermanent?: boolean) => Promise<void>
   restoreDocument: (id: string) => Promise<void>
@@ -299,54 +296,81 @@ export function useDocuments(workspaceId: string): UseDocuments {
     [state, workspaceId]
   )
 
-  const createDocument = useCallback(
-    async (data: { id?: string; parentId?: string | null; version: number }) => {
-      if (loading) {
-        throw new Error('Cannot create document while loading')
+  const createDocument = async (data: {
+    id?: string
+    parentId?: string | null
+    version: number
+  }) => {
+    if (loading) {
+      throw new Error('Cannot create document while loading')
+    }
+
+    const id = data?.id ?? uuidv4()
+    const body = {
+      id,
+      parentId: data?.parentId ?? null,
+      version: data.version,
+    }
+    setState((preState) => {
+      const { loading, documents } = preState.get(workspaceId) ?? {
+        loading: true,
+        documents: List(),
       }
 
-      const id = data?.id ?? uuidv4()
-      const body = {
-        id,
-        parentId: data?.parentId ?? null,
-        version: data.version,
-      }
-      const previousStateValue = state.get(workspaceId)
-      setState((s) => {
-        const { loading, documents } = s.get(workspaceId) ?? {
-          loading: true,
-          documents: List(),
-        }
-
-        return s.set(workspaceId, {
-          loading,
-          documents: upsertDocumentInMemory(documents, workspaceId, body),
-        })
+      return preState.set(workspaceId, {
+        loading,
+        documents: upsertDocumentInMemory(documents, workspaceId, body),
       })
+    })
+  }
+  // const createDocument = useCallback(
+  //   async (data: { id?: string; parentId?: string | null; version: number }) => {
+  //     if (loading) {
+  //       throw new Error('Cannot create document while loading')
+  //     }
 
-      try {
-        const res = await fetch(`${NEXT_PUBLIC_API_URL()}/v1/workspaces/${workspaceId}/documents`, {
-          credentials: 'include',
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(body),
-        })
-        const doc: Document = await res.json()
-        return doc
-      } catch (e) {
-        alert('Something went wrong')
-        if (previousStateValue) {
-          setState((s) => s.set(workspaceId, previousStateValue))
-        } else {
-          setState((s) => s.delete(workspaceId))
-        }
-        throw e
-      }
-    },
-    [documents, workspaceId, loading, setState]
-  )
+  //     const id = data?.id ?? uuidv4()
+  //     const body = {
+  //       id,
+  //       parentId: data?.parentId ?? null,
+  //       version: data.version,
+  //     }
+  //     const previousStateValue = state.get(workspaceId)
+  //     setState((s) => {
+  //       const { loading, documents } = s.get(workspaceId) ?? {
+  //         loading: true,
+  //         documents: List(),
+  //       }
+
+  //       return s.set(workspaceId, {
+  //         loading,
+  //         documents: upsertDocumentInMemory(documents, workspaceId, body),
+  //       })
+  //     })
+
+  //     try {
+  //       const res = await fetch(`${NEXT_PUBLIC_API_URL()}/v1/workspaces/${workspaceId}/documents`, {
+  //         credentials: 'include',
+  //         method: 'POST',
+  //         headers: {
+  //           'Content-Type': 'application/json',
+  //         },
+  //         body: JSON.stringify(body),
+  //       })
+  //       const doc: Document = await res.json()
+  //       return doc
+  //     } catch (e) {
+  //       alert('Something went wrong')
+  //       if (previousStateValue) {
+  //         setState((s) => s.set(workspaceId, previousStateValue))
+  //       } else {
+  //         setState((s) => s.delete(workspaceId))
+  //       }
+  //       throw e
+  //     }
+  //   },
+  //   [documents, workspaceId, loading, setState]
+  // )
 
   const deleteDocument = useCallback(
     async (id: string, isPermanent?: boolean) => {

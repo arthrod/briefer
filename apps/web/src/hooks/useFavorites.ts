@@ -10,7 +10,7 @@ type API = {
 type UseFavorites = [Set<string>, API]
 export const useFavorites = (workspaceId: string): UseFavorites => {
   const { data, mutate } = useSWR<string[]>(
-    `${NEXT_PUBLIC_API_URL()}/v1/workspaces/${workspaceId}/favorites`,
+    workspaceId ? `${NEXT_PUBLIC_API_URL()}/v1/workspaces/${workspaceId}/favorites` : null,
     fetcher
   )
 
