@@ -89,8 +89,8 @@ async function main() {
   )
 
   app.use('/auth', authRouter(socketServer.io))
-  app.use('/v1', v1Router(socketServer.io))
-  app.use('/v1/mf', mfRouter(socketServer.io))
+  app.use('/v1/mf', mfRouter(socketServer.io))  // 先注册具体路由
+  app.use('/v1', v1Router(socketServer.io))     // 后注册通用路由
   let shuttingDown = false
   app.get('/livez', (_req, res) => {
     if (shuttingDown) {

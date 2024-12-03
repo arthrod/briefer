@@ -20,6 +20,8 @@ import crypto from 'crypto'
 import fs from 'fs'
 import path from 'path'
 import { IOServer } from '../../websocket/index.js'
+import { ValidationError, APIError } from './types/errors.js'
+import { CONFIG } from './config/constants.js'
 
 // 定义更新目标类型
 export interface ReportUpdateTarget {
@@ -95,7 +97,7 @@ function createBlockFromRequest(blockRequest: BlockRequest): YBlock {
             return sqlBlock
 
         default:
-            throw new Error(`Unsupported block type: ${blockRequest.type}`)
+            throw new ValidationError(`Unsupported block type: ${blockRequest.type}`)
     }
 }
 
@@ -416,7 +418,11 @@ abstract class BaseStreamProcessor implements StreamProcessor {
 
     async process(): Promise<void> {
         if (!this.response.body) {
-            throw new Error('Response body is empty');
+            throw new APIError(
+              'Response body is empty',
+              CONFIG.ERROR_CODES.API_ERROR,
+              500
+            )
         }
 
         try {
@@ -434,7 +440,11 @@ abstract class BaseStreamProcessor implements StreamProcessor {
     private async processStream(): Promise<void> {
         const stream = this.response.body;
         if (!stream) {
-            throw new Error('Response body is empty');
+            throw new APIError(
+              'Response body is empty',
+              CONFIG.ERROR_CODES.API_ERROR,
+              500
+            )
         }
 
         for await (const chunk of stream) {
@@ -577,12 +587,12 @@ export async function handleReportStreamResponse(
     });
 
     if (!chatDocRelation) {
-        throw new Error('Document relation not found');
+        throw new ValidationError('Document relation not found')
     }
 
     const workspace = Object.values(req.session.userWorkspaces ?? {})[0];
     if (!workspace?.workspaceId) {
-        throw new Error('未找到有效的工作区');
+        throw new ValidationError('未找到有效的工作区')
     }
 
     const docId = getDocId(chatDocRelation.documentId, null);
