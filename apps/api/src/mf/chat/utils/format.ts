@@ -20,7 +20,7 @@ export function formatDate(date: Date, format: string = 'YYYY-MM-DD HH:mm:ss'): 
   const hours = String(date.getHours()).padStart(2, '0')
   const minutes = String(date.getMinutes()).padStart(2, '0')
   const seconds = String(date.getSeconds()).padStart(2, '0')
-  
+
   return format
     .replace('YYYY', String(year))
     .replace('MM', month)
@@ -32,13 +32,20 @@ export function formatDate(date: Date, format: string = 'YYYY-MM-DD HH:mm:ss'): 
 
 // 错误消息格式化
 export function formatErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message
-  }
-  if (typeof error === 'string') {
-    return error
-  }
-  return CONFIG.ERROR_MESSAGES.INTERNAL_SERVER_ERROR
+  // 记录原始错误信息到日志
+  logger().error({
+    msg: 'Error details',
+    data: {
+      error: error instanceof Error ? error.message : '未知错误',
+      stack: error instanceof Error ? error.stack : undefined,
+    },
+  })
+
+  return [
+    '```error',
+    '抱歉，操作未能成功，请稍后再试。如果问题持续，请联系我们的支持团队！ 🙏',
+    '```',
+  ].join('\n')
 }
 
 // 创建错误响应
@@ -72,11 +79,11 @@ export function formatDateTime(date: Date): string {
 // 文件大小格式化
 export function formatFileSize(bytes: number): string {
   if (bytes === 0) return '0 B'
-  
+
   const units = ['B', 'KB', 'MB', 'GB', 'TB']
   const k = 1024
   const i = Math.floor(Math.log(bytes) / Math.log(k))
-  
+
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${units[i]}`
 }
 
@@ -84,21 +91,21 @@ export function formatFileSize(bytes: number): string {
 export function formatTimeDiff(start: Date, end: Date = new Date()): string {
   const diff = end.getTime() - start.getTime()
   const seconds = Math.floor(diff / 1000)
-  
+
   if (seconds < 60) return `${seconds}秒前`
-  
+
   const minutes = Math.floor(seconds / 60)
   if (minutes < 60) return `${minutes}分钟前`
-  
+
   const hours = Math.floor(minutes / 60)
   if (hours < 24) return `${hours}小时前`
-  
+
   const days = Math.floor(hours / 24)
   if (days < 30) return `${days}天前`
-  
+
   const months = Math.floor(days / 30)
   if (months < 12) return `${months}个月前`
-  
+
   const years = Math.floor(months / 12)
   return `${years}年前`
 }
@@ -172,13 +179,13 @@ export function formatResponse(code: number, msg: string, data: any = null) {
 // 查询参数格式化
 export function formatQueryParams(params: Record<string, any>): string {
   const searchParams = new URLSearchParams()
-  
+
   Object.entries(params).forEach(([key, value]) => {
     if (value !== undefined && value !== null) {
       searchParams.append(key, String(value))
     }
   })
-  
+
   return searchParams.toString()
 }
 
