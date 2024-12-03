@@ -38,11 +38,11 @@ export async function sendSSEError(res: Response, error: unknown, updateTarget?:
   const formattedError = formatErrorMessage(error)
 
   // 如果存在更新目标，将错误消息保存到数据库
-  if (updateTarget?.type === 'chat_record' && updateTarget.roundId) {
+  if (updateTarget?.type === 'chat_record' && updateTarget.id) {
     try {
       await prisma().$transaction([
         prisma().chatRecord.update({
-          where: { id: updateTarget.roundId },
+          where: { id: updateTarget.id },
           data: {
             answer: Buffer.from(formattedError),
             speakerType: 'assistant',

@@ -263,6 +263,7 @@ export class ChatController {
       if (!result.success) {
         await sendSSEError(res, new ValidationError('参数校验失败'), {
           type: 'chat_record',
+          id: '',
           chatId: req.query['chatId'] as string,
           roundId: req.query['roundId'] as string,
         })

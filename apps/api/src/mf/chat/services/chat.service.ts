@@ -395,132 +395,6 @@ export class ChatService {
     }
   }
 
-  async handleChatCompletion(
-    res: Response,
-    chatId: string,
-    roundId: string,
-    recordId: string,
-    question: string,
-    type: 'rag' | 'report'
-  ) {
-    logger().info({
-      msg: 'Handling chat completion',
-      data: { chatId, roundId, recordId, type },
-    })
-
-    const updateTarget: UpdateTarget = {
-      type: 'chat_record',
-      chatId,
-      roundId,
-    }
-
-    try {
-      if (type === 'report') {
-        // 获取关联的文件
-        const chatRecord = await prisma().chat.findFirst({
-          where: {
-            id: chatId,
-          },
-          select: {
-            fileRelations: {
-              select: {
-                userFile: {
-                  select: {
-                    fileId: true,
-                    fileName: true,
-                    filePath: true,
-                  }
-                }
-              }
-            }
-          },
-        })
-
-        const fileRelation = chatRecord?.fileRelations[0]
-        if (!fileRelation?.userFile) {
-          throw new ValidationError('未找到关联的文件')
-        }
-
-        const userFile = fileRelation.userFile
-        const fileContent = await fs.readFile(userFile.filePath, 'utf8')
-
-        // 构建请求体
-        const formData = new FormData()
-        formData.append('user_input', question)
-        formData.append('docx_report', new Blob([fileContent]), userFile.fileName)
-
-        // 调用AI Agent接口
-        logger().info({
-          msg: 'Sending report request to AI Agent',
-          data: {
-            url: `${CONFIG.AI_AGENT_URL}${CONFIG.AI_AGENT_ENDPOINTS.REPORT_COMPLETIONS}`,
-            timeout: CONFIG.AI_AGENT_TIMEOUT,
-            filename: userFile.fileName,
-            question,
-          }
-        })
-
-        const response = await fetchWithTimeout(
-          `${CONFIG.AI_AGENT_URL}${CONFIG.AI_AGENT_ENDPOINTS.REPORT_COMPLETIONS}`,
-          {
-            method: 'POST',
-            body: formData,
-            headers: {
-              'Accept': 'text/event-stream'
-            }
-          },
-          60000  // 增加超时时间到 60 秒
-        )
-
-        if (!response.ok) {
-          throw new APIError(
-            `AI 报告对话请求失败: ${response.status}`,
-            CONFIG.ERROR_CODES.API_ERROR,
-            500
-          )
-        }
-
-        await handleStreamResponse(response, res, updateTarget)
-      } else {
-        // 调用 AI Agent 进行对话
-        const response = await fetchWithTimeout(
-          `${CONFIG.AI_AGENT_URL}${CONFIG.AI_AGENT_ENDPOINTS.DATA_COMPLETIONS}`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'text/event-stream',
-            },
-            body: JSON.stringify({
-              chatId,
-              roundId,
-              recordId,
-              question,
-            }),
-          },
-          CONFIG.AI_AGENT_TIMEOUT
-        )
-
-        if (!response.ok) {
-          throw new APIError(
-            `AI Agent request failed with status ${response.status}`,
-            CONFIG.ERROR_CODES.API_ERROR,
-            500
-          )
-        }
-
-        await handleStreamResponse(response, res, updateTarget)
-      }
-    } catch (error) {
-      logger().error('Chat completion error:', {
-        error,
-        chatId,
-        roundId,
-      })
-      throw error
-    }
-  }
-
   async handleChatCompletions(
     req: Request,
     res: Response,
@@ -536,8 +410,9 @@ export class ChatService {
 
       const chatRecord = await prisma().chatRecord.findFirst({
         where: {
-          id: roundId,
+          roundId: roundId,
           chatId: chatId,
+          speakerType: 'user',
           chat: {
             userId: userId,
           },
@@ -569,6 +444,7 @@ export class ChatService {
       if (!chatRecord) {
         await sendSSEError(res, new AuthorizationError('对话记录不存在或无权访问'), {
           type: 'chat_record',
+          id: '',
           chatId,
           roundId,
         })
@@ -592,6 +468,7 @@ export class ChatService {
           if (!fileRelation?.userFile) {
             await sendSSEError(res, new ValidationError('未找到关联的文件'), {
               type: 'chat_record',
+              id: chatRecord.id,
               chatId,
               roundId,
             })
@@ -718,7 +595,7 @@ export class ChatService {
               await prisma().$transaction(async (tx) => {
                 // 更新 ChatRecord
                 await tx.chatRecord.update({
-                  where: { id: roundId },
+                  where: { id: chatRecord.id },
                   data: {
                     status: CONFIG.CHAT_STATUS.COMPLETED, // 结束状态
                     answer: Buffer.from(errorMessage.join('\n')),
@@ -836,19 +713,24 @@ export class ChatService {
           ) // 传入 controller
         }
       } catch (error) {
+        logger().error({
+          msg: 'AI service error',
+          data: { error },
+        })
         await sendSSEError(res, error, {
           type: 'chat_record',
-          chatId: req.query['chatId'] as string,
-          roundId: req.query['roundId'] as string,
+          id: chatRecord.id,
+          chatId,
+          roundId,
         })
       }
     } catch (error) {
-      console.error('Error in chat completions:', error)
-      throw new APIError(
-        'Failed to get chat completions',
-        CONFIG.ERROR_CODES.API_ERROR,
-        500
-      )
+      await sendSSEError(res, error, {
+        type: 'chat_record',
+        id: '',
+        chatId,
+        roundId,
+      })
     }
   }
 
@@ -1127,7 +1009,7 @@ export class ChatService {
       // 查找对话记录并验证权限
       const chatRecord = await prisma().chatRecord.findFirst({
         where: {
-          id: roundId,
+          roundId: roundId,
           chat: {
             userId,
           },
@@ -1171,7 +1053,7 @@ export class ChatService {
 
       await prisma().$transaction([
         prisma().chatRecord.update({
-          where: { id: roundId },
+          where: { id: chatRecord.id },
           data: {
             status: CONFIG.CHAT_STATUS.COMPLETED,
             answer: Buffer.from(updatedAnswer),

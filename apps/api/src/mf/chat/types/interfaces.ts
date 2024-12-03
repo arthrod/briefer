@@ -44,6 +44,7 @@ export interface ErrorResponse {
 
 export interface UpdateTarget {
   type: 'chat_record' | 'chat_title'
+  id?: string
   chatId: string
   roundId?: string
 }
