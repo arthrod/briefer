@@ -10,7 +10,7 @@ export function validateEnvVars() {
   const requiredEnvVars = ['AI_AGENT_URL']
   for (const envVar of requiredEnvVars) {
     if (!process.env[envVar]) {
-      throw new Error(`Missing required environment variable: ${envVar}`)
+      throw new ValidationError(`Missing required environment variable: ${envVar}`)
     }
   }
 }
@@ -207,7 +207,7 @@ export function validateEnvVarsMiddleware(requiredVars: string[]) {
 
   if (missingVars.length > 0) {
     logger().error('Missing required environment variables:', { missingVars })
-    throw new Error(`Missing required environment variables: ${missingVars.join(', ')}`)
+    throw new ValidationError(`Missing required environment variables: ${missingVars.join(', ')}`)
   }
 }
 

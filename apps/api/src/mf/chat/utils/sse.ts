@@ -9,6 +9,7 @@ import { ChatRecordStatus } from '../services/chat.service.js'
 import { activeRequests } from './fetch.js'
 import path from 'path'
 import fs from 'fs/promises'
+import { APIError } from '../types/errors.js' // Import APIError
 
 // 设置SSE连接
 export function setupSSEConnection(res: Response) {
@@ -89,7 +90,11 @@ export async function handleStreamResponse(
   controller?: AbortController
 ): Promise<void> {
   if (!response.body) {
-    throw new Error('Response body is empty')
+    throw new APIError(
+      'Response body is empty',
+      CONFIG.ERROR_CODES.API_ERROR,
+      500
+    )
   }
 
   if (controller) {

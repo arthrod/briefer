@@ -1,7 +1,7 @@
 import { Request, Response } from 'express'
 import { prisma, createDocument } from '@briefer/database'
 import { ChatSpeakerType } from '@prisma/client'
-import { AuthorizationError, ValidationError } from '../types/errors.js'
+import { AuthorizationError, ValidationError, APIError } from '../types/errors.js'
 import { activeRequests, fetchWithTimeout } from '../utils/fetch.js'
 import { Response as FetchResponse } from 'node-fetch'
 import { CONFIG } from '../config/constants.js'
@@ -473,7 +473,11 @@ export class ChatService {
         )
 
         if (!response.ok) {
-          throw new Error(`AI 报告对话请求失败: ${response.status}`)
+          throw new APIError(
+            `AI 报告对话请求失败: ${response.status}`,
+            CONFIG.ERROR_CODES.API_ERROR,
+            500
+          )
         }
 
         await handleStreamResponse(response, res, updateTarget)
@@ -498,7 +502,11 @@ export class ChatService {
         )
 
         if (!response.ok) {
-          throw new Error(`AI Agent request failed with status ${response.status}`)
+          throw new APIError(
+            `AI Agent request failed with status ${response.status}`,
+            CONFIG.ERROR_CODES.API_ERROR,
+            500
+          )
         }
 
         await handleStreamResponse(response, res, updateTarget)
@@ -623,7 +631,11 @@ export class ChatService {
           )
 
           if (!fetchResponse.ok) {
-            throw new Error(`AI 报告对话请求失败: ${fetchResponse.status}`)
+            throw new APIError(
+              `AI 报告对话请求失败: ${fetchResponse.status}`,
+              CONFIG.ERROR_CODES.API_ERROR,
+              500
+            )
           }
 
           await handleReportStreamResponse(
@@ -666,7 +678,11 @@ export class ChatService {
           )
 
           if (!relationCheckResponse.ok) {
-            throw new Error(`关联性检查请求失败: ${relationCheckResponse.status}`)
+            throw new APIError(
+              `关联性检查请求失败: ${relationCheckResponse.status}`,
+              CONFIG.ERROR_CODES.API_ERROR,
+              500
+            )
           }
 
           const relationResult = (await relationCheckResponse.json()) as RelationCheckResponse
@@ -801,7 +817,11 @@ export class ChatService {
           )) as FetchResponse
 
           if (!response.ok) {
-            throw new Error(`AI 对话请求失败: ${response.status}`)
+            throw new APIError(
+              `AI 对话请求失败: ${response.status}`,
+              CONFIG.ERROR_CODES.API_ERROR,
+              500
+            )
           }
 
           await handleStreamResponse(
@@ -824,7 +844,11 @@ export class ChatService {
       }
     } catch (error) {
       console.error('Error in chat completions:', error)
-      throw new Error('Failed to get chat completions')
+      throw new APIError(
+        'Failed to get chat completions',
+        CONFIG.ERROR_CODES.API_ERROR,
+        500
+      )
     }
   }
 
@@ -953,7 +977,7 @@ export class ChatService {
     logger().info({
       msg: 'Chat detail retrieved successfully',
       data: {
-        chatId: chatId,
+        chatId,
         userId,
         type: responseData.type,
         messageCount: messages.length,
@@ -1027,7 +1051,11 @@ export class ChatService {
       )
 
       if (!response.ok) {
-        throw new Error(`关联性检查请求失败: ${response.status}`)
+        throw new APIError(
+          `关联性检查请求失败: ${response.status}`,
+          CONFIG.ERROR_CODES.API_ERROR,
+          500
+        )
       }
 
       const result = await response.json() as RelationCheckResponse

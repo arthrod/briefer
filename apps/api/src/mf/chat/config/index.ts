@@ -1,4 +1,5 @@
 import { CONFIG } from './constants.js'
+import { ValidationError } from '../types/errors.js'
 
 // 配置类型定义
 export interface Config {
@@ -27,13 +28,13 @@ export interface Config {
 // 验证配置
 export function validateConfig(config: Config) {
   if (!config.AI_AGENT_URL) {
-    throw new Error('AI_AGENT_URL is required')
+    throw new ValidationError('AI_AGENT_URL is required')
   }
   if (config.AI_AGENT_TIMEOUT <= 0) {
-    throw new Error('AI_AGENT_TIMEOUT must be greater than 0')
+    throw new ValidationError('AI_AGENT_TIMEOUT must be greater than 0')
   }
   if (config.CACHE.CHAT_DETAIL_CACHE_DURATION < 0) {
-    throw new Error('CHAT_DETAIL_CACHE_DURATION must be non-negative')
+    throw new ValidationError('CHAT_DETAIL_CACHE_DURATION must be non-negative')
   }
 }
 
