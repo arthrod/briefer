@@ -245,7 +245,8 @@ async function handleDocumentBlock(
 async function handleJsonContent(
     jsonStr: string,
     res: Response,
-    updateTarget: ReportUpdateTarget
+    updateTarget: ReportUpdateTarget,
+    isLastMsg: boolean
 ): Promise<void> {
     try {
         const parsedJson = JSON.parse(jsonStr)
@@ -272,7 +273,9 @@ async function handleJsonContent(
                 }
             });
 
-            res.write('data: [NEW_STEP]\n\n')
+            if (!isLastMsg) {
+                res.write('data: [NEW_STEP]\n\n')
+            }
         } else if (parsedJson.type === 'document') {
             // 处理文档块
             await handleDocumentBlock(parsedJson.block, updateTarget)
@@ -419,7 +422,7 @@ abstract class BaseStreamProcessor implements StreamProcessor {
     constructor(
         protected response: FetchResponse,
         protected controller?: AbortController
-    ) {}
+    ) { }
 
     protected abstract handleData(data: string): Promise<boolean>;
     protected abstract handleError(error: unknown): Promise<void>;
@@ -439,9 +442,9 @@ abstract class BaseStreamProcessor implements StreamProcessor {
     async process(): Promise<void> {
         if (!this.response.body) {
             throw new APIError(
-              'Response body is empty',
-              ERROR_CODES.API_ERROR,
-              500
+                'Response body is empty',
+                ERROR_CODES.API_ERROR,
+                500
             )
         }
 
@@ -454,16 +457,16 @@ abstract class BaseStreamProcessor implements StreamProcessor {
         }
     }
 
-    protected async beforeProcess(): Promise<void> {}
-    protected async afterProcess(): Promise<void> {}
+    protected async beforeProcess(): Promise<void> { }
+    protected async afterProcess(): Promise<void> { }
 
     private async processStream(): Promise<void> {
         const stream = this.response.body;
         if (!stream) {
             throw new APIError(
-              'Response body is empty',
-              ERROR_CODES.API_ERROR,
-              500
+                'Response body is empty',
+                ERROR_CODES.API_ERROR,
+                500
             )
         }
 
@@ -503,6 +506,7 @@ class ReportStreamProcessor extends BaseStreamProcessor {
     private completeMessage = '';
     private jsonBuffer = '';
     private isCollectingJson = false;
+    private pendingJsonMessage: string | null = null;  // 存储待处理的完整 JSON 消息
     private updateTarget: ReportUpdateTarget;
 
     constructor(
@@ -540,15 +544,21 @@ class ReportStreamProcessor extends BaseStreamProcessor {
     }
 
     protected async handleData(data: string): Promise<boolean> {
+        // 如果是 [DONE] 消息，处理待发送的消息（如果有）并结束
         if (data === '[DONE]') {
+            if (this.pendingJsonMessage) {
+                // 处理最后一条消息，但不发送 [NEW_STEP]
+                await handleJsonContent(this.pendingJsonMessage, this.config.res, this.updateTarget, true);
+                this.pendingJsonMessage = null;
+            }
             await handleStreamEnd(this.config.res, this.updateTarget, this.completeMessage);
             return true;
         }
 
         try {
+            // 尝试解析为 JSON
             const jsonData = JSON.parse(data) as StreamResponse;
             const content = jsonData.choices?.[0]?.delta?.content || '';
-
             if (content && typeof content === 'string') {
                 await this.processContent(content);
             }
@@ -563,6 +573,7 @@ class ReportStreamProcessor extends BaseStreamProcessor {
                 }
             });
         }
+
         return false;
     }
 
@@ -575,8 +586,17 @@ class ReportStreamProcessor extends BaseStreamProcessor {
 
         if (this.isCollectingJson && content.includes('```')) {
             this.isCollectingJson = false;
-            await handleJsonContent(this.jsonBuffer, this.config.res, this.updateTarget);
+            const currentJsonMessage = this.jsonBuffer;
             this.jsonBuffer = '';
+
+            // 如果有待处理的消息，先处理它
+            if (this.pendingJsonMessage) {
+                await handleJsonContent(this.pendingJsonMessage, this.config.res, this.updateTarget, false);
+                this.pendingJsonMessage = null;
+            }
+
+            // 将当前消息存为待处理
+            this.pendingJsonMessage = currentJsonMessage;
             return;
         }
 
