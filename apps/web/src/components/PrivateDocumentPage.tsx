@@ -43,8 +43,12 @@ interface Props {
 }
 
 export default function PrivateDocumentPage(props: Props) {
-  const [{ document, publishing }, { publish }] = useDocument(props.workspaceId, props.documentId)
-  if (!document) {
+  const [{ document, loading, publishing }, { publish }] = useDocument(
+    props.workspaceId,
+    props.documentId
+  )
+
+  if (loading || !document) {
     return (
       <div className="flex w-full justify-center">
         <div className={clsx(widthClasses, 'py-20')}>

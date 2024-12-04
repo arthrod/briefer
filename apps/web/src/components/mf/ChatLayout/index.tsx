@@ -601,13 +601,12 @@ export default function ChatLayout({ children }: Props) {
         <ScrollBar className={styles.chatListWrapper}>
           {chatList.length ? (
             chatList.map((chat) => {
-              const isActive = chat.id === chatId // 判断是否是当前选中项
               return (
                 <div
                   key={chat.id}
                   className={clsx(
                     styles.chatItem,
-                    isActive ? styles.active : '' // 添加选中样式
+                    chat.id === chatId ? styles.active : '' // 添加选中样式
                   )}
                   onClick={() => {
                     if (chat.id === chatId) {
