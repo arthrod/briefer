@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { Request, Response, NextFunction } from 'express'
-import { ValidationError, AuthorizationError } from '../types/errors.js'
+import { ValidationError, AuthorizationError, ERROR_CODES } from '../types/errors.js'
 import { CONFIG } from '../config/constants.js'
 import { logger } from '../../../logger.js'
 import { ErrorResponse } from '../types/index.js'
@@ -168,14 +168,14 @@ export function validateSchemaMiddleware(schema: z.ZodSchema) {
       // Type guard to check if error is a Zod error
       if (error instanceof z.ZodError) {
         res.status(400).json({
-          code: CONFIG.ERROR_CODES.VALIDATION_ERROR,
+          code: ERROR_CODES.VALIDATION_ERROR,
           msg: '请求参数验证失败',
           data: error.errors,
         })
       } else {
         // Handle other types of errors
         res.status(500).json({
-          code: CONFIG.ERROR_CODES.INTERNAL_SERVER_ERROR,
+          code: ERROR_CODES.INTERNAL_SERVER_ERROR,
           msg: '服务器错误',
           data: null,
         })
@@ -191,7 +191,7 @@ export function validateWorkspaceAccessMiddleware(req: Request, res: Response, n
 
   if (!workspaceId || !userId) {
     return res.status(400).json({
-      code: CONFIG.ERROR_CODES.VALIDATION_ERROR,
+      code: ERROR_CODES.VALIDATION_ERROR,
       msg: '缺少必要参数',
       data: null,
     })
@@ -208,7 +208,7 @@ export function validateIdMiddleware(paramName: string = 'id') {
 
     if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
       return res.status(400).json({
-        code: CONFIG.ERROR_CODES.VALIDATION_ERROR,
+        code: ERROR_CODES.VALIDATION_ERROR,
         msg: 'ID格式无效',
         data: { paramName, id },
       })
@@ -235,7 +235,7 @@ export function validateRequestSizeMiddleware(maxSize: number) {
 
     if (contentLength > maxSize) {
       return res.status(413).json({
-        code: CONFIG.ERROR_CODES.VALIDATION_ERROR,
+        code: ERROR_CODES.VALIDATION_ERROR,
         msg: '请求体过大',
         data: {
           maxSize,
@@ -255,7 +255,7 @@ export function validateApiVersionMiddleware(supportedVersions: string[]) {
 
     if (!version || !supportedVersions.includes(version as string)) {
       return res.status(400).json({
-        code: CONFIG.ERROR_CODES.VALIDATION_ERROR,
+        code: ERROR_CODES.VALIDATION_ERROR,
         msg: '不支持的API版本',
         data: {
           supportedVersions,

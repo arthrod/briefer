@@ -1,13 +1,13 @@
 import { Request, Response } from 'express'
 import { prisma, createDocument } from '@briefer/database'
 import { ChatSpeakerType } from '@prisma/client'
-import { AuthorizationError, ValidationError, APIError } from '../types/errors.js'
+import { AuthorizationError, ValidationError, APIError, ERROR_CODES } from '../types/errors.js'
 import { activeRequests, fetchWithTimeout } from '../utils/fetch.js'
 import { Response as FetchResponse } from 'node-fetch'
 import { CONFIG } from '../config/constants.js'
 import { logger } from '../../../logger.js'
 import { handleStreamResponse, sendSSEError } from '../utils/sse.js'
-import { ChatDetailResponse, Message, RelationCheckResponse, UpdateTarget } from '../types/interfaces.js'
+import { ChatDetailResponse, ChatRecordStatus, Message, RelationCheckResponse, UpdateTarget } from '../types/interfaces.js'
 import * as fs from 'fs/promises'
 import { v4 as uuidv4 } from 'uuid'
 import { sanitizeInput, formatDate } from '../utils/format.js'
@@ -15,16 +15,6 @@ import { titleUpdateEmitter } from '../title-summarizer.js'
 import { IOServer } from '../../../websocket/index.js'
 import { validateEnvVars } from '../utils/validation.js'
 import { handleReportStreamResponse } from '../report-stream.js'
-
-// 聊天记录状态枚举
-export enum ChatRecordStatus {
-  START = 1,      // 开始
-  PROCESSING = 2, // 聊天中
-  COMPLETED = 3,  // 结束
-  ERROR = 4,      // 失败
-  STOPPED = 5,    // 已停止
-  PENDING = 6,    // 等待
-}
 
 export class ChatService {
 
@@ -347,13 +337,13 @@ export class ChatService {
     }
 
     let chatRecord
-    if (chat.records && chat.records.length === 1 && chat.records[0]?.status === CONFIG.CHAT_STATUS.START) {
+    if (chat.records && chat.records.length === 1 && chat.records[0]?.status === ChatRecordStatus.START) {
       // 更新现有记录
       chatRecord = await prisma().chatRecord.update({
         where: { id: chat.records[0].id },
         data: {
           question: sanitizeInput(question),
-          status: CONFIG.CHAT_STATUS.START,
+          status: ChatRecordStatus.START,
           updateTime: new Date(),
         },
       })
@@ -376,7 +366,7 @@ export class ChatService {
           question: sanitizeInput(question),
           answer: Buffer.from(''),
           speakerType: 'user',
-          status: CONFIG.CHAT_STATUS.START,
+          status: ChatRecordStatus.START,
         },
       })
 
@@ -510,7 +500,7 @@ export class ChatService {
           if (!fetchResponse.ok) {
             throw new APIError(
               `AI 报告对话请求失败: ${fetchResponse.status}`,
-              CONFIG.ERROR_CODES.API_ERROR,
+              ERROR_CODES.API_ERROR,
               500
             )
           }
@@ -557,7 +547,7 @@ export class ChatService {
           if (!relationCheckResponse.ok) {
             throw new APIError(
               `关联性检查请求失败: ${relationCheckResponse.status}`,
-              CONFIG.ERROR_CODES.API_ERROR,
+              ERROR_CODES.API_ERROR,
               500
             )
           }
@@ -597,7 +587,7 @@ export class ChatService {
                 await tx.chatRecord.update({
                   where: { id: chatRecord.id },
                   data: {
-                    status: CONFIG.CHAT_STATUS.COMPLETED, // 结束状态
+                    status: ChatRecordStatus.COMPLETED, // 结束状态
                     answer: Buffer.from(errorMessage.join('\n')),
                     speakerType: 'assistant',
                     updateTime: new Date(),
@@ -696,7 +686,7 @@ export class ChatService {
           if (!response.ok) {
             throw new APIError(
               `AI 对话请求失败: ${response.status}`,
-              CONFIG.ERROR_CODES.API_ERROR,
+              ERROR_CODES.API_ERROR,
               500
             )
           }
@@ -816,12 +806,12 @@ export class ChatService {
           content: answerContent,
           status: (() => {
             switch (record.status) {
-              case CONFIG.CHAT_STATUS.FAILED:
+              case ChatRecordStatus.ERROR:
                 return 'error'
-              case CONFIG.CHAT_STATUS.CHATTING:
+              case ChatRecordStatus.PROCESSING:
                 return 'chatting'
-              case CONFIG.CHAT_STATUS.START:
-              case CONFIG.CHAT_STATUS.COMPLETED:
+              case ChatRecordStatus.START:
+              case ChatRecordStatus.COMPLETED:
               default:
                 return 'success'
             }
@@ -935,7 +925,7 @@ export class ChatService {
       if (!response.ok) {
         throw new APIError(
           `关联性检查请求失败: ${response.status}`,
-          CONFIG.ERROR_CODES.API_ERROR,
+          ERROR_CODES.API_ERROR,
           500
         )
       }
@@ -983,7 +973,7 @@ export class ChatService {
       throw new AuthorizationError('聊天记录不存在或无权访问')
     }
 
-    const status = chat.records[0]?.status === CONFIG.CHAT_STATUS.CHATTING ? 'chatting' : 'idle'
+    const status = chat.records[0]?.status === ChatRecordStatus.PROCESSING ? 'chatting' : 'idle'
     const roundId = status === 'chatting' ? chat.records[0]?.id : ''
 
     logger().info({
@@ -1026,7 +1016,7 @@ export class ChatService {
         throw new AuthorizationError('对话记录不存在或无权访问')
       }
 
-      if (chatRecord.status !== CONFIG.CHAT_STATUS.CHATTING) {
+      if (chatRecord.status !== ChatRecordStatus.PROCESSING) {
         logger().info({
           msg: 'Chat already stopped or completed',
           data: { roundId, status: chatRecord.status },
@@ -1055,7 +1045,7 @@ export class ChatService {
         prisma().chatRecord.update({
           where: { id: chatRecord.id },
           data: {
-            status: CONFIG.CHAT_STATUS.COMPLETED,
+            status: ChatRecordStatus.COMPLETED,
             answer: Buffer.from(updatedAnswer),
             speakerType: 'assistant',
             updateTime: new Date(),

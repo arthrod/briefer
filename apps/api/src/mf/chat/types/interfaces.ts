@@ -231,3 +231,22 @@ export interface Chat {
   records: ChatRecord[]
   documentRelations: DocumentRelation[]
 }
+
+export enum ChatRecordStatus {
+  START = 1,      // 开始
+  PROCESSING = 2, // 聊天中
+  COMPLETED = 3,  // 结束
+  ERROR = 4,      // 失败
+  STOPPED = 5,    // 已停止
+  PENDING = 6,    // 等待
+}
+
+export enum ChatType {
+  RAG = 1,      // RAG对话
+  REPORT = 2,   // 报告对话
+}
+
+export enum RoleType {
+  USER = 'user',     // 用户角色
+  ASSISTANT = 'assistant' // AI助手
+}

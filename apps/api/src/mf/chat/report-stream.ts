@@ -20,8 +20,8 @@ import crypto from 'crypto'
 import fs from 'fs'
 import path from 'path'
 import { IOServer } from '../../websocket/index.js'
-import { ValidationError, APIError } from './types/errors.js'
-import { CONFIG } from './config/constants.js'
+import { ValidationError, APIError, ERROR_CODES } from './types/errors.js'
+import { ChatRecordStatus } from './types/interfaces.js'
 
 // 定义更新目标类型
 export interface ReportUpdateTarget {
@@ -255,7 +255,7 @@ async function handleJsonContent(
             res.write(`data: ${parsedJson.content}\n\n`)
 
             // 写入完整消息到日志
-            await appendToSSELog(updateTarget.chatId, updateTarget.roundId, parsedJson.content);
+            // await appendToSSELog(updateTarget.chatId, updateTarget.roundId, parsedJson.content);
 
             // 创建新的对话记录
             await prisma().chatRecord.create({
@@ -266,7 +266,7 @@ async function handleJsonContent(
                     question: '',  // 添加空的 question 字段
                     answer: Buffer.from(parsedJson.content),
                     speakerType: 'assistant',
-                    status: 3, // COMPLETED
+                    status: ChatRecordStatus.COMPLETED, // COMPLETED
                     createdTime: new Date(),
                     updateTime: new Date()
                 }
@@ -299,20 +299,30 @@ async function handleStreamEnd(
     try {
         const now = new Date()
 
-        // 更新状态为已完成
-        await Promise.all([
-            prisma().chatRecord.update({
-                where: { id: updateTarget.roundId },
-                data: {
-                    status: 3, // COMPLETED
-                    updateTime: now
-                }
-            }),
-            prisma().chat.update({
-                where: { id: updateTarget.chatId },
-                data: { updateTime: now }
-            })
-        ])
+        const record = await prisma().chatRecord.findFirst({
+            where: {
+                chatId: updateTarget.chatId,
+                roundId: updateTarget.roundId,
+                speakerType: 'user'
+            }
+        });
+
+        if (record) {
+            // 更新状态为已完成
+            await Promise.all([
+                prisma().chatRecord.update({
+                    where: { id: record.id },
+                    data: {
+                        status: ChatRecordStatus.COMPLETED,
+                        updateTime: now
+                    }
+                }),
+                prisma().chat.update({
+                    where: { id: updateTarget.chatId },
+                    data: { updateTime: now }
+                })
+            ]);
+        }
 
         res.write('data: [DONE]\n\n')
     } catch (error) {
@@ -348,20 +358,30 @@ async function handleStreamError(
     try {
         const now = new Date()
 
-        await prisma().$transaction([
-            prisma().chatRecord.update({
-                where: { id: updateTarget.roundId },
-                data: {
-                    answer: Buffer.from(completeMessage),
-                    status: 4, // FAILED
-                    updateTime: now
-                }
-            }),
-            prisma().chat.update({
-                where: { id: updateTarget.chatId },
-                data: { updateTime: now }
-            })
-        ])
+        const record = await prisma().chatRecord.findFirst({
+            where: {
+                chatId: updateTarget.chatId,
+                roundId: updateTarget.roundId,
+                speakerType: 'user'
+            }
+        });
+
+        if (record) {
+            await prisma().$transaction([
+                prisma().chatRecord.update({
+                    where: { id: record.id },
+                    data: {
+                        answer: Buffer.from(completeMessage),
+                        status: ChatRecordStatus.ERROR,
+                        updateTime: now
+                    }
+                }),
+                prisma().chat.update({
+                    where: { id: updateTarget.chatId },
+                    data: { updateTime: now }
+                })
+            ]);
+        }
 
         res.write(`data: Error: ${errorMessage}\n\n`)
         res.write('data: [DONE]\n\n')
@@ -420,7 +440,7 @@ abstract class BaseStreamProcessor implements StreamProcessor {
         if (!this.response.body) {
             throw new APIError(
               'Response body is empty',
-              CONFIG.ERROR_CODES.API_ERROR,
+              ERROR_CODES.API_ERROR,
               500
             )
         }
@@ -442,7 +462,7 @@ abstract class BaseStreamProcessor implements StreamProcessor {
         if (!stream) {
             throw new APIError(
               'Response body is empty',
-              CONFIG.ERROR_CODES.API_ERROR,
+              ERROR_CODES.API_ERROR,
               500
             )
         }
@@ -503,10 +523,20 @@ class ReportStreamProcessor extends BaseStreamProcessor {
 
     protected async beforeProcess(): Promise<void> {
         // 更新状态为聊天中
-        await prisma().chatRecord.update({
-            where: { id: this.config.roundId },
-            data: { status: 2 } // CHATTING
+        const record = await prisma().chatRecord.findFirst({
+            where: {
+                chatId: this.config.chatId,
+                roundId: this.config.roundId,
+                speakerType: 'user'
+            }
         });
+
+        if (record) {
+            await prisma().chatRecord.update({
+                where: { id: record.id },
+                data: { status: ChatRecordStatus.PROCESSING }
+            });
+        }
     }
 
     protected async handleData(data: string): Promise<boolean> {

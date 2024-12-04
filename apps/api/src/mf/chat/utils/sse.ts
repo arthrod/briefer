@@ -1,15 +1,14 @@
 import { Response } from 'express'
 import { Response as FetchResponse } from 'node-fetch'
-import { UpdateTarget } from '../types/interfaces'
+import { ChatRecordStatus, UpdateTarget } from '../types/interfaces.js'
 import { logger } from '../../../logger.js'
 import { CONFIG } from '../config/constants.js'
 import { formatErrorMessage } from './format.js'
 import { prisma } from '@briefer/database'
-import { ChatRecordStatus } from '../services/chat.service.js'
 import { activeRequests } from './fetch.js'
 import path from 'path'
 import fs from 'fs/promises'
-import { APIError } from '../types/errors.js' // Import APIError
+import { APIError, ERROR_CODES } from '../types/errors.js' // Import APIError
 
 // 设置SSE连接
 export function setupSSEConnection(res: Response) {
@@ -46,7 +45,7 @@ export async function sendSSEError(res: Response, error: unknown, updateTarget?:
           data: {
             answer: Buffer.from(formattedError),
             speakerType: 'assistant',
-            status: CONFIG.CHAT_STATUS.FAILED,
+            status: ChatRecordStatus.ERROR,
             updateTime: new Date(),
           },
         }),
@@ -92,7 +91,7 @@ export async function handleStreamResponse(
   if (!response.body) {
     throw new APIError(
       'Response body is empty',
-      CONFIG.ERROR_CODES.API_ERROR,
+      ERROR_CODES.API_ERROR,
       500
     )
   }
@@ -119,12 +118,12 @@ export async function handleStreamResponse(
     if (updateTarget.type === 'chat_record' && updateTarget.roundId) {
       await prisma().chatRecord.update({
         where: { id: updateTarget.roundId },
-        data: { status: CONFIG.CHAT_STATUS.CHATTING }, // 聊天中状态
+        data: { status: ChatRecordStatus.PROCESSING }, // 聊天中状态
       })
 
       logger().info({
         msg: 'Chat status updated to CHATTING',
-        data: { roundId: updateTarget.roundId, status: CONFIG.CHAT_STATUS.CHATTING },
+        data: { roundId: updateTarget.roundId, status: ChatRecordStatus.PROCESSING },
       })
     }
 
@@ -174,7 +173,7 @@ export async function handleStreamResponse(
                     data: {
                       answer: Buffer.from(completeMessage),
                       speakerType: 'assistant',
-                      status: CONFIG.CHAT_STATUS.COMPLETED,
+                      status: ChatRecordStatus.COMPLETED,
                       updateTime: now,
                     },
                   }),
@@ -329,7 +328,7 @@ export async function handleStreamResponse(
             data: {
               answer: Buffer.from(completeMessage), // 使用添加了 [DONE] 的消息
               speakerType: 'assistant',
-              status: CONFIG.CHAT_STATUS.COMPLETED,
+              status: ChatRecordStatus.COMPLETED,
               updateTime: now,
             },
           }),
@@ -390,7 +389,7 @@ export async function handleStreamResponse(
             data: {
               answer: Buffer.from(finalMessage),
               speakerType: 'assistant',
-              status: CONFIG.CHAT_STATUS.FAILED,
+              status: ChatRecordStatus.COMPLETED,
               updateTime: now,
             },
           }),

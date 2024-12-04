@@ -1,5 +1,5 @@
 import { logger } from '../../../logger.js'
-import { CONFIG } from '../config/constants.js'
+import { ERROR_CODES } from '../types/errors.js'
 
 // 输入净化
 export function sanitizeInput(input: string): string {
@@ -60,7 +60,7 @@ export function createErrorResponse(code: number, message: string) {
 // 创建成功响应
 export function createSuccessResponse<T>(data: T, message: string = 'success') {
   return {
-    code: CONFIG.ERROR_CODES.SUCCESS,
+    code: ERROR_CODES.SUCCESS,
     msg: message,
     data
   }

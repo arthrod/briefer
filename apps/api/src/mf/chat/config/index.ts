@@ -18,11 +18,6 @@ export interface Config {
     CHAT_LIST_CACHE_DURATION: number
     CHAT_STATUS_CACHE_DURATION: number
   }
-  CHAT_STATUS: {
-    START: number
-    CHATTING: number
-    COMPLETED: number
-  }
 }
 
 // 验证配置

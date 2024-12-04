@@ -7,6 +7,7 @@ import {
   TimeoutError,
   ValidationError,
   AuthorizationError,
+  ERROR_CODES,
 } from '../types/errors.js'
 
 // 通用错误处理中间件
@@ -34,7 +35,7 @@ export function errorHandler(
   // 数据库错误
   if (error instanceof DatabaseError) {
     return res.status(500).json({
-      code: CONFIG.ERROR_CODES.DATABASE_ERROR,
+      code: ERROR_CODES.DATABASE_ERROR,
       msg: '数据库操作失败',
       data: null,
     })
@@ -43,7 +44,7 @@ export function errorHandler(
   // 超时错误
   if (error instanceof TimeoutError) {
     return res.status(408).json({
-      code: CONFIG.ERROR_CODES.TIMEOUT_ERROR,
+      code: ERROR_CODES.TIMEOUT_ERROR,
       msg: '请求超时',
       data: null,
     })
@@ -52,7 +53,7 @@ export function errorHandler(
   // 验证错误
   if (error instanceof ValidationError) {
     return res.status(400).json({
-      code: CONFIG.ERROR_CODES.VALIDATION_ERROR,
+      code: ERROR_CODES.VALIDATION_ERROR,
       msg: error.message,
       data: error.details,
     })
@@ -61,7 +62,7 @@ export function errorHandler(
   // 认证错误
   if (error instanceof AuthorizationError) {
     return res.status(401).json({
-      code: CONFIG.ERROR_CODES.AUTH_ERROR,
+      code: ERROR_CODES.AUTH_ERROR,
       msg: error.message,
       data: null,
     })
@@ -69,7 +70,7 @@ export function errorHandler(
 
   // 默认服务器错误
   res.status(500).json({
-    code: CONFIG.ERROR_CODES.INTERNAL_SERVER_ERROR,
+    code: ERROR_CODES.INTERNAL_SERVER_ERROR,
     msg: '服务器内部错误',
     data: null,
   })
@@ -89,7 +90,7 @@ export function asyncErrorHandler(fn: Function) {
 // 404错误处理
 export function notFoundHandler(req: Request, res: Response) {
   res.status(404).json({
-    code: CONFIG.ERROR_CODES.NOT_FOUND,
+    code: ERROR_CODES.NOT_FOUND,
     msg: '请求的资源不存在',
     data: null,
   })
@@ -134,7 +135,7 @@ export function handleDatabaseError(error: Error) {
     stack: error.stack,
   })
   return createErrorResponse(
-    CONFIG.ERROR_CODES.DATABASE_ERROR,
+    ERROR_CODES.DATABASE_ERROR,
     '数据库操作失败'
   )
 }
@@ -146,7 +147,7 @@ export function handleAPIError(error: Error) {
     stack: error.stack,
   })
   return createErrorResponse(
-    CONFIG.ERROR_CODES.API_ERROR,
+    ERROR_CODES.API_ERROR,
     '接口调用失败'
   )
 }
@@ -158,7 +159,7 @@ export function handleTimeoutError(error: Error) {
     stack: error.stack,
   })
   return createErrorResponse(
-    CONFIG.ERROR_CODES.TIMEOUT_ERROR,
+    ERROR_CODES.TIMEOUT_ERROR,
     '请求超时'
   )
 }
@@ -167,7 +168,7 @@ export function handleTimeoutError(error: Error) {
 export function handleValidationError(error: Error) {
   logger().warn('Validation error:', { error: error.message })
   return createErrorResponse(
-    CONFIG.ERROR_CODES.VALIDATION_ERROR,
+    ERROR_CODES.VALIDATION_ERROR,
     '参数验证失败'
   )
 }
@@ -176,7 +177,7 @@ export function handleValidationError(error: Error) {
 export function handleAuthError(error: Error) {
   logger().warn('Auth error:', { error: error.message })
   return createErrorResponse(
-    CONFIG.ERROR_CODES.AUTH_ERROR,
+    ERROR_CODES.AUTH_ERROR,
     '认证失败'
   )
 }
