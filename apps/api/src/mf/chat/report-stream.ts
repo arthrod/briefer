@@ -578,33 +578,41 @@ class ReportStreamProcessor extends BaseStreamProcessor {
     }
 
     private async processContent(content: string): Promise<void> {
+        // 处理 JSON 开始标记
         if (content.includes('```json')) {
             this.isCollectingJson = true;
             this.jsonBuffer = '';
             return;
         }
 
+        // 处理 JSON 结束标记
         if (this.isCollectingJson && content.includes('```')) {
+            const currentJsonMessage = this.jsonBuffer.trim();  // 清理可能的空白字符
             this.isCollectingJson = false;
-            const currentJsonMessage = this.jsonBuffer;
             this.jsonBuffer = '';
 
-            // 如果有待处理的消息，先处理它
+            // 处理之前缓存的消息（如果有）
             if (this.pendingJsonMessage) {
-                await handleJsonContent(this.pendingJsonMessage, this.config.res, this.updateTarget, false);
+                await handleJsonContent(
+                    this.pendingJsonMessage, 
+                    this.config.res, 
+                    this.updateTarget,
+                    false  // 不是最后一条消息，因为现在有新消息
+                );
                 this.pendingJsonMessage = null;
             }
 
-            // 将当前消息存为待处理
             this.pendingJsonMessage = currentJsonMessage;
             return;
         }
 
+        // 收集 JSON 内容
         if (this.isCollectingJson) {
             this.jsonBuffer += content;
             return;
         }
 
+        // 处理普通文本内容
         this.completeMessage += content;
         this.config.res.write(`data: ${content}\n\n`);
     }
