@@ -2,12 +2,12 @@ export * from './cache'
 export * from './error'
 export * from './fetch'
 export * from './format'
-export * from './sse'
+export * from '../stream/rag-stream'
 export * from './validation'
 
 import { Request, Response, NextFunction } from 'express'
 import { logger } from '../../../logger.js'
-import { CONFIG } from '../config/constants.js'
+import { ERROR_CODES, ERROR_MESSAGES } from '../types/errors'
 
 // 异步包装器
 export const asyncWrapper = (fn: Function) => {
@@ -50,8 +50,8 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
 export function sessionValidator(req: Request, res: Response, next: NextFunction) {
   if (!req.session || !req.session.user) {
     return res.status(401).json({
-      code: CONFIG.ERROR_CODES.AUTH_ERROR,
-      msg: CONFIG.ERROR_MESSAGES.AUTH_ERROR,
+      code: ERROR_CODES.AUTH_ERROR,
+      msg: ERROR_MESSAGES.AUTH_ERROR,
       data: null,
     })
   }
@@ -122,8 +122,8 @@ export function errorResponseMiddleware(err: Error, req: Request, res: Response,
   })
 
   res.status(500).json({
-    code: CONFIG.ERROR_CODES.INTERNAL_SERVER_ERROR,
-    msg: CONFIG.ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+    code: ERROR_CODES.INTERNAL_SERVER_ERROR,
+    msg: ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
     data: null,
   })
 }
