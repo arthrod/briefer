@@ -286,6 +286,13 @@ export function ChatProvider(props: { children: ReactNode }) {
       if (!data) {
         return
       }
+      if (data === '[NEW_STEP]') {
+        const assistantMsg = createAssistantMsg('', roundId)
+        setRoundList((preList) => {
+          return [...preList, assistantMsg]
+        })
+        return
+      }
       if (data === '[DONE]') {
         setGenerating(false)
         doneCallback?.(false)
@@ -334,9 +341,9 @@ export function ChatProvider(props: { children: ReactNode }) {
     }
   }
 
-  const createAssistantMsg = (msg: string): MessageContent => {
+  const createAssistantMsg = (msg: string, roundId?: string): MessageContent => {
     return {
-      id: uuidv4(),
+      id: roundId || uuidv4(),
       role: 'assistant',
       content: msg,
       roundId: '',

@@ -188,7 +188,7 @@ export default function WorkspaceLayout({ children, pagePath, topBarClassname }:
       <div
         className={
           isSideBarOpen
-            ? `flex h-full min-w-[33%] max-w-[33%] flex-col overflow-auto lg:min-w-[25%] lg:max-w-[25%]`
+            ? `flex h-full min-w-[33%] max-w-[33%] flex-col overflow-hidden lg:min-w-[25%] lg:max-w-[25%]`
             : `hidden md:max-w-[0] lg:max-w-[0]`
         }>
         <ChatLayout chatId={chatId} />
