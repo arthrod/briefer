@@ -135,6 +135,23 @@ export function createErrorResponse(code: number, message: string): ErrorRespons
   }
 }
 
+// 统一的控制器错误处理包装函数
+export function withErrorHandler(handler: (req: Request, res: Response, ...args: any[]) => Promise<any>, operation: string) {
+  return async (req: Request, res: Response, ...args: any[]) => {
+    try {
+      return await handler(req, res, ...args)
+    } catch (err) {
+      if (err instanceof AuthorizationError) {
+        return res.status(403).json(createErrorResponse(403, err.message))
+      }
+      if (err instanceof ValidationError) {
+        return res.status(400).json(createErrorResponse(400, err.message))
+      }
+      return handleError(err, req, res, operation)
+    }
+  }
+}
+
 // Schema验证中间件
 export function validateSchemaMiddleware(schema: z.ZodSchema) {
   return (req: Request, res: Response, next: NextFunction) => {
