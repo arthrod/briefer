@@ -53,13 +53,12 @@ function ChatLayout({ chatId }: { chatId: string }) {
       return
     }
     setLoading(true)
-    startRoundChat(chatId, question)
-      .catch((e) => {
-        showToast('消息发送失败，请检查网络', 'error')
-      })
-      .finally(() => {
-        setLoading(false)
-      })
+    startRoundChat(chatId, question, () => {
+      setLoading(false)
+    }).catch((e) => {
+      showToast('消息发送失败，请检查网络', 'error')
+      setLoading(false)
+    })
   }
 
   const handleStop = () => {

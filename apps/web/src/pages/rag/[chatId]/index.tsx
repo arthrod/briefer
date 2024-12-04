@@ -22,17 +22,11 @@ function RagDetailPage() {
 
   useEffect(() => {
     if (chatId) {
-      loadDetail(chatId).then(() => {
-        watchStatus(true)
-      })
+      loadDetail(chatId)
     } else {
       router.push('/home')
     }
   }, [chatId])
-
-  useEffect(() => {
-    setLoading(!!generating)
-  }, [generating])
 
   const watchStatus = (isFirst: boolean) => {
     if (loading) {
@@ -72,6 +66,16 @@ function RagDetailPage() {
       })
   }
 
+  const handleStop = () => {
+    if (loading) {
+      return
+    }
+    setLoading(true)
+    stopChat().finally(() => {
+      setLoading(false)
+    })
+  }
+
   return (
     <div className={styles.rag_layout}>
       <div ref={scrollRef} className={styles.detail_layout}>
@@ -85,11 +89,7 @@ function RagDetailPage() {
           onSend={async (question) => {
             await addSendMsg(question)
           }}
-          onStop={() => {
-            stopChat().finally(() => {
-              setLoading(false)
-            })
-          }}
+          onStop={handleStop}
         />
       </div>
     </div>

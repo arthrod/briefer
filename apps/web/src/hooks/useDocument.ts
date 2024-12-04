@@ -20,11 +20,7 @@ type UseDocument = [
 function useDocument(workspaceId: string, documentId: string): UseDocument {
   const [{ documents, loading }, api] = useDocuments(workspaceId)
   const document = useMemo(
-    () =>
-      documents.find((doc) => {
-        console.log(doc.id === documentId)
-        return doc.id === documentId
-      }) ?? null,
+    () => documents.find((doc) => doc.id === documentId) ?? null,
     [documents, documentId]
   )
 

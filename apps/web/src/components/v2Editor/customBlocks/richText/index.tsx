@@ -35,6 +35,7 @@ const useBlockEditor = ({
     {
       autofocus: false,
       editable: isEditable,
+      immediatelyRender: true,
       extensions: [
         Paragraph,
         TaskList,

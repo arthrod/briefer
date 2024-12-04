@@ -302,7 +302,8 @@ export function useDocuments(workspaceId: string): UseDocuments {
     version: number
   }) => {
     if (loading) {
-      throw new Error('Cannot create document while loading')
+      return
+      // throw new Error('Cannot create document while loading')
     }
 
     const id = data?.id ?? uuidv4()

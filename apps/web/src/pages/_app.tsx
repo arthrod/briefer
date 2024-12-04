@@ -19,7 +19,7 @@ import useProperties from '@/hooks/useProperties'
 import { DataSourcesProvider } from '@/hooks/useDatasources'
 import { ReusableComponentsProvider } from '@/hooks/useReusableComponents'
 import { CommentsProvider } from '@/hooks/useComments'
-import { ChatLayoutProvider } from '@/components/mf/ChatLayout'
+import { ChatProvider } from '@/components/mf/ChatLayout'
 
 type Page<P = {}> = NextPage<P> & {
   layout?: ComponentType
@@ -40,11 +40,11 @@ function App({ Component, pageProps: { session, ...pageProps } }: Props) {
               <DataSourcesProvider>
                 <ReusableComponentsProvider>
                   <SideBarProvider>
-                    <ChatLayoutProvider>
+                    <ChatProvider>
                       <Layout>
                         <Component {...pageProps} />
                       </Layout>
-                    </ChatLayoutProvider>
+                    </ChatProvider>
                   </SideBarProvider>
                 </ReusableComponentsProvider>
               </DataSourcesProvider>

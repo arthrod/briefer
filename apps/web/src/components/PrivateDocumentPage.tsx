@@ -15,7 +15,8 @@ import Snapshots from './Snapshots'
 import { useYDoc } from '@/hooks/useYDoc'
 import EllipsisDropdown from './EllipsisDropdown'
 import Link from 'next/link'
-import { EyeIcon } from '@heroicons/react/24/outline'
+import { useSession } from '@/hooks/useAuth'
+
 import { BookUpIcon } from 'lucide-react'
 import clsx from 'clsx'
 import { widthClasses } from './v2Editor/constants'
@@ -29,6 +30,7 @@ import { NEXT_PUBLIC_PUBLIC_URL } from '@/utils/env'
 import ReusableComponents from './ReusableComponents'
 import PageSettingsPanel from './PageSettingsPanel'
 
+import styles from './PrivateDocumentPage.module.scss'
 // this is needed because this component only works with the browser
 const V2Editor = dynamic(() => import('@/components/v2Editor'), {
   ssr: false,
@@ -160,6 +162,9 @@ function PrivateDocumentPageInner(
     restoreDocument(props.documentId)
   }, [props.documentId, restoreDocument])
 
+  const session = useSession()
+  const firstLetter = session.data?.loginName.charAt(0).toUpperCase() // 获取用户名的第一个字母并转为大写
+
   const clock = useMemo(() => {
     if (!props.isApp) {
       return props.document.clock
@@ -200,49 +205,37 @@ function PrivateDocumentPageInner(
     return (
       <div className="flex w-full items-center justify-between gap-x-6">
         <div className="flex w-full items-center gap-x-1.5 overflow-hidden font-sans text-sm text-gray-400">
-          <span className="flex w-full items-center truncate">
-            {documentTitle}
-            {/* <span className="ml-1 font-semibold">
-        {props.isApp ? <span className="text-ceramic-500 mr-1">查看中</span> : '编辑中'}
-      </span> */}
-            {/* {props.isApp ? (
-        <EyeIcon className="h-4 w-4" />
-      ) : (
-        <img className="h-4 w-4" src="/icons/edit.svg" alt="" />
-      )} */}
-          </span>
+          <span className="flex w-full items-center truncate">{documentTitle}</span>
         </div>
 
-        <div className="flex h-[30px] w-full items-center justify-end gap-x-4">
+        <div className="flex h-[36px] w-full items-center justify-end gap-x-4">
           {!isViewer && <RunAllV2 disabled={false} yDoc={yDoc} primary={props.isApp} />}
           {props.isApp ? (
             <Link
-              className="flex items-center gap-x-1.5 rounded-sm px-3 py-1 text-sm"
+              className="flex items-center gap-x-1.5 rounded-sm px-3 py-2 text-sm"
               href={`/workspaces/${props.document.workspaceId}/documents/${props.document.id}/notebook/edit${window.location.search}`}>
               <img className="h-4 w-4" src="/icons/edit.svg" alt="" />
               <span>编辑</span>
             </Link>
           ) : (
-            <>
-              <Tooltip
-                title="Click to publish"
-                message="This notebook has unpublished changes."
-                active={props.document.publishedAt !== null && isDirty}
-                position="bottom"
-                tooltipClassname="w-40">
-                <button
-                  className="bg-primary-200 hover:bg-primary-300 group relative flex items-center gap-x-1.5 rounded-sm px-3 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-                  onClick={onPublish}
-                  disabled={props.publishing}>
-                  <BookUpIcon
-                    className="duration-400 h-4 w-4 rotate-12 transition-transform group-hover:rotate-0"
-                    strokeWidth={1}
-                  />
-                  <span>预览</span>
-                  {isDirty && props.document.publishedAt && <PublishBlinkingSignal />}
-                </button>
-              </Tooltip>
-            </>
+            <Tooltip
+              title="Click to publish"
+              message="This notebook has unpublished changes."
+              active={props.document.publishedAt !== null && isDirty}
+              position="bottom"
+              tooltipClassname="w-40">
+              <button
+                className="bg-primary-200 hover:bg-primary-300 group relative flex items-center gap-x-1.5 rounded-sm px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={onPublish}
+                disabled={props.publishing}>
+                <BookUpIcon
+                  className="duration-400 h-4 w-4 rotate-12 transition-transform group-hover:rotate-0"
+                  strokeWidth={1}
+                />
+                <span>预览</span>
+                {isDirty && props.document.publishedAt && <PublishBlinkingSignal />}
+              </button>
+            </Tooltip>
           )}
 
           <EllipsisDropdown
@@ -259,6 +252,13 @@ function PrivateDocumentPageInner(
             isDeleted={isDeleted}
             isFullScreen={isFullScreen}
           />
+          <div
+            className={styles.userAvatar}
+            onClick={() => {
+              router.push('/user/profile')
+            }}>
+            {firstLetter}
+          </div>
         </div>
       </div>
     )

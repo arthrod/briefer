@@ -29,8 +29,9 @@ function HomePage() {
   const { createChat, startRoundChat } = useChatLayoutContext()
   const [workspaces] = useWorkspaces()
   const workspaceId = workspaces.data[0]?.id || ''
-  const [state, { createDocument }] = useDocuments(workspaceId)
-  const send = async (msg: string, _fileId?: string) => {
+  const [_, { createDocument }] = useDocuments(workspaceId)
+
+  const handleSend = async (msg: string, _fileId?: string) => {
     if (loading) {
       return Promise.reject('')
     }
@@ -42,10 +43,7 @@ function HomePage() {
     try {
       // 创建对话
       createChat(type, _fileId).then((data) => {
-        createDocument({ version: 2 })
-        setTimeout(() => {
-          createRound(data.id, msg, data.workspaceId, data.documentId)
-        }, 600)
+        createRound(data.id, msg, data.workspaceId, data.documentId)
       })
     } finally {
       setLoading(false)
@@ -53,6 +51,8 @@ function HomePage() {
   }
 
   const createRound = (chatId: string, msg: string, workspaceId?: string, documentId?: string) => {
+    createDocument({ version: 2 })
+
     startRoundChat(chatId, msg).then(() => {
       if (type === 'rag') {
         if (chatInputRef.current) {
@@ -66,11 +66,13 @@ function HomePage() {
           router.push(`/rag/${chatId}`, undefined, { shallow: true })
         }, 300)
       } else {
-        router.push(
-          `/workspaces/${workspaceId}/documents/${documentId}/notebook/edit?chatId=${chatId}`,
-          undefined,
-          { shallow: true }
-        )
+        setTimeout(() => {
+          router.push(
+            `/workspaces/${workspaceId}/documents/${documentId}/notebook/edit?chatId=${chatId}`,
+            undefined,
+            { shallow: true }
+          )
+        }, 300)
       }
     })
   }
@@ -113,7 +115,7 @@ function HomePage() {
           className={styles.input}
           showUpload={type === 'report'}
           loading={loading}
-          onSend={send}
+          onSend={handleSend}
         />
       </div>
       <div className={styles.suggestions} style={{ transform: `translateY(${translateY}px)` }}>
