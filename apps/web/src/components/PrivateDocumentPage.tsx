@@ -204,7 +204,9 @@ function PrivateDocumentPageInner(
   const topBarContent = useMemo(() => {
     return (
       <div className="flex w-full items-center justify-between gap-x-6">
-        <div className="flex w-full items-center gap-x-1.5 overflow-hidden font-sans text-sm text-gray-400">
+        <div
+          style={{ color: '#272A33', fontWeight: 500 }}
+          className="flex w-full items-center gap-x-1.5 overflow-hidden font-sans text-lg">
           <span className="flex w-full items-center truncate">{documentTitle}</span>
         </div>
 

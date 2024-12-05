@@ -1,6 +1,5 @@
 import * as Y from 'yjs'
 import { EditorContent, Extension, useEditor } from '@tiptap/react'
-import StarterKit from '@tiptap/starter-kit'
 import Collaboration from '@tiptap/extension-collaboration'
 import Underline from '@tiptap/extension-underline'
 import Placeholder from '@tiptap/extension-placeholder'
@@ -17,17 +16,26 @@ import type { RichTextBlock } from '@briefer/editor'
 import clsx from 'clsx'
 import { useCallback, useEffect } from 'react'
 import { ConnectDragPreview } from 'react-dnd'
-import ImageExtension from './ImageExtension'
 
+import Table from '@tiptap/extension-table'
+import TableCell from '@tiptap/extension-table-cell'
+import TableHeader from '@tiptap/extension-table-header'
+import TableRow from '@tiptap/extension-table-row'
+import StarterKit from '@tiptap/starter-kit'
+import { Markdown } from 'tiptap-markdown'
 import 'katex/dist/katex.min.css'
+
+import ImageExtension from './ImageExtension'
 import useEditorAwareness from '@/hooks/useEditorAwareness'
 
 const useBlockEditor = ({
   content,
   isEditable,
+  needTransform,
   setTitle,
 }: {
   content: Y.XmlFragment
+  needTransform: boolean
   isEditable: boolean
   setTitle: (title: string) => void
 }) => {
@@ -46,6 +54,7 @@ const useBlockEditor = ({
           history: false,
           dropcursor: false,
         }),
+        Markdown,
         Underline.configure({
           HTMLAttributes: {
             class: 'my-custom-class',
@@ -77,6 +86,12 @@ const useBlockEditor = ({
         MathExtension.configure({
           evaluation: false,
         }),
+        Table.configure({
+          resizable: false,
+        }),
+        TableRow,
+        TableHeader,
+        TableCell,
         Extension.create({
           name: 'brieferKeyboardShortcuts',
           addKeyboardShortcuts: () => ({
@@ -90,6 +105,11 @@ const useBlockEditor = ({
       onUpdate({ editor }) {
         const content = editor.getJSON()?.content
         const firstLineContent = content?.[0]?.content?.[0]?.text ?? ''
+        if (needTransform && firstLineContent) {
+          console.log(editor.storage.markdown.getMarkdown())
+
+          editor.commands.setContent(firstLineContent)
+        }
         setTitle(firstLineContent)
       },
       editorProps: {
@@ -136,9 +156,12 @@ interface Props {
 const RichTextBlock = (props: Props) => {
   const id = props.block.getAttribute('id')!
   const content = props.block.getAttribute('content')!
+  const needTransform = props.block.getAttribute('needTransform')!
+
   const setTitle = useCallback(
     (title: string) => {
       props.block.setAttribute('title', title)
+      props.block.setAttribute('needTransform', false)
     },
     [props.block]
   )
@@ -147,6 +170,7 @@ const RichTextBlock = (props: Props) => {
 
   const { editor } = useBlockEditor({
     content,
+    needTransform: !!needTransform,
     setTitle,
     isEditable: props.isEditable,
   })
@@ -186,12 +210,10 @@ const RichTextBlock = (props: Props) => {
       }}
       className={clsx(
         'ring-outline ring-offset-4',
-        props.isDashboard ? 'px-4 py-3 h-full overflow-y-scroll' : '',
+        props.isDashboard ? 'h-full overflow-y-scroll px-4 py-3' : '',
         {
-          'ring-1 ring-ceramic-400':
-            editor?.isFocused &&
-            !props.belongsToMultiTabGroup &&
-            props.isEditable,
+          'ring-ceramic-400 ring-1':
+            editor?.isFocused && !props.belongsToMultiTabGroup && props.isEditable,
           'ring-1 ring-blue-400':
             !editor?.isFocused &&
             !props.belongsToMultiTabGroup &&
@@ -200,17 +222,13 @@ const RichTextBlock = (props: Props) => {
             !props.isCursorInserting,
         },
         {
-          'rounded-tl-none rounded-sm border border-gray-200 p-2':
-            props.belongsToMultiTabGroup,
-          'rounded-tl-none rounded-sm border border-blue-400 p-2':
-            props.belongsToMultiTabGroup &&
-            props.isCursorWithin &&
-            !props.isCursorInserting,
+          'rounded-sm rounded-tl-none border border-gray-200 p-2': props.belongsToMultiTabGroup,
+          'rounded-sm rounded-tl-none border border-blue-400 p-2':
+            props.belongsToMultiTabGroup && props.isCursorWithin && !props.isCursorInserting,
           'rounded-sm': !props.belongsToMultiTabGroup,
         }
       )}
-      data-block-id={id}
-    >
+      data-block-id={id}>
       <div className={editor?.isFocused ? 'block' : 'hidden'}>
         <div>{editor && <FormattingToolbar editor={editor} />}</div>
       </div>

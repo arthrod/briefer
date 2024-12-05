@@ -10,11 +10,10 @@ import {
 } from './index.js'
 
 export type RichTextBlock = BaseBlock<BlockType.RichText> & {
+  needTransform: boolean
   content: Y.XmlFragment
 }
-export const isRichTextBlock = (
-  block: YBlock
-): block is Y.XmlElement<RichTextBlock> => {
+export const isRichTextBlock = (block: YBlock): block is Y.XmlElement<RichTextBlock> => {
   return block.getAttribute('type') === BlockType.RichText
 }
 
@@ -24,6 +23,7 @@ export const makeRichTextBlock = (id: string): Y.XmlElement<RichTextBlock> => {
   const attrs: RichTextBlock = {
     id,
     index: null,
+    needTransform: true,
     title: '',
     type: BlockType.RichText,
     content: new Y.XmlFragment(),
@@ -37,12 +37,11 @@ export const makeRichTextBlock = (id: string): Y.XmlElement<RichTextBlock> => {
   return yBlock
 }
 
-export function getRichTextAttributes(
-  block: Y.XmlElement<RichTextBlock>
-): RichTextBlock {
+export function getRichTextAttributes(block: Y.XmlElement<RichTextBlock>): RichTextBlock {
   return {
     ...getBaseAttributes(block),
     content: getAttributeOr(block, 'content', new Y.XmlFragment()),
+    needTransform: getAttributeOr(block, 'needTransform', true),
   }
 }
 
@@ -55,6 +54,7 @@ export function duplicateRichTextBlock(
   const newAttrs: RichTextBlock = {
     ...duplicateBaseAttributes(newId, prevAttrs),
     content: duplicateYXmlFragment(prevAttrs.content),
+    needTransform: prevAttrs.needTransform,
   }
 
   const yBlock = new Y.XmlElement<RichTextBlock>('block')
@@ -66,9 +66,7 @@ export function duplicateRichTextBlock(
   return yBlock
 }
 
-export function getRichTextBlockExecStatus(
-  _block: Y.XmlElement<RichTextBlock>
-): ExecStatus {
+export function getRichTextBlockExecStatus(_block: Y.XmlElement<RichTextBlock>): ExecStatus {
   return 'idle'
 }
 
