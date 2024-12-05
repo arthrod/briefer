@@ -186,6 +186,7 @@ export default function WorkspaceLayout({ children, pagePath, topBarClassname }:
 
       <CommandPalette workspaceId={workspaceId} isOpen={isSearchOpen} setOpen={setSearchOpen} />
       <div
+        style={{ boxShadow: '0px 2px 4px 0px rgba(0, 0, 0, 0.04)' }}
         className={
           isSideBarOpen
             ? `flex h-full min-w-[33%] max-w-[33%] flex-col overflow-hidden lg:min-w-[25%] lg:max-w-[25%]`

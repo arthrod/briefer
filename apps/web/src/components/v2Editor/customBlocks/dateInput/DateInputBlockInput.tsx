@@ -5,11 +5,7 @@ import useYTextInput from '@/hooks/useYTextInput'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import clsx from 'clsx'
 import DatePicker from './DatePicker'
-import {
-  DateInputValue,
-  dateInputValueFromString,
-  formatDateInputValue,
-} from '@briefer/editor'
+import { DateInputValue, dateInputValueFromString, formatDateInputValue } from '@briefer/editor'
 import Spin from '@/components/Spin'
 import { CalendarIcon, ExclamationCircleIcon } from '@heroicons/react/24/solid'
 import { ClockIcon } from '@heroicons/react/20/solid'
@@ -23,12 +19,7 @@ function invalidValueErrorMessage(
     case 'invalid-variable-and-value':
       return <>The value is invalid.</>
     case 'unexpected-error':
-      return (
-        <>
-          Unexpected error occurred while updating the input. Click this icon to
-          retry.
-        </>
-      )
+      return <>Unexpected error occurred while updating the input. Click this icon to retry.</>
   }
 }
 
@@ -38,11 +29,7 @@ interface Props {
   dateType: 'date' | 'datetime'
   newValue: Y.Text
   onSave: () => void
-  error:
-    | 'invalid-value'
-    | 'unexpected-error'
-    | 'invalid-variable-and-value'
-    | null
+  error: 'invalid-value' | 'unexpected-error' | 'invalid-variable-and-value' | null
   isSaving: boolean
   isEnqueued: boolean
   isEditable: boolean
@@ -53,9 +40,7 @@ interface Props {
 function DateInputBlockInput(props: Props) {
   const isLoading = props.isSaving || props.isEnqueued
 
-  const { value: newTextValue, onChange: onChangeNewTextValue } = useYTextInput(
-    props.newValue
-  )
+  const { value: newTextValue, onChange: onChangeNewTextValue } = useYTextInput(props.newValue)
   const newValue = dateInputValueFromString(newTextValue, props.value)
 
   const onChangeEvent = useCallback(
@@ -147,8 +132,7 @@ function DateInputBlockInput(props: Props) {
         onKeyUp={onKeyUp}
         onClick={onClick}
         onFocus={onFocus}
-        onBlur={editorAPI.blur}
-      >
+        onBlur={editorAPI.blur}>
         {
           // @ts-ignore
           (inputProps: any) => (
@@ -157,13 +141,9 @@ function DateInputBlockInput(props: Props) {
               ref={innerRef}
               type="text"
               className={clsx(
-                'block rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset placeholder:text-gray-400 focus:ring-2 focus:ring-inset w-full disabled:bg-gray-100 disabled:cursor-not-allowed bg-white appearance-none',
-                props.error
-                  ? 'ring-red-200 focus:ring-red-200'
-                  : 'focus:ring-primary-200',
-                props.isCursorWithin &&
-                  !props.isCursorInserting &&
-                  !props.belongsToMultiTabGroup
+                'block w-full appearance-none rounded-md border-0 bg-white py-1.5 text-gray-900 shadow-sm ring-1 ring-inset placeholder:text-gray-400 focus:ring-2 focus:ring-inset disabled:cursor-not-allowed disabled:bg-gray-100',
+                props.error ? 'ring-red-200 focus:ring-red-200' : 'focus:ring-primary-200',
+                props.isCursorWithin && !props.isCursorInserting && !props.belongsToMultiTabGroup
                   ? 'ring-blue-400'
                   : 'ring-gray-200',
                 (isLoading || props.error) && 'bg-none' // this removes the caret
@@ -177,15 +157,14 @@ function DateInputBlockInput(props: Props) {
       {ReactDOM.createPortal(
         <div
           className={clsx(
-            'absolute bg-white mt-1.5 border border-gray-200 rounded-md z-[2000] px-3 pt-1 pb-2 shadow-lg',
+            'absolute z-[2000] mt-1.5 rounded-md border border-gray-200 bg-white px-3 pb-2 pt-1 shadow-lg',
             isPickerOpen ? 'block' : 'hidden'
           )}
           ref={pickerContainer}
           style={{
             top: innerRef.current?.getBoundingClientRect().bottom,
             left: innerRef.current?.getBoundingClientRect().left,
-          }}
-        >
+          }}>
           <DatePicker
             value={newValue}
             dateType={props.dateType}
@@ -195,27 +174,24 @@ function DateInputBlockInput(props: Props) {
         </div>,
         document.body
       )}
-      <div className="absolute inset-y-0 right-0 flex items-center pr-2 group">
+      <div className="group absolute inset-y-0 right-0 flex items-center pr-2">
         {props.isSaving ? (
           <Spin />
         ) : props.isEnqueued ? (
-          <ClockIcon className="w-4 h-4 text-gray-300" />
+          <ClockIcon className="h-4 w-4 text-gray-300" />
         ) : props.error && !isLoading ? (
           <>
             <button onClick={props.onSave}>
-              <ExclamationCircleIcon
-                className="h-4 w-4 text-red-300"
-                aria-hidden="true"
-              />
+              <ExclamationCircleIcon className="h-4 w-4 text-red-300" aria-hidden="true" />
             </button>
-            <div className="font-sans pointer-events-none absolute -top-2 left-1/2 -translate-y-full -translate-x-1/2 opacity-0 transition-opacity group-hover:opacity-100 bg-hunter-950 text-white text-xs p-2 rounded-md flex flex-col gap-y-1 w-32">
-              <span className="inline-flex gap-x-1 items-center text-gray-400">
+            <div className="bg-hunter-950 pointer-events-none absolute -top-2 left-1/2 flex w-32 -translate-x-1/2 -translate-y-full flex-col gap-y-1 rounded-md p-2 font-sans text-xs text-white opacity-0 transition-opacity group-hover:opacity-100">
+              <span className="inline-flex items-center gap-x-1 text-gray-400">
                 <span>{invalidValueErrorMessage(props.error)}</span>
               </span>
             </div>
           </>
         ) : (
-          <CalendarIcon className="w-4 h-4 text-gray-400" />
+          <CalendarIcon className="h-4 w-4 text-gray-400" />
         )}
       </div>
     </div>
