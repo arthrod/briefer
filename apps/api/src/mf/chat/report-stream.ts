@@ -255,9 +255,6 @@ async function handleJsonContent(
             // 处理普通消息
             res.write(`data: ${parsedJson.content}\n\n`)
 
-            // 写入完整消息到日志
-            // await appendToSSELog(updateTarget.chatId, updateTarget.roundId, parsedJson.content);
-
             // 创建新的对话记录
             await prisma().chatRecord.create({
                 data: {
@@ -279,6 +276,126 @@ async function handleJsonContent(
         } else if (parsedJson.type === 'document') {
             // 处理文档块
             await handleDocumentBlock(parsedJson.block, updateTarget)
+        } else if (parsedJson.type === 'task') {
+            logger().info({
+                msg: 'Processing task message',
+                data: {
+                    phase: parsedJson.phase,
+                    params: parsedJson.params,
+                    chatId: updateTarget.chatId,
+                    roundId: updateTarget.roundId
+                }
+            })
+
+            // 获取或创建 ChatRecord
+            const chatRecord = await prisma().chatRecord.create({
+                data: {
+                    id: crypto.randomUUID(),
+                    chatId: updateTarget.chatId,
+                    roundId: updateTarget.roundId,
+                    question: '',
+                    answer: Buffer.from(JSON.stringify(parsedJson)),
+                    speakerType: 'assistant',
+                    status: ChatRecordStatus.COMPLETED,
+                    createdTime: new Date(),
+                    updateTime: new Date()
+                }
+            });
+
+            if (parsedJson.phase === 'CREATE') {
+                // 如果有父任务ID，先查找对应的ChatRecordTask记录
+                let parentTaskId: string | null = null;
+                if (parsedJson.params.parent_id) {
+                    const parentTask = await prisma().chatRecordTask.findFirst({
+                        where: {
+                            chatRecordId: chatRecord.id,
+                            agentTaskId: parsedJson.params.parent_id
+                        }
+                    });
+                    if (parentTask) {
+                        parentTaskId = parentTask.id;
+                    }
+                    
+                    logger().info({
+                        msg: 'Found parent task',
+                        data: {
+                            parentAgentTaskId: parsedJson.params.parent_id,
+                            parentTaskId,
+                            chatRecordId: chatRecord.id
+                        }
+                    });
+                }
+
+                // 创建新任务
+                const task = await prisma().chatRecordTask.create({
+                    data: {
+                        id: crypto.randomUUID(),
+                        chatRecordId: chatRecord.id,
+                        agentTaskId: parsedJson.params.id,
+                        name: parsedJson.params.name,
+                        description: parsedJson.params.description,
+                        parentId: parentTaskId, // 使用查询到的父任务ID
+                        subTaskCount: parseInt(parsedJson.params.sub_task_count) || 0,
+                        status: parsedJson.params.status || 'waiting',
+                        variable: parsedJson.params.variable
+                    }
+                })
+
+                // 仅对第一个task消息通过SSE发送
+                res.write(`data: ${JSON.stringify({
+                    type: 'task',
+                    phase: 'CREATE',
+                    params: {
+                        id: task.id,
+                        agent_task_id: task.agentTaskId,
+                        name: task.name,
+                        description: task.description,
+                        parent_id: task.parentId,
+                        sub_task_count: task.subTaskCount,
+                        status: task.status,
+                        variable: task.variable
+                    }
+                })}\n\n`)
+
+            } else if (parsedJson.phase === 'UPDATE') {
+                // 查找对应的 ChatRecord
+                const chatRecord = await prisma().chatRecord.findFirst({
+                    where: {
+                        chatId: updateTarget.chatId,
+                        roundId: updateTarget.roundId,
+                    },
+                    orderBy: {
+                        createdTime: 'desc'
+                    }
+                });
+
+                if (!chatRecord) {
+                    throw new Error('ChatRecord not found for task update');
+                }
+
+                // 更新任务状态
+                await prisma().chatRecordTask.updateMany({
+                    where: {
+                        chatRecordId: chatRecord.id,
+                        agentTaskId: parsedJson.params.id
+                    },
+                    data: {
+                        status: parsedJson.params.status,
+                        updateTime: new Date()
+                    }
+                })
+
+                logger().info({
+                    msg: 'Task status updated',
+                    data: {
+                        chatId: updateTarget.chatId,
+                        roundId: updateTarget.roundId,
+                        chatRecordId: chatRecord.id,
+                        agentTaskId: parsedJson.params.id,
+                        newStatus: parsedJson.params.status
+                    }
+                })
+            }
         }
     } catch (error) {
         logger().error({
@@ -290,6 +407,7 @@ async function handleJsonContent(
                 roundId: updateTarget.roundId
             }
         })
+        throw error
     }
 }
 
