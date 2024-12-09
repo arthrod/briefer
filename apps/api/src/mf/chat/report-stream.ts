@@ -303,15 +303,38 @@ async function handleJsonContent(
             });
 
             if (parsedJson.phase === 'CREATE') {
+                // 如果有父任务ID，先查找对应的ChatRecordTask记录
+                let parentTaskId: string | null = null;
+                if (parsedJson.params.parent_id) {
+                    const parentTask = await prisma().chatRecordTask.findFirst({
+                        where: {
+                            chatRecordId: chatRecord.id,
+                            agentTaskId: parsedJson.params.parent_id
+                        }
+                    });
+                    if (parentTask) {
+                        parentTaskId = parentTask.id;
+                    }
+                    
+                    logger().info({
+                        msg: 'Found parent task',
+                        data: {
+                            parentAgentTaskId: parsedJson.params.parent_id,
+                            parentTaskId,
+                            chatRecordId: chatRecord.id
+                        }
+                    });
+                }
+
                 // 创建新任务
                 const task = await prisma().chatRecordTask.create({
                     data: {
                         id: crypto.randomUUID(),
-                        chatRecordId: chatRecord.id, // 使用新创建的 ChatRecord 的 ID
+                        chatRecordId: chatRecord.id,
                         agentTaskId: parsedJson.params.id,
                         name: parsedJson.params.name,
                         description: parsedJson.params.description,
-                        parentId: parsedJson.params.parent_id,
+                        parentId: parentTaskId, // 使用查询到的父任务ID
                         subTaskCount: parseInt(parsedJson.params.sub_task_count) || 0,
                         status: parsedJson.params.status || 'waiting',
                         variable: parsedJson.params.variable
