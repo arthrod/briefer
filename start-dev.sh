@@ -18,6 +18,7 @@ if [ ! -f ./apps/api/.env ]; then
   echo "POSTGRES_PASSWORD=password" >> ./apps/api/.env
   echo "POSTGRES_HOSTNAME=localhost" >> ./apps/api/.env
   echo "POSTGRES_PORT=5432" >> ./apps/api/.env
+  echo "AI_AGENT_URL=http://192.168.31.23:8666" >> ./apps/api/.env
 
   echo "POSTGRES_DATABASE=briefer" >> ./apps/api/.env
   echo "ENVIRONMENT_VARIABLES_ENCRYPTION_KEY=$(openssl rand -hex 32)" >> ./apps/api/.env
@@ -37,6 +38,7 @@ if [ ! -f ./apps/web/.env ]; then
   echo "NEXT_PUBLIC_API_URL='http://localhost:8080'" >> ./apps/web/.env
   echo "NEXT_PUBLIC_API_WS_URL='ws://localhost:8080'" >> ./apps/web/.env
   echo "NEXT_PUBLIC_PUBLIC_URL='http://localhost:4000'" >> ./apps/web/.env
+  echo "NEXT_PUBLIC_MF_API_URL='http://localhost:8080/v1/mf'" >> ./apps/web/.env
 
   echo "Generated a new ./apps/eb/.env file with default values"
 fi
