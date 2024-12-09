@@ -133,7 +133,7 @@ async function main() {
 
   ready = true
 
-  shutdownFunctions.push(await initUpdateChecker())
+  // shutdownFunctions.push(await initUpdateChecker())
 
   let shutdownPromise: Promise<void> | null = null
   async function shutdown() {
