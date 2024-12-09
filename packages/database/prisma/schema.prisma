@@ -601,6 +601,7 @@ model ChatRecordTask {
   subTaskCount Int       @default(0)
   status       String    @default("waiting")
   variable     String?
+  blockId      String?   // 关联文档块的ID
   createdTime  DateTime  @default(now())
   updateTime   DateTime  @default(now()) @updatedAt
 
