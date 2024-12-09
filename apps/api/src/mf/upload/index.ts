@@ -62,8 +62,26 @@ function formatDate(date: Date): string {
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     const uploadDir = path.join('/opt/mindflow/upload/files', formatDate(new Date()))
-    fs.mkdirSync(uploadDir, { recursive: true })
-    cb(null, uploadDir)
+    try {
+      fs.mkdirSync(uploadDir, { recursive: true })
+      cb(null, uploadDir)
+    } catch (error: unknown) {
+      if (error instanceof Error && 'code' in error && error.code === 'EACCES') {
+        Logger.error('创建上传目录失败：没有权限', {
+          uploadDir,
+          error,
+          userId: req.session?.user?.id,
+        })
+        cb(Object.assign(new Error('没有权限创建上传目录'), { code: ErrorCode.FORBIDDEN }), uploadDir)
+      } else {
+        Logger.error('创建上传目录失败', {
+          uploadDir,
+          error,
+          userId: req.session?.user?.id,
+        })
+        cb(Object.assign(new Error('创建上传目录失败'), { code: ErrorCode.SERVER_ERROR }), uploadDir)
+      }
+    }
   },
   filename: function (req, file, cb) {
     const fileId = uuidv4()
@@ -99,20 +117,34 @@ uploadRouter.post(
   uploadLimiter,
   checkFileSize,
   authMiddleware,
-  upload.single('file'),
-  async (req: Request, res: Response) => {
-    try {
+  (req: Request, res: Response, next: NextFunction) => {
+    upload.single('file')(req, res, function(err) {
+      if (err) {
+        Logger.error('文件上传失败', {
+          error: err,
+          errorMessage: err.message,
+          errorCode: err.code,
+          userId: req.session?.user?.id,
+        })
+        return sendResponse(res, fail(err.code || ErrorCode.SERVER_ERROR, err.message || '文件上传失败'))
+      }
       if (!req.file) {
         Logger.warn('未选择上传文件', {
           userId: req.session?.user?.id,
         })
         return sendResponse(res, fail(ErrorCode.PARAM_ERROR, '请选择要上传的文件'))
       }
-
-      const fileId = req.file.filename
-      const filePath = req.file.path
-      const fileName = decodeURIComponent(req.file.originalname)
-      const fileSize = req.file.size
+      next()
+    })
+  },
+  async (req: Request, res: Response) => {
+    try {
+      // 由于前面的中间件已经确保了文件存在，这里断言 file 一定存在
+      const file = req.file as Express.Multer.File
+      const fileId = file.filename
+      const filePath = file.path
+      const fileName = decodeURIComponent(file.originalname)
+      const fileSize = file.size
 
       Logger.info('开始上传文件', {
         fileId,
@@ -140,14 +172,23 @@ uploadRouter.post(
       })
 
       return sendResponse(res, success({ id: fileId }, '上传成功'))
-    } catch (err) {
-      Logger.error('文件上传失败', {
-        error: err,
-        errorMessage: err instanceof Error ? err.message : '未知错误',
-        errorStack: err instanceof Error ? err.stack : undefined,
-        userId: req.session?.user?.id,
-      })
-      return sendResponse(res, handleError(err, '文件上传失败'))
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        const errorCode = (err as any).code || ErrorCode.SERVER_ERROR
+        Logger.error('文件上传失败', {
+          error: err,
+          errorMessage: err.message,
+          errorStack: err.stack,
+          userId: req.session?.user?.id,
+        })
+        return sendResponse(res, fail(errorCode, err.message))
+      } else {
+        Logger.error('文件上传发生未知错误', {
+          error: err,
+          userId: req.session?.user?.id,
+        })
+        return sendResponse(res, fail(ErrorCode.SERVER_ERROR, '服务器内部错误'))
+      }
     }
   }
 )
