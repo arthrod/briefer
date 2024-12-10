@@ -39,7 +39,6 @@ if [ ! -f ./apps/web/.env ]; then
   echo "NEXT_PUBLIC_API_WS_URL='ws://localhost:8080'" >> ./apps/web/.env
   echo "NEXT_PUBLIC_PUBLIC_URL='http://localhost:4000'" >> ./apps/web/.env
   echo "NEXT_PUBLIC_MF_API_URL='http://localhost:8080/v1/mf'" >> ./apps/web/.env
-
   echo "Generated a new ./apps/eb/.env file with default values"
 fi
 
