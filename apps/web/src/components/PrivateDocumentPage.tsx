@@ -34,6 +34,14 @@ import styles from './PrivateDocumentPage.module.scss'
 // this is needed because this component only works with the browser
 const V2Editor = dynamic(() => import('@/components/v2Editor'), {
   ssr: false,
+  loading: () => (
+    <div className="flex w-full justify-center">
+      <div className={clsx(widthClasses, 'py-20', 'w-full')}>
+        <TitleSkeleton visible />
+        <ContentSkeleton visible />
+      </div>
+    </div>
+  ),
 })
 
 interface Props {
@@ -53,7 +61,7 @@ export default function PrivateDocumentPage(props: Props) {
   if (loading || !document) {
     return (
       <div className="flex w-full justify-center">
-        <div className={clsx(widthClasses, 'py-20')}>
+        <div className={clsx(widthClasses, 'py-20', 'w-full')}>
           <TitleSkeleton visible />
           <ContentSkeleton visible />
         </div>
@@ -203,7 +211,7 @@ function PrivateDocumentPageInner(
 
   const topBarContent = useMemo(() => {
     return (
-      <div className="flex w-full items-center justify-between gap-x-6">
+      <div className={styles.documentTitle}>
         <div
           style={{ color: '#272A33', fontWeight: 500 }}
           className="flex w-full items-center gap-x-1.5 overflow-hidden font-sans text-lg">
