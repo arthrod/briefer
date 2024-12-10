@@ -64,6 +64,7 @@ function EnvBar(props: Props) {
               <FolderIcon className="h-4 w-4 text-gray-600" />
               <span className="text-gray-700">Files</span>
             </button>
+            <div>{`${lastUpdatedAt}`}</div>
           </>
         )}
       </div>

@@ -1,5 +1,5 @@
-import { logger } from '../../../logger.js'
-import { ERROR_CODES } from '../types/errors.js'
+import { logger } from '../logger.js'
+import { ERROR_CODES } from '../mf/chat/types/errors.js'
 
 // 输入净化
 export function sanitizeInput(input: string): string {

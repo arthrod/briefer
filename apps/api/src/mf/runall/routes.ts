@@ -20,7 +20,7 @@ const createRunAllRouter = () => {
   router.post('/status', runAllController.queryStatus.bind(runAllController))
   router.post('/stop', runAllController.stop.bind(runAllController))
   router.post('/approve', runAllController.approve.bind(runAllController))
-  
+  router.get('/report/download', runAllController.download.bind(runAllController))
   return router
 }
 

@@ -5,7 +5,7 @@ export type MFResponse<T> = {
   msg: string
 }
 
-export const getData = async <T>(res: Response): Promise<T> => {
+export const getData = async <T>(res: Response, showError: boolean = true): Promise<T> => {
   if (res.status === 401) {
     window.location.href = '/login'
   }
@@ -14,7 +14,7 @@ export const getData = async <T>(res: Response): Promise<T> => {
   }
 
   if (res.status === 500) {
-    showToast('服务异常请联系管理人员', 'error')
+    showError ? showToast('服务异常请联系管理人员', 'error') : ''
     return Promise.reject({ code: 10000, data: {}, msg: '服务异常请联系管理人员' })
   }
   const data = await res.json()
@@ -22,6 +22,6 @@ export const getData = async <T>(res: Response): Promise<T> => {
   if (data.code === 0) {
     return data.data as T
   }
-  showToast(data.msg, 'error')
+  showError ? showToast(data.msg, 'error') : ''
   return Promise.reject(data)
 }

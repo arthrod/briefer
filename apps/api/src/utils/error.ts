@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express'
-import { logger } from '../../../logger.js'
-import { CONFIG } from '../config/constants.js'
+import { logger } from '../logger.js'
+import { CONFIG } from '../mf/chat/config/constants.js'
 import {
   APIError,
   DatabaseError,
@@ -8,7 +8,7 @@ import {
   ValidationError,
   AuthorizationError,
   ERROR_CODES,
-} from '../types/errors.js'
+} from '../mf/chat/types/errors.js'
 
 // 通用错误处理中间件
 export function errorHandler(

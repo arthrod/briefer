@@ -570,6 +570,7 @@ model ChatRecord {
 
   chat        Chat            @relation(fields: [chatId], references: [id], onDelete: Cascade)
   fileRelations ChatRecordFileRelation[]
+  tasks         ChatRecordTask[]
 
   @@map("ChatRecord")
   @@index([chatId])
@@ -588,4 +589,27 @@ model ChatRecordFileRelation {
   @@map("ChatRecordFileRelation")
   @@index([chatRecordId])
   @@index([fileId])
+}
+
+model ChatRecordTask {
+  id           String    @id @default(uuid()) @db.Uuid
+  chatRecordId String    @db.Uuid
+  agentTaskId  String    
+  name         String    
+  description  String?
+  parentId     String?   @db.Uuid
+  subTaskCount Int       @default(0)
+  status       String    @default("waiting")
+  variable     String?
+  blockId      String?   // 关联文档块的ID
+  createdTime  DateTime  @default(now())
+  updateTime   DateTime  @default(now()) @updatedAt
+
+  chatRecord   ChatRecord @relation(fields: [chatRecordId], references: [id], onDelete: Cascade)
+  parent       ChatRecordTask? @relation("TaskParent", fields: [parentId], references: [id], onDelete: SetNull)
+  children     ChatRecordTask[] @relation("TaskParent")
+
+  @@map("ChatRecordTask")
+  @@index([chatRecordId])
+  @@index([parentId])
 }

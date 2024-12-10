@@ -245,7 +245,8 @@ async function handleDocumentBlock(
 async function handleJsonContent(
     jsonStr: string,
     res: Response,
-    updateTarget: ReportUpdateTarget
+    updateTarget: ReportUpdateTarget,
+    isLastMsg: boolean
 ): Promise<void> {
     try {
         const parsedJson = JSON.parse(jsonStr)
@@ -253,9 +254,6 @@ async function handleJsonContent(
         if (parsedJson.type === 'normal') {
             // 处理普通消息
             res.write(`data: ${parsedJson.content}\n\n`)
-
-            // 写入完整消息到日志
-            // await appendToSSELog(updateTarget.chatId, updateTarget.roundId, parsedJson.content);
 
             // 创建新的对话记录
             await prisma().chatRecord.create({
@@ -272,10 +270,132 @@ async function handleJsonContent(
                 }
             });
 
-            res.write('data: [NEW_STEP]\n\n')
+            if (!isLastMsg) {
+                res.write('data: [NEW_STEP]\n\n')
+            }
         } else if (parsedJson.type === 'document') {
             // 处理文档块
             await handleDocumentBlock(parsedJson.block, updateTarget)
+        } else if (parsedJson.type === 'task') {
+            logger().info({
+                msg: 'Processing task message',
+                data: {
+                    phase: parsedJson.phase,
+                    params: parsedJson.params,
+                    chatId: updateTarget.chatId,
+                    roundId: updateTarget.roundId
+                }
+            })
+
+            // 获取或创建 ChatRecord
+            const chatRecord = await prisma().chatRecord.create({
+                data: {
+                    id: crypto.randomUUID(),
+                    chatId: updateTarget.chatId,
+                    roundId: updateTarget.roundId,
+                    question: '',
+                    answer: Buffer.from(JSON.stringify(parsedJson)),
+                    speakerType: 'assistant',
+                    status: ChatRecordStatus.COMPLETED,
+                    createdTime: new Date(),
+                    updateTime: new Date()
+                }
+            });
+
+            if (parsedJson.phase === 'CREATE') {
+                // 如果有父任务ID，先查找对应的ChatRecordTask记录
+                let parentTaskId: string | null = null;
+                if (parsedJson.params.parent_id) {
+                    const parentTask = await prisma().chatRecordTask.findFirst({
+                        where: {
+                            chatRecordId: chatRecord.id,
+                            agentTaskId: parsedJson.params.parent_id
+                        }
+                    });
+                    if (parentTask) {
+                        parentTaskId = parentTask.id;
+                    }
+                    
+                    logger().info({
+                        msg: 'Found parent task',
+                        data: {
+                            parentAgentTaskId: parsedJson.params.parent_id,
+                            parentTaskId,
+                            chatRecordId: chatRecord.id
+                        }
+                    });
+                }
+
+                // 创建新任务
+                const task = await prisma().chatRecordTask.create({
+                    data: {
+                        id: crypto.randomUUID(),
+                        chatRecordId: chatRecord.id,
+                        agentTaskId: parsedJson.params.id,
+                        name: parsedJson.params.name,
+                        description: parsedJson.params.description,
+                        parentId: parentTaskId, // 使用查询到的父任务ID
+                        subTaskCount: parseInt(parsedJson.params.sub_task_count) || 0,
+                        status: parsedJson.params.status || 'waiting',
+                        variable: parsedJson.params.variable
+                    }
+                })
+
+                // 仅对第一个task消息通过SSE发送
+                res.write(`data: ${JSON.stringify({
+                    type: 'task',
+                    phase: 'CREATE',
+                    params: {
+                        id: task.id,
+                        agent_task_id: task.agentTaskId,
+                        name: task.name,
+                        description: task.description,
+                        parent_id: task.parentId,
+                        sub_task_count: task.subTaskCount,
+                        status: task.status,
+                        variable: task.variable
+                    }
+                })}\n\n`)
+
+            } else if (parsedJson.phase === 'UPDATE') {
+                // 查找对应的 ChatRecord
+                const chatRecord = await prisma().chatRecord.findFirst({
+                    where: {
+                        chatId: updateTarget.chatId,
+                        roundId: updateTarget.roundId,
+                    },
+                    orderBy: {
+                        createdTime: 'desc'
+                    }
+                });
+
+                if (!chatRecord) {
+                    throw new Error('ChatRecord not found for task update');
+                }
+
+                // 更新任务状态
+                await prisma().chatRecordTask.updateMany({
+                    where: {
+                        chatRecordId: chatRecord.id,
+                        agentTaskId: parsedJson.params.id
+                    },
+                    data: {
+                        status: parsedJson.params.status,
+                        updateTime: new Date()
+                    }
+                })
+
+                logger().info({
+                    msg: 'Task status updated',
+                    data: {
+                        chatId: updateTarget.chatId,
+                        roundId: updateTarget.roundId,
+                        chatRecordId: chatRecord.id,
+                        agentTaskId: parsedJson.params.id,
+                        newStatus: parsedJson.params.status
+                    }
+                })
+            }
         }
     } catch (error) {
         logger().error({
@@ -287,6 +407,7 @@ async function handleJsonContent(
                 roundId: updateTarget.roundId
             }
         })
+        throw error
     }
 }
 
@@ -419,7 +540,7 @@ abstract class BaseStreamProcessor implements StreamProcessor {
     constructor(
         protected response: FetchResponse,
         protected controller?: AbortController
-    ) {}
+    ) { }
 
     protected abstract handleData(data: string): Promise<boolean>;
     protected abstract handleError(error: unknown): Promise<void>;
@@ -439,9 +560,9 @@ abstract class BaseStreamProcessor implements StreamProcessor {
     async process(): Promise<void> {
         if (!this.response.body) {
             throw new APIError(
-              'Response body is empty',
-              ERROR_CODES.API_ERROR,
-              500
+                'Response body is empty',
+                ERROR_CODES.API_ERROR,
+                500
             )
         }
 
@@ -454,16 +575,16 @@ abstract class BaseStreamProcessor implements StreamProcessor {
         }
     }
 
-    protected async beforeProcess(): Promise<void> {}
-    protected async afterProcess(): Promise<void> {}
+    protected async beforeProcess(): Promise<void> { }
+    protected async afterProcess(): Promise<void> { }
 
     private async processStream(): Promise<void> {
         const stream = this.response.body;
         if (!stream) {
             throw new APIError(
-              'Response body is empty',
-              ERROR_CODES.API_ERROR,
-              500
+                'Response body is empty',
+                ERROR_CODES.API_ERROR,
+                500
             )
         }
 
@@ -503,6 +624,7 @@ class ReportStreamProcessor extends BaseStreamProcessor {
     private completeMessage = '';
     private jsonBuffer = '';
     private isCollectingJson = false;
+    private pendingJsonMessage: string | null = null;  // 存储待处理的完整 JSON 消息
     private updateTarget: ReportUpdateTarget;
 
     constructor(
@@ -540,15 +662,21 @@ class ReportStreamProcessor extends BaseStreamProcessor {
     }
 
     protected async handleData(data: string): Promise<boolean> {
+        // 如果是 [DONE] 消息，处理待发送的消息（如果有）并结束
         if (data === '[DONE]') {
+            if (this.pendingJsonMessage) {
+                // 处理最后一条消息，但不发送 [NEW_STEP]
+                await handleJsonContent(this.pendingJsonMessage, this.config.res, this.updateTarget, true);
+                this.pendingJsonMessage = null;
+            }
             await handleStreamEnd(this.config.res, this.updateTarget, this.completeMessage);
             return true;
         }
 
         try {
+            // 尝试解析为 JSON
             const jsonData = JSON.parse(data) as StreamResponse;
             const content = jsonData.choices?.[0]?.delta?.content || '';
-
             if (content && typeof content === 'string') {
                 await this.processContent(content);
             }
@@ -563,28 +691,46 @@ class ReportStreamProcessor extends BaseStreamProcessor {
                 }
             });
         }
+
         return false;
     }
 
     private async processContent(content: string): Promise<void> {
+        // 处理 JSON 开始标记
         if (content.includes('```json')) {
             this.isCollectingJson = true;
             this.jsonBuffer = '';
             return;
         }
 
+        // 处理 JSON 结束标记
         if (this.isCollectingJson && content.includes('```')) {
+            const currentJsonMessage = this.jsonBuffer.trim();  // 清理可能的空白字符
             this.isCollectingJson = false;
-            await handleJsonContent(this.jsonBuffer, this.config.res, this.updateTarget);
             this.jsonBuffer = '';
+
+            // 处理之前缓存的消息（如果有）
+            if (this.pendingJsonMessage) {
+                await handleJsonContent(
+                    this.pendingJsonMessage, 
+                    this.config.res, 
+                    this.updateTarget,
+                    false  // 不是最后一条消息，因为现在有新消息
+                );
+                this.pendingJsonMessage = null;
+            }
+
+            this.pendingJsonMessage = currentJsonMessage;
             return;
         }
 
+        // 收集 JSON 内容
         if (this.isCollectingJson) {
             this.jsonBuffer += content;
             return;
         }
 
+        // 处理普通文本内容
         this.completeMessage += content;
         this.config.res.write(`data: ${content}\n\n`);
     }

@@ -7,24 +7,16 @@ import {
   useRunAllList,
 } from '@/hooks/mf/runall/useRunAllList'
 import { Transition } from '@headlessui/react'
-import {
-  ExclamationCircleIcon,
-  InformationCircleIcon,
-  XMarkIcon,
-} from '@heroicons/react/24/outline'
+import { ExclamationCircleIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import clsx from 'clsx'
-import { useCallback, useEffect, useState } from 'react'
+import { CheckCircle2Icon, XCircleIcon } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import ApproveIcon from '../../../icons/approve-icon.svg'
+import DownloadIocn from '../../../icons/download-icon.svg'
 import { NoData } from '../NoData'
 import styles from './index.module.scss'
-import DownloadIocn from '../../../icons/download-icon.svg'
-import ApproveIcon from '../../../icons/approve-icon.svg'
-import {
-  CheckCircle,
-  CheckCircle2,
-  CheckCircle2Icon,
-  CheckCircleIcon,
-  XCircleIcon,
-} from 'lucide-react'
+import { StatusItem, StatusList, useQueryStatus } from '@/hooks/mf/runall/useQueryStatus'
+import { NEXT_PUBLIC_MF_API_URL } from '@/utils/env'
 export interface IProps {
   workspaceId: string
   documnetId: string
@@ -33,105 +25,144 @@ export interface IProps {
 }
 
 export default function RunAll(props: IProps) {
-  const [list, setList] = useState<RunAllItem[]>([
-    {
-      id: 'string',
-      name: '能源统计月度分析报告20241020164408',
-      documentId: 'string',
-      jobId: 'string',
-      runStatus: 1,
-      approveStatus: 1,
-      startTime: '2024/10/28 18:49:09',
-      endTime: '2024/10/28 18:49:09',
-      duration: 'string',
-      des: 'string',
-      version: 'string',
-      reason: 'string',
-    },
-    {
-      id: 'string',
-      name: '能源统计月度分析报告20241020164408',
-      documentId: 'string',
-      jobId: 'string',
-      runStatus: 2,
-      approveStatus: 1,
-      startTime: '2024/10/28 18:49:09',
-      endTime: '2024/10/28 18:49:09',
-      duration: 'string',
-      des: 'string',
-      version: 'string',
-      reason: 'string',
-    },
-    {
-      id: 'string',
-      name: '能源统计月度分析报告20241020164408',
-      documentId: 'string',
-      jobId: 'string',
-      runStatus: 3,
-      approveStatus: 3,
-      startTime: '2024/10/28 18:49:09',
-      endTime: '2024/10/28 18:49:09',
-      duration: 'string',
-      des: 'string',
-      version: 'string',
-      reason: 'string',
-    },
-    {
-      id: 'string',
-      name: '能源统计月度分析报告20241020164408',
-      documentId: 'string',
-      jobId: 'string',
-      runStatus: 2,
-      approveStatus: 4,
-      startTime: '2024/10/28 18:49:09',
-      endTime: '2024/10/28 18:49:09',
-      duration: 'string',
-      des: 'string',
-      version: 'string',
-      reason: 'string',
-    },
-    {
-      id: 'string',
-      name: '能源统计月度分析报告20241020164408',
-      documentId: 'string',
-      jobId: 'string',
-      runStatus: 2,
-      approveStatus: 3,
-      startTime: '2024/10/28 18:49:09',
-      endTime: '2024/10/28 18:49:09',
-      duration: 'string',
-      des: 'string',
-      version: 'string',
-      reason: 'string',
-    },
-    {
-      id: 'string',
-      name: '能源统计月度分析报告20241020164408',
-      documentId: 'string',
-      jobId: 'string',
-      runStatus: 2,
-      approveStatus: 5,
-      startTime: '2024/10/28 18:49:09',
-      endTime: '2024/10/28 18:49:09',
-      duration: 'string',
-      des: 'string',
-      version: 'string',
-      reason: 'string',
-    },
-  ])
+  const observer = useRef<IntersectionObserver | null>(null)
+  const listEndRef = useRef<HTMLDivElement | null>(null)
+
   const [loading, setLoading] = useState(true)
+  const [isLoadingMore, setIsLoadingMore] = useState(false) // 用于控制分页加载动画
+  const [currentPage, setCurrentPage] = useState(1)
+  const [hasMore, setHasMore] = useState(false)
+  const [statusIds, setStatusIds] = useState<number[]>([])
+  const eventTimeoutId = useRef(-1)
+  const [list, setList] = useState<RunAllItem[]>([])
+  const updateListItem = useCallback(
+    (item: StatusItem) => {
+      setList((prevItems) =>
+        prevItems.map((origin) =>
+          origin.id === item.id
+            ? {
+                ...origin,
+                runStatus: item.runStatus,
+                approveStatus: item.approveStatus,
+                endTime: item.endTime || origin.endTime, // 如果 item.endTime 存在，则更新，否则保留原值
+                duration: item.duration,
+                reason: item.failReson || origin.reason, // 如果 failReson 存在，则更新，否则保留原值
+              }
+            : origin
+        )
+      )
+    },
+    [list]
+  )
+  const updateStatusItem = useCallback(
+    (res: StatusList) => {
+      const continueIds: number[] = []
+      for (const key in res.list) {
+        const item = res.list[key]
+        if (
+          item.runStatus === RunAllStatus.Running ||
+          item.runStatus === RunAllStatus.CodePushing ||
+          item.approveStatus === ApproveStatus.InReview
+        ) {
+          continueIds.push(item.id)
+        }
+        updateListItem(item)
+      }
+      setStatusIds(continueIds)
+    },
+    [statusIds, list]
+  )
+  useEffect(() => {
+    if (!props.visible) {
+      window.clearTimeout(eventTimeoutId.current)
+      return
+    }
+    if (statusIds && statusIds.length > 0) {
+      window.clearTimeout(eventTimeoutId.current)
+      eventTimeoutId.current = window.setTimeout(() => {
+        getStatusList(statusIds)
+          .then((res) => {
+            updateStatusItem(res)
+          })
+          .finally(() => {
+            window.clearTimeout(eventTimeoutId.current)
+            eventTimeoutId.current = window.setTimeout(() => {
+              checkRunning([])
+            }, 3000)
+          })
+      }, 3000)
+    } else {
+      window.clearTimeout(eventTimeoutId.current)
+    }
+  }, [statusIds])
+  const checkRunning = useCallback(
+    (list: RunAllItem[]) => {
+      const ids: number[] = []
+      for (const key in list) {
+        const item = list[key]
+        if (item.runStatus === RunAllStatus.Running) {
+          ids.push(item.id)
+        }
+      }
+      setStatusIds((prevList) => [...prevList, ...ids])
+    },
+    [statusIds]
+  )
   const getRunAllList = useRunAllList()
+  const getStatusList = useQueryStatus()
   useEffect(() => {
     if (props.visible) {
-      getRunAllList(1, 10000, props.documnetId)
+      setStatusIds([])
+      getRunAllList(1, 100, props.documnetId)
         .then((res) => {
           setList(res.list)
+          checkRunning(res.list)
         })
         .finally(() => {
           setLoading(false)
         })
+      checkRunning(list)
     }
   }, [props.visible])
+  const loadMoreData = useCallback(() => {
+    if (loading || isLoadingMore || !hasMore) {
+      return
+    }
+    setIsLoadingMore(true)
+    getRunAllList(currentPage + 1, 100, props.documnetId)
+      .then((res) => {
+        if (res.list.length > 0) {
+          setList((prevList) => [...prevList, ...res.list])
+          setCurrentPage((prevPage) => prevPage + 1)
+          checkRunning(res.list)
+        } else {
+          setHasMore(false)
+        }
+      })
+      .finally(() => {
+        setIsLoadingMore(false)
+      })
+  }, [hasMore, loading, currentPage, props.documnetId])
+  useEffect(() => {
+    observer.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore) {
+          loadMoreData()
+        }
+      },
+      { root: null, rootMargin: '0px', threshold: 1.0 }
+    )
+
+    if (listEndRef.current) {
+      observer.current.observe(listEndRef.current)
+    }
+
+    return () => {
+      if (observer.current && listEndRef.current) {
+        observer.current.unobserve(listEndRef.current)
+      }
+    }
+  }, [listEndRef.current, loadMoreData, hasMore])
   const getRunStatus = (item: RunAllItem) => {
     switch (item.runStatus) {
       case RunAllStatus.Running:
@@ -153,14 +184,13 @@ export default function RunAll(props: IProps) {
           </div>
         )
       case RunAllStatus.RunFailed:
+      case RunAllStatus.NotRunning:
         return (
           <div className={styles.errorLayout}>
             <XCircleIcon color="#FF3B52" width={16} height={16} />
             <div>运行失败</div>
           </div>
         )
-      case RunAllStatus.NotRunning:
-        break
       case RunAllStatus.CodePushing:
         return (
           <div className={clsx(styles.runningLayout)}>
@@ -195,7 +225,12 @@ export default function RunAll(props: IProps) {
         )
       case ApproveStatus.ApproveSuccess:
         return (
-          <div className={styles.successLayout}>
+          <div
+            className={styles.successLayout}
+            onClick={() => {
+              const fileUrl = `${NEXT_PUBLIC_MF_API_URL()}/run-all/report/download?id=${item.id}` // 文件地址
+              window.open(fileUrl, '_blank')
+            }}>
             <div>
               <DownloadIocn></DownloadIocn>
             </div>
@@ -244,32 +279,40 @@ export default function RunAll(props: IProps) {
         <div className={styles.runAllTitleLayout}>
           <div className={styles.title}>全量运行记录</div>
           <XMarkIcon
-            onClick={props.onHide}
+            onClick={() => {
+              window.clearTimeout(eventTimeoutId.current)
+              props.onHide()
+            }}
             className={clsx('w-[16px], h-[16px]', styles.icon)}></XMarkIcon>
         </div>
         {list.length ? (
           <ScrollBar className={styles.listWrapper}>
-            {list.map((item, index) => {
-              return (
-                <div className={clsx(styles.cell, index >= 1 ? styles.cellMargin : '')} key={index}>
-                  <div className={styles.title}>{item.name}</div>
-                  <div className={styles.time}>
-                    <span>{item.startTime}</span>
-                    {item.endTime ? <span>{'-' + item.endTime}</span> : null}
-                  </div>
-                  {
-                    <div className={styles.statusLayout}>
-                      <div className={styles.status}>{getRunStatus(item)}</div>
-                      {item.runStatus === RunAllStatus.RunSuccess ? (
-                        <div className={styles.approve}>{getApprove(item)}</div>
-                      ) : (
-                        <></>
-                      )}
-                    </div>
-                  }
+            {list.map((item, index) => (
+              <div className={clsx(styles.cell, index >= 1 ? styles.cellMargin : '')} key={index}>
+                <div className={styles.title}>{item.name}</div>
+                <div className={styles.time}>
+                  <span>{item.startTime}</span>
+                  {item.endTime ? <span>{'-' + item.endTime}</span> : null}
                 </div>
-              )
-            })}
+                <div className={styles.statusLayout}>
+                  <div className={styles.status}>{getRunStatus(item)}</div>
+                  {item.runStatus === RunAllStatus.RunSuccess && (
+                    <div className={styles.approve}>{getApprove(item)}</div>
+                  )}
+                </div>
+              </div>
+            ))}
+            {
+              <div ref={listEndRef} className={styles.bottomLayout}>
+                {hasMore && isLoadingMore && !loading ? (
+                  <div className="loading">
+                    <Spin color="#2F69FE" />
+                  </div>
+                ) : (
+                  <></>
+                )}
+              </div>
+            }
           </ScrollBar>
         ) : (
           <div className={styles.empty}>

@@ -1,9 +1,9 @@
 import { Request, Response } from 'express'
 import { chatService } from '../services/chat.service.js'
-import { createErrorResponse, handleError, withErrorHandler } from '../utils/validation.js'
-import { AuthorizationError, ValidationError } from '../types/errors.js'
+import { createErrorResponse, withErrorHandler } from '../../../utils/validation.js'
+import { ValidationError } from '../types/errors.js'
 import { z } from 'zod'
-import { sendSSEError, setupSSEConnection } from '../utils/sse.js'
+import { sendSSEError, setupSSEConnection } from '../stream/rag-stream.js'
 import { IOServer } from '../../../websocket/index.js'
 import {
   createChatSchema,
@@ -14,7 +14,7 @@ import {
   getChatStatusSchema,
   chatCompletionsSchema
 } from '../types/schemas.js'
-import { sendSuccess } from '../utils/response.js'
+import { sendSuccess } from '../../../utils/response.js'
 
 /**
  * 聊天控制器

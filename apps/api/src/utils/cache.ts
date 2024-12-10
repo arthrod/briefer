@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express'
 import cache from 'memory-cache'
-import { logger } from '../../../logger.js'
-import { CONFIG } from '../config/constants.js'
+import { logger } from '../logger.js'
+import { CONFIG } from '../mf/chat/config/constants.js'
 
 // 缓存接口
 interface CacheOptions {

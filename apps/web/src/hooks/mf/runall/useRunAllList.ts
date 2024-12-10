@@ -21,7 +21,7 @@ export type RunAllList = {
   list: RunAllItem[]
 }
 export type RunAllItem = {
-  id: string
+  id: number
   name: string
   documentId: string
   jobId: string
