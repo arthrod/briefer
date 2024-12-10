@@ -33,11 +33,7 @@ import {
   createComponentState,
 } from '@briefer/editor'
 import SQLResult from './SQLResult'
-import type {
-  ApiDocument,
-  ApiWorkspace,
-  DataSourceType,
-} from '@briefer/database'
+import type { ApiDocument, ApiWorkspace, DataSourceType } from '@briefer/database'
 import DataframeNameInput from './DataframeNameInput'
 import HeaderSelect from '@/components/v2Editor/customBlocks/sql/HeaderSelect'
 import clsx from 'clsx'
@@ -271,9 +267,7 @@ function SQLBlock(props: Props) {
   const diffButtonsVisible =
     !props.isPublicMode &&
     aiSuggestions !== null &&
-    (status === 'idle' ||
-      status === 'running-suggestion' ||
-      status === 'try-suggestion-requested')
+    (status === 'idle' || status === 'running-suggestion' || status === 'try-suggestion-requested')
 
   const router = useRouter()
   const onAddDataSource = useCallback(() => {
@@ -305,16 +299,12 @@ function SQLBlock(props: Props) {
     [props.dataSources]
   )
 
-  const isComponentInstance =
-    component !== undefined && component.blockId !== blockId
+  const isComponentInstance = component !== undefined && component.blockId !== blockId
 
   const onSaveReusableComponent = useCallback(() => {
     const component = components.find((c) => c.id === componentId)
     if (!component) {
-      const { id: componentId, state } = createComponentState(
-        props.block,
-        props.blocks
-      )
+      const { id: componentId, state } = createComponentState(props.block, props.blocks)
       createReusableComponent(
         props.document.workspaceId,
         {
@@ -349,7 +339,7 @@ function SQLBlock(props: Props) {
   if (props.dashboardMode !== 'none') {
     if (!result) {
       return (
-        <div className="flex items-center justify-center h-full">
+        <div className="flex h-full items-center justify-center">
           {status !== 'idle' ? (
             <LargeSpinner color="#b8f229" />
           ) : (
@@ -382,50 +372,40 @@ function SQLBlock(props: Props) {
   const isEditorFocused = editorState.cursorBlockId === blockId
 
   return (
-    <div
-      className="relative group/block"
-      onClick={onClickWithin}
-      data-block-id={blockId}
-    >
+    <div className="group/block relative" onClick={onClickWithin} data-block-id={blockId}>
       <div
         className={clsx(
           'rounded-md border',
           props.isBlockHiddenInPublished && 'border-dashed',
           props.hasMultipleTabs ? 'rounded-tl-none' : 'rounded-tl-md',
           {
-            'border-ceramic-400 shadow-sm':
-              isEditorFocused && editorState.mode === 'insert',
-            'border-blue-400 shadow-sm':
-              isEditorFocused && editorState.mode === 'normal',
+            'border-ceramic-400 shadow-sm': isEditorFocused && editorState.mode === 'insert',
+            'border-blue-400 shadow-sm': isEditorFocused && editorState.mode === 'normal',
             'border-gray-200': !isEditorFocused,
           }
-        )}
-      >
+        )}>
         <div
           className={clsx(
             'rounded-md',
             statusIsDisabled ? 'bg-gray-100' : 'bg-white',
             props.hasMultipleTabs ? 'rounded-tl-none' : ''
-          )}
-        >
+          )}>
           <div
             className="py-3"
             ref={(d) => {
               props.dragPreview?.(d)
-            }}
-          >
-            <div className="flex items-center justify-between px-3 pr-3 gap-x-4 font-sans h-[1.6rem]">
-              <div className="select-none text-gray-300 text-xs flex items-center w-full h-full">
+            }}>
+            <div className="flex h-[1.6rem] items-center justify-between gap-x-4 px-3 pr-3 font-sans">
+              <div className="flex h-full w-full select-none items-center text-xs text-gray-300">
                 <button
-                  className="print:hidden h-4 w-4 hover:text-gray-400 rounded-sm mr-0.5"
-                  onClick={toggleCodeHidden}
-                >
+                  className="mr-0.5 h-4 w-4 rounded-sm hover:text-gray-400 print:hidden"
+                  onClick={toggleCodeHidden}>
                   {isCodeHidden ? <ChevronRightIcon /> : <ChevronDownIcon />}
                 </button>
                 <input
                   type="text"
                   className={clsx(
-                    'font-sans pl-1 ring-gray-200 focus:ring-gray-400 block w-full rounded-md border-0 text-gray-500 hover:ring-1 focus:ring-1 ring-inset focus:ring-inset placeholder:text-gray-400 focus:ring-inset h-full py-0 text-xs disabled:ring-0 h-full bg-transparent'
+                    'block h-full w-full rounded-md border-0 bg-transparent py-0 pl-1 font-sans text-xs text-gray-500 ring-inset ring-gray-200 placeholder:text-gray-400 hover:ring-1 focus:ring-1 focus:ring-inset focus:ring-gray-400 disabled:ring-0'
                   )}
                   placeholder="SQL"
                   value={title}
@@ -435,51 +415,41 @@ function SQLBlock(props: Props) {
               </div>
               <div
                 className={clsx(
-                  'print:hidden flex items-center gap-x-2 group-focus/block:opacity-100 h-full',
+                  'flex h-full items-center gap-x-2 group-focus/block:opacity-100 print:hidden',
                   {
                     hidden: isCodeHidden,
                   }
-                )}
-              >
+                )}>
                 <DataframeNameInput
                   disabled={!props.isEditable || statusIsDisabled}
                   block={props.block}
                 />
-                <HeaderSelect
+                {/* <HeaderSelect
                   hidden={props.isPublicMode}
                   value={headerSelectValue ?? ''}
                   options={dataSourcesOptions}
                   onChange={onChangeDataSource}
                   disabled={!props.isEditable || statusIsDisabled}
-                  onAdd={
-                    props.dataSources.size === 0 ? onAddDataSource : undefined
-                  }
-                  onAddLabel={
-                    props.dataSources.size === 0 ? 'New data source' : undefined
-                  }
-                />
+                  onAdd={props.dataSources.size === 0 ? onAddDataSource : undefined}
+                  onAddLabel={props.dataSources.size === 0 ? 'New data source' : undefined}
+                /> */}
               </div>
 
               <div
                 className={clsx(
-                  'print:hidden flex items-center gap-x-1 text-[10px] text-gray-400 whitespace-nowrap',
+                  'flex items-center gap-x-1 whitespace-nowrap text-[10px] text-gray-400 print:hidden',
                   {
                     hidden: !isCodeHidden && dataframeName?.value,
                   }
-                )}
-              >
-                <CopyToClipboard
-                  text={dataframeName?.value ?? ''}
-                  onCopy={() => setCopied(true)}
-                >
-                  <code className="bg-primary-500/20 text-primary-700 px-1.5 py-0.5 font-mono rounded-md relative group cursor-pointer">
+                )}>
+                <CopyToClipboard text={dataframeName?.value ?? ''} onCopy={() => setCopied(true)}>
+                  <code className="bg-primary-500/20 text-primary-700 group relative cursor-pointer rounded-md px-1.5 py-0.5 font-mono">
                     {copied ? 'Copied!' : dataframeName?.value}
 
-                    <div className="font-sans pointer-events-none absolute -top-2 right-0 -translate-y-full opacity-0 transition-opacity scale-0 group-hover:scale-100 group-hover:opacity-100 bg-hunter-950 text-white text-xs p-2 rounded-md flex flex-col gap-y-1 w-56 whitespace-normal z-20">
-                      <span className="text-gray-400 text-center">
-                        Use this variable name to reference the results as a
-                        Pandas dataframe in further Python blocks.{' '}
-                        <span className="underline">Click to copy</span>.
+                    <div className="bg-hunter-950 pointer-events-none absolute -top-2 right-0 z-20 flex w-56 -translate-y-full scale-0 flex-col gap-y-1 whitespace-normal rounded-md p-2 font-sans text-xs text-white opacity-0 transition-opacity group-hover:scale-100 group-hover:opacity-100">
+                      <span className="text-center text-gray-400">
+                        Use this variable name to reference the results as a Pandas dataframe in
+                        further Python blocks. <span className="underline">Click to copy</span>.
                       </span>
                     </div>
                   </code>
@@ -491,8 +461,7 @@ function SQLBlock(props: Props) {
             className={clsx(
               'print:hidden',
               isCodeHidden ? 'invisible h-0 overflow-hidden' : 'py-5'
-            )}
-          >
+            )}>
             <div>
               <CodeEditor
                 workspaceId={props.document.workspaceId}
@@ -517,8 +486,7 @@ function SQLBlock(props: Props) {
             onAccept={onAcceptAISuggestion}
             onReject={onRejectAISuggestion}
           />
-          {isSQLBlockEditWithAIPromptOpen(props.block) &&
-          !props.isPublicMode ? (
+          {isSQLBlockEditWithAIPromptOpen(props.block) && !props.isPublicMode ? (
             <EditWithAIForm
               loading={isAIEditing}
               disabled={isAIEditing || aiSuggestions !== null}
@@ -528,10 +496,9 @@ function SQLBlock(props: Props) {
             />
           ) : (
             <div
-              className={clsx('print:hidden px-3 pb-3', {
+              className={clsx('px-3 pb-3 print:hidden', {
                 hidden: isCodeHidden,
-              })}
-            >
+              })}>
               <div className="flex justify-between text-xs">
                 <div className="flex items-center">{queryStatusText}</div>
                 {!props.isPublicMode &&
@@ -545,24 +512,18 @@ function SQLBlock(props: Props) {
                         !props.isEditable || !hasOaiKey
                           ? 'cursor-not-allowed bg-gray-200'
                           : 'cusor-pointer hover:bg-gray-50 hover:text-gray-700',
-                        'flex items-center border rounded-sm border-gray-200 px-2 py-1 gap-x-2 text-gray-400 group relative font-sans'
-                      )}
-                    >
-                      <SparklesIcon className="w-3 h-3" />
+                        'group relative flex items-center gap-x-2 rounded-sm border border-gray-200 px-2 py-1 font-sans text-gray-400'
+                      )}>
+                      <SparklesIcon className="h-3 w-3" />
 
                       <span>Edit with AI</span>
                       <div
                         className={clsx(
-                          'font-sans pointer-events-none absolute -top-2 left-1/2 -translate-y-full -translate-x-1/2 opacity-0 transition-opacity group-hover:opacity-100 bg-hunter-950 text-white text-xs p-2 rounded-md flex flex-col items-center justify-center gap-y-1 z-20',
+                          'bg-hunter-950 pointer-events-none absolute -top-2 left-1/2 z-20 flex -translate-x-1/2 -translate-y-full flex-col items-center justify-center gap-y-1 rounded-md p-2 font-sans text-xs text-white opacity-0 transition-opacity group-hover:opacity-100',
                           hasOaiKey ? 'w-28' : 'w-40'
-                        )}
-                      >
-                        <span>
-                          {hasOaiKey
-                            ? 'Open AI edit form'
-                            : 'Missing OpenAI API key'}
-                        </span>
-                        <span className="inline-flex gap-x-1 items-center text-gray-400">
+                        )}>
+                        <span>{hasOaiKey ? 'Open AI edit form' : 'Missing OpenAI API key'}</span>
+                        <span className="inline-flex items-center gap-x-1 text-gray-400">
                           {hasOaiKey ? (
                             <>
                               <span>⌘</span>
@@ -570,9 +531,7 @@ function SQLBlock(props: Props) {
                               <span>e</span>
                             </>
                           ) : (
-                            <span>
-                              Admins can add an OpenAI key in settings.
-                            </span>
+                            <span>Admins can add an OpenAI key in settings.</span>
                           )}
                         </span>
                       </div>
@@ -601,31 +560,28 @@ function SQLBlock(props: Props) {
       </div>
       <div
         className={clsx(
-          'absolute h-full transition-opacity opacity-0 group-hover/block:opacity-100 pl-1.5 right-0 top-0 translate-x-full flex flex-col gap-y-1',
+          'absolute right-0 top-0 flex h-full translate-x-full flex-col gap-y-1 pl-1.5 opacity-0 transition-opacity group-hover/block:opacity-100',
           isEditorFocused || statusIsDisabled ? 'opacity-100' : 'opacity-0',
           !props.isEditable ? 'hidden' : 'block'
-        )}
-      >
+        )}>
         <button
           onClick={onRunAbort}
           disabled={status !== 'idle' && status !== 'running'}
           className={clsx(
             {
-              'bg-gray-200 cursor-not-allowed':
-                status !== 'idle' && status !== 'running',
+              'cursor-not-allowed bg-gray-200': status !== 'idle' && status !== 'running',
               'bg-red-200': status === 'running' && envStatus === 'Running',
               'bg-yellow-300': status === 'running' && envStatus !== 'Running',
               'bg-primary-200': status === 'idle',
             },
-            'rounded-sm h-6 min-w-6 flex items-center justify-center relative group'
-          )}
-        >
+            'group relative flex h-6 min-w-6 items-center justify-center rounded-sm'
+          )}>
           {status !== 'idle' ? (
             <div>
               {execStatus === 'enqueued' ? (
-                <ClockIcon className="w-3 h-3 text-gray-500" />
+                <ClockIcon className="h-3 w-3 text-gray-500" />
               ) : (
-                <StopIcon className="w-3 h-3 text-gray-500" />
+                <StopIcon className="h-3 w-3 text-gray-500" />
               )}
               <SQLExecTooltip
                 envStatus={envStatus}
@@ -640,35 +596,30 @@ function SQLBlock(props: Props) {
             <MissingDataSourceTooltip />
           )}
         </button>
-        <ToChartButton
-          layout={props.layout}
-          block={props.block}
-          blocks={props.blocks}
-        />
+        <ToChartButton layout={props.layout} block={props.block} blocks={props.blocks} />
 
         <HiddenInPublishedButton
           isBlockHiddenInPublished={props.isBlockHiddenInPublished}
           onToggleIsBlockHiddenInPublished={onToggleIsBlockHiddenInPublished}
           hasMultipleTabs={props.hasMultipleTabs}
         />
-        <button
-          className="rounded-sm border border-gray-200 h-6 min-w-6 flex items-center justify-center relative group hover:bg-gray-50"
-          onClick={onSchemaExplorer}
-        >
-          <BookOpenIcon className="w-3 h-3 text-gray-400 group-hover:text-gray-500" />
-          <div className="font-sans pointer-events-none absolute -top-1 left-1/2 -translate-y-full -translate-x-1/2 w-max opacity-0 transition-opacity group-hover:opacity-100 bg-hunter-950 text-white text-xs p-2 rounded-md flex flex-col gap-y-1 max-w-40">
+        {/* <button
+          className="group relative flex h-6 min-w-6 items-center justify-center rounded-sm border border-gray-200 hover:bg-gray-50"
+          onClick={onSchemaExplorer}>
+          <BookOpenIcon className="h-3 w-3 text-gray-400 group-hover:text-gray-500" />
+          <div className="bg-hunter-950 pointer-events-none absolute -top-1 left-1/2 flex w-max max-w-40 -translate-x-1/2 -translate-y-full flex-col gap-y-1 rounded-md p-2 font-sans text-xs text-white opacity-0 transition-opacity group-hover:opacity-100">
             <span className="inline-flex items-center text-gray-400">
               Explore schema of selected data source.
             </span>
           </div>
-        </button>
+        </button> */}
 
-        <SaveReusableComponentButton
+        {/* <SaveReusableComponentButton
           isComponent={blockId === component?.blockId}
           onSave={onSaveReusableComponent}
           disabled={!props.isEditable || isComponentInstance}
           isComponentInstance={isComponentInstance}
-        />
+        /> */}
       </div>
     </div>
   )
@@ -715,11 +666,10 @@ const ToChartButton = (props: ToChartButtonProps) => {
   return (
     <button
       onClick={onAdd}
-      className="rounded-sm border border-gray-200 h-6 min-w-6 flex items-center justify-center relative group hover:bg-gray-50 disabled:cursor-not-allowed disabled:bg-gray-200"
-      disabled={isDisabled}
-    >
-      <ChartBarIcon className="w-3 h-3 text-gray-400 group-hover:text-gray-500" />
-      <div className="font-sans pointer-events-none absolute -top-1 left-1/2 -translate-y-full -translate-x-1/2 w-max opacity-0 transition-opacity group-hover:opacity-100 bg-hunter-950 text-white text-xs p-2 rounded-md flex flex-col gap-y-1 max-w-40">
+      className="group relative flex h-6 min-w-6 items-center justify-center rounded-sm border border-gray-200 hover:bg-gray-50 disabled:cursor-not-allowed disabled:bg-gray-200"
+      disabled={isDisabled}>
+      <ChartBarIcon className="h-3 w-3 text-gray-400 group-hover:text-gray-500" />
+      <div className="bg-hunter-950 pointer-events-none absolute -top-1 left-1/2 flex w-max max-w-40 -translate-x-1/2 -translate-y-full flex-col gap-y-1 rounded-md p-2 font-sans text-xs text-white opacity-0 transition-opacity group-hover:opacity-100">
         <span>Create visualization</span>
         <span className="inline-flex items-center text-gray-400">
           {isDisabled
@@ -734,8 +684,8 @@ const ToChartButton = (props: ToChartButtonProps) => {
 const MissingDataSourceTooltip = () => {
   return (
     <div>
-      <PlayIcon className="w-3 h-3 text-gray-500" />
-      <div className="font-sans pointer-events-none absolute -top-1 left-1/2 -translate-y-full -translate-x-1/2 w-max opacity-0 transition-opacity group-hover:opacity-100 bg-hunter-950 text-white text-xs p-2 rounded-md flex flex-col gap-y-1">
+      <PlayIcon className="h-3 w-3 text-gray-500" />
+      <div className="bg-hunter-950 pointer-events-none absolute -top-1 left-1/2 flex w-max -translate-x-1/2 -translate-y-full flex-col gap-y-1 rounded-md p-2 font-sans text-xs text-white opacity-0 transition-opacity group-hover:opacity-100">
         <span>No data sources.</span>
         <span className="inline-flex items-center text-gray-400">
           Add a data source to run queries.
@@ -748,10 +698,10 @@ const MissingDataSourceTooltip = () => {
 const RunQueryTooltip = () => {
   return (
     <div>
-      <PlayIcon className="w-3 h-3 text-gray-500" />
-      <div className="font-sans pointer-events-none absolute -top-1 left-1/2 -translate-y-full -translate-x-1/2 w-max opacity-0 transition-opacity group-hover:opacity-100 bg-hunter-950 text-white text-xs p-2 rounded-md flex flex-col gap-y-1">
+      <PlayIcon className="h-3 w-3 text-gray-500" />
+      <div className="bg-hunter-950 pointer-events-none absolute -top-1 left-1/2 flex w-max -translate-x-1/2 -translate-y-full flex-col gap-y-1 rounded-md p-2 font-sans text-xs text-white opacity-0 transition-opacity group-hover:opacity-100">
         <span>Run query</span>
-        <span className="inline-flex gap-x-1 items-center text-gray-400">
+        <span className="inline-flex items-center gap-x-1 text-gray-400">
           <span>⌘</span>
           <span>+</span>
           <span>Enter</span>

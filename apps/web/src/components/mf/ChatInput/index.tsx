@@ -8,6 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import clsx from 'clsx'
 import { NEXT_PUBLIC_MF_API_URL } from '@/utils/env'
 import { CircleProgress } from '../Progress'
+import { LoadingCircle } from '../LoadingCircle'
 
 interface IProps {
   className?: string
@@ -89,6 +90,9 @@ const ChatInput = ({ className, showUpload, loading = false, onSend, onStop }: I
     if (loading) {
       return
     }
+    if (uploadPercent > 0 && uploadPercent < 100) {
+      return
+    }
 
     if (onSend) {
       onSend(question, fileId)
@@ -152,7 +156,11 @@ const ChatInput = ({ className, showUpload, loading = false, onSend, onStop }: I
             onKeyDown={handleKeyDown}
           />
         </PopoverTrigger>
-        {loading ? (
+        {uploadPercent > 0 && uploadPercent < 100 ? (
+          <button className={clsx(styles.sendBtn, styles.loading)}>
+            <LoadingCircle />
+          </button>
+        ) : loading ? (
           <button
             className={clsx(styles.sendBtn, styles.loading)}
             onClick={(e) => {
@@ -182,21 +190,20 @@ const ChatInput = ({ className, showUpload, loading = false, onSend, onStop }: I
             <div className={styles.info}>
               <FileIcon />
               <div className={styles.fileName}>{uploadFileName}</div>
-              <div className={styles.percent}>
+              <div className={styles.opts}>
                 {uploadPercent === 0 ? (
                   '未开始'
                 ) : uploadPercent === 100 ? (
-                  '已完成'
+                  <div
+                    className={styles.icon}
+                    onClick={() => {
+                      deleteFile()
+                    }}>
+                    <DeleteIcon />
+                  </div>
                 ) : (
                   <CircleProgress percent={uploadPercent} />
                 )}
-              </div>
-              <div
-                className={styles.icon}
-                onClick={() => {
-                  deleteFile()
-                }}>
-                <DeleteIcon />
               </div>
             </div>
           </div>

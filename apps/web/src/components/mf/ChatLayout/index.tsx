@@ -582,10 +582,11 @@ export default function ChatLayout({ children }: Props) {
           chat.id === chatId ? styles.active : '' // 添加选中样式
         )}
         onClick={() => {
-          if (chat.id === chatId) {
+          if (chat.id === chatId || chat.isEditing) {
             return
           }
           setRoundList([])
+
           if (chat.type === 'report') {
             router.push(
               `/workspaces/${workspaces.data[0].id}/documents/${chat.documentId}/notebook/edit?chatId=${chat.id}`
@@ -595,10 +596,10 @@ export default function ChatLayout({ children }: Props) {
           }
         }}>
         {chat.isEditing ? (
-          <div className={styles.inputLayout}>
+          <div className={styles.inputBox}>
             <input
               type="text"
-              className={styles.itemTitleInput}
+              className={styles.titleInput}
               onChange={(e) => {
                 setCurrentTitle(e.target.value)
               }}

@@ -3,7 +3,6 @@ import React, {
   isValidElement,
   PropsWithChildren,
   ReactElement,
-  ReactNode,
   useCallback,
   useEffect,
   useRef,
@@ -209,16 +208,12 @@ export default function WorkspaceLayout({ children, pagePath, topBarClassname }:
           <ToggleIcon className="h-4 w-4" />
         </span>
         <div
-          className={clsx(
-            isSideBarOpen ? 'px-8' : 'pr-8',
-            'b-1 flex h-12 w-full shrink-0 justify-between',
-            topBarClassname
-          )}>
+          className={clsx('b-1 flex h-[3.75rem] w-full shrink-0 justify-between', topBarClassname)}>
           <div className="flex w-full">
             <div
               className={clsx(
-                isSideBarOpen ? 'hidden' : 'mr-8',
-                'bg-ceramic-50 hover:bg-ceramic-100 relative h-12 w-12 flex-shrink cursor-pointer text-gray-500'
+                isSideBarOpen ? 'hidden' : '',
+                'bg-ceramic-50 hover:bg-ceramic-100 relative h-[3.75rem] w-[3.75rem] flex-shrink cursor-pointer text-gray-500'
               )}
               onClick={toggleSideBar(true)}>
               <ChevronDoubleRightIcon className="absolute left-1/2 top-1/2 h-5 w-5 -translate-x-1/2 -translate-y-1/2" />
