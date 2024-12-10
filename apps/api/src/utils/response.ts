@@ -9,12 +9,22 @@ export interface ApiResponse<T = any> {
   data: T
 }
 
-export function success<T>(data: T, msg = '成功'): ApiResponse<T> {
+export function success<T>(data: T, msg = '操作成功'): ApiResponse<T> {
   return {
     code: ErrorCode.SUCCESS,
     msg,
     data
   }
+}
+
+export const createSuccessResponse = <T>(data: T, msg: string = '操作成功'): ApiResponse<T> => ({
+  code: ErrorCode.SUCCESS,
+  data,
+  msg,
+})
+
+export const sendSuccess = <T>(res: Response, data: T, msg?: string) => {
+  return res.json(createSuccessResponse(data, msg))
 }
 
 export function fail(code: ErrorCode, msg: string): ApiResponse<null> {

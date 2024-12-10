@@ -10,10 +10,10 @@ import { handleStreamResponse, sendSSEError } from '../stream/rag-stream.js'
 import { ChatDetailResponse, ChatRecordStatus, Message, RelationCheckResponse, UpdateTarget } from '../types/interfaces.js'
 import * as fs from 'fs/promises'
 import { v4 as uuidv4 } from 'uuid'
-import { sanitizeInput, formatDate } from '../utils/format.js'
+import { sanitizeInput, formatDate } from '../../../utils/format.js'
 import { titleUpdateEmitter } from '../title-summarizer.js'
 import { IOServer } from '../../../websocket/index.js'
-import { validateEnvVars } from '../utils/validation.js'
+import { validateEnvVars } from '../../../utils/validation.js'
 import { handleReportStreamResponse } from '../report-stream.js'
 
 export class ChatService {
