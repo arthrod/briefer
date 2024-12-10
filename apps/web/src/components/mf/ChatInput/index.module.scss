@@ -104,6 +104,9 @@
     background-color: #fff;
     overflow: hidden;
     padding: 0;
+    &.error {
+      color: red;
+    }
     .info {
       display: flex;
       align-items: center;
