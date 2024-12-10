@@ -88,8 +88,8 @@ export class BaseConfig implements IBaseConfig {
       10
     )
     this.POSTGRES_POOL_TIMEOUT = parseIntOr(
-      process.env['POSTGRES_POOL_TIMEOUT'] ?? '5',
-      5
+      process.env['POSTGRES_POOL_TIMEOUT'] ?? '50',
+      50
     )
     this.ENVIRONMENT_VARIABLES_ENCRYPTION_KEY = getVar(
       'ENVIRONMENT_VARIABLES_ENCRYPTION_KEY'

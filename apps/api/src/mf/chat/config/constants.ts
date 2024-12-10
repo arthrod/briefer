@@ -32,9 +32,9 @@ export const CONFIG = {
 
   // SSE相关
   SSE: {
-    RETRY_TIMEOUT: 15000,   // 重试超时时间
+    RETRY_TIMEOUT: 15000, // 重试超时时间
     KEEP_ALIVE_INTERVAL: 30000, // 保活间隔
-    MAX_RETRIES: 3,        // 最大重试次数
+    MAX_RETRIES: 3, // 最大重试次数
   },
 
   // 日志相关

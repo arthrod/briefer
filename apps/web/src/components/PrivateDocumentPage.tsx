@@ -31,6 +31,7 @@ import ReusableComponents from './ReusableComponents'
 import PageSettingsPanel from './PageSettingsPanel'
 
 import styles from './PrivateDocumentPage.module.scss'
+import RunAll from './mf/RunAll/RunAll'
 // this is needed because this component only works with the browser
 const V2Editor = dynamic(() => import('@/components/v2Editor'), {
   ssr: false,
@@ -89,6 +90,7 @@ function PrivateDocumentPageInner(
     | { _tag: 'shortcuts' }
     | { _tag: 'reusableComponents' }
     | { _tag: 'pageSettings' }
+    | { _tag: 'runAll' }
     | null
   >(null)
 
@@ -139,6 +141,10 @@ function PrivateDocumentPageInner(
 
   const onToggleFiles = useCallback(() => {
     setSelectedSidebar((v) => (v?._tag === 'files' ? null : { _tag: 'files' }))
+  }, [setSelectedSidebar])
+
+  const onToggleRunAll = useCallback(() => {
+    setSelectedSidebar((v) => (v?._tag === 'runAll' ? null : { _tag: 'runAll' }))
   }, [setSelectedSidebar])
 
   const onTogglePageSettings = useCallback(() => {
@@ -250,6 +256,7 @@ function PrivateDocumentPageInner(
             onToggleReusableComponents={onToggleReusableComponents}
             onToggleShortcuts={onToggleShortcuts}
             onTogglePageSettings={onTogglePageSettings}
+            onToggleRunAll={onToggleRunAll}
             isViewer={isViewer}
             isDeleted={isDeleted}
             isFullScreen={isFullScreen}
@@ -328,6 +335,11 @@ function PrivateDocumentPageInner(
             onHide={onHideSidebar}
             isPublished={props.document.publishedAt !== null}
           />
+          <RunAll
+            visible={selectedSidebar?._tag === 'runAll'}
+            onHide={onHideSidebar}
+            documnetId={props.documentId}
+            workspaceId={props.workspaceId}></RunAll>
           <Files
             workspaceId={props.workspaceId}
             visible={selectedSidebar?._tag === 'files'}
