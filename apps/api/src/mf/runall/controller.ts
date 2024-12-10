@@ -344,7 +344,7 @@ export class RunAllController {
             res.end()
           },
         })
-      )ß
+      )
     } catch (error) {
       console.error('Error handling download:', error)
       res.status(500).json({ message: 'Internal Server Error' })
