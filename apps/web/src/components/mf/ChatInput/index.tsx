@@ -8,6 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import clsx from 'clsx'
 import { NEXT_PUBLIC_MF_API_URL } from '@/utils/env'
 import { CircleProgress } from '../Progress'
+import { LoadingCircle } from '../LoadingCircle'
 
 interface IProps {
   className?: string
@@ -46,10 +47,11 @@ const ChatInput = ({ className, showUpload, loading = false, onSend, onStop }: I
       const fileName = encodeURIComponent(file.name)
       formData.append('file', file, fileName)
 
+      setIsOpen(true)
       const xhr = new XMLHttpRequest()
       xhr.open('POST', NEXT_PUBLIC_MF_API_URL() + '/upload/file', true)
+      xhr.setRequestHeader('Content-Type', 'multipart/form-data')
       xhr.withCredentials = true
-      setIsOpen(true)
       // 设置请求头，确保服务器知道文件名是 URL 编码的
       xhr.setRequestHeader('X-File-Name', fileName)
 
@@ -57,6 +59,12 @@ const ChatInput = ({ className, showUpload, loading = false, onSend, onStop }: I
         if (event.lengthComputable) {
           const percentComplete = (event.loaded / event.total) * 100
           setUploadPercent(percentComplete)
+        }
+      }
+
+      xhr.onreadystatechange = () => {
+        if (xhr.readyState === XMLHttpRequest.DONE) {
+          console.log('上传完成')
         }
       }
 
@@ -69,6 +77,18 @@ const ChatInput = ({ className, showUpload, loading = false, onSend, onStop }: I
           }
         } else {
           console.error('上传失败:', xhr.statusText)
+          if (fileInputRef.current) {
+            fileInputRef.current.value = ''
+            setUploadPercent(-1)
+          }
+        }
+      }
+
+      xhr.onabort = () => {
+        console.error('上传中断')
+        if (fileInputRef.current) {
+          fileInputRef.current.value = ''
+          setUploadPercent(-1)
         }
       }
 
@@ -76,6 +96,7 @@ const ChatInput = ({ className, showUpload, loading = false, onSend, onStop }: I
         console.error('上传出错')
         if (fileInputRef.current) {
           fileInputRef.current.value = ''
+          setUploadPercent(-1)
         }
       }
 
@@ -87,6 +108,9 @@ const ChatInput = ({ className, showUpload, loading = false, onSend, onStop }: I
 
   const handleSend = () => {
     if (loading) {
+      return
+    }
+    if (uploadPercent > 0 && uploadPercent < 100) {
       return
     }
 
@@ -152,7 +176,11 @@ const ChatInput = ({ className, showUpload, loading = false, onSend, onStop }: I
             onKeyDown={handleKeyDown}
           />
         </PopoverTrigger>
-        {loading ? (
+        {uploadPercent > 0 && uploadPercent < 100 ? (
+          <button className={clsx(styles.sendBtn, styles.loading)}>
+            <LoadingCircle />
+          </button>
+        ) : loading ? (
           <button
             className={clsx(styles.sendBtn, styles.loading)}
             onClick={(e) => {
@@ -178,25 +206,28 @@ const ChatInput = ({ className, showUpload, loading = false, onSend, onStop }: I
         )}
 
         <PopoverContent asChild>
-          <div className={styles.uploadPopover}>
+          <div className={clsx(styles.uploadPopover, uploadPercent === -1 ? styles.error : '')}>
             <div className={styles.info}>
               <FileIcon />
               <div className={styles.fileName}>{uploadFileName}</div>
-              <div className={styles.percent}>
-                {uploadPercent === 0 ? (
-                  '未开始'
-                ) : uploadPercent === 100 ? (
-                  '已完成'
-                ) : (
+              <div className={styles.opts}>
+                {uploadPercent === 0 ? '未开始' : ''}
+                {uploadPercent > 0 && uploadPercent < 100 ? (
                   <CircleProgress percent={uploadPercent} />
+                ) : (
+                  ''
                 )}
-              </div>
-              <div
-                className={styles.icon}
-                onClick={() => {
-                  deleteFile()
-                }}>
-                <DeleteIcon />
+                {uploadPercent === -1 || uploadPercent === 100 ? (
+                  <div
+                    className={styles.icon}
+                    onClick={() => {
+                      deleteFile()
+                    }}>
+                    <DeleteIcon />
+                  </div>
+                ) : (
+                  ''
+                )}
               </div>
             </div>
           </div>

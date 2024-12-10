@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import React, {
+  cloneElement,
+  isValidElement,
+  PropsWithChildren,
+  ReactElement,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
 import { Syne } from 'next/font/google'
 import PagePath from '@/components/PagePath'
 import { ChevronDoubleRightIcon } from '@heroicons/react/24/outline'
@@ -6,7 +15,7 @@ import clsx from 'clsx'
 import { useRouter } from 'next/router'
 import { Page } from '@/components/PagePath'
 import { useWorkspaces } from '@/hooks/useWorkspaces'
-import { useStringQuery } from '@/hooks/useQueryArgs'
+import { useStringQuery, getQueryParam } from '@/hooks/useQueryArgs'
 import { useSession, useSignout } from '@/hooks/useAuth'
 import { isBanned } from '@/utils/isBanned'
 import BannedPage from '../BannedPage'
@@ -14,44 +23,103 @@ import MobileWarning from '../MobileWarning'
 import CommandPalette from '../commandPalette'
 import { useHotkeys } from 'react-hotkeys-hook'
 
-import styles from './index.module.scss'
 import useSideBar from '@/hooks/useSideBar'
-import ChatDetail, { ChatDetailRef } from '../mf/ChatDetail'
-import ChatInput from '../mf/ChatInput'
 import ToggleIcon from '@/icons/toggle.svg'
+import ChatDetail from '@/components/mf/ChatDetail'
+import { MessageContent } from '@/hooks/mf/chat/useChatDetail'
+import ChatInput from '@/components/mf/ChatInput'
+
+import styles from './index.module.scss'
+import { useChatLayoutContext } from '../mf/ChatLayout'
+import { showToast } from '../mf/Toast'
 
 const syne = Syne({ subsets: ['latin'] })
 
-interface Props {
-  children: React.ReactNode
+interface Props extends PropsWithChildren {
   pagePath?: Page[]
   topBarClassname?: string
-  topBarContent?: React.ReactNode
   hideOnboarding?: boolean
 }
 
-export default function WorkspaceLayout({
-  children,
-  pagePath,
-  topBarClassname,
-  topBarContent,
-}: Props) {
-  const [isSearchOpen, setSearchOpen] = useState(false)
+function ChatLayout({ chatId }: { chatId: string }) {
   const [loading, setLoading] = useState(false)
+  const { roundList, stopChat, startRoundChat } = useChatLayoutContext()
+
+  const router = useRouter()
+
+  const handleSend = async (question: string) => {
+    if (!question || loading) {
+      return
+    }
+    setLoading(true)
+    startRoundChat(chatId, question, () => {
+      setLoading(false)
+    }).catch((e) => {
+      showToast('消息发送失败，请检查网络', 'error')
+      setLoading(false)
+    })
+  }
+
+  const handleStop = () => {
+    stopChat()
+      .catch((e) => {
+        showToast('停止失败，请检查网络', 'error')
+      })
+      .finally(() => {
+        setLoading(false)
+      })
+  }
+
+  return (
+    <div className={clsx(styles.chatLayout)}>
+      <div className={styles.top}>
+        <img
+          className="cursor-pointer"
+          src="/icons/menu.svg"
+          onClick={() => {
+            router.push('/home')
+          }}
+          width={20}
+          height={20}
+          alt=""
+        />
+        AI助手
+      </div>
+      <div className={styles.middle}>
+        <ChatDetail
+          roundList={roundList}
+          loading={loading}
+          onRegenerate={function (message: MessageContent): void {
+            throw new Error('Function not implemented.')
+          }}></ChatDetail>
+      </div>
+      <div className={styles.bottom}>
+        <div className={styles.chatArea}>
+          <ChatInput loading={loading} showUpload={false} onSend={handleSend} onStop={handleStop} />
+        </div>
+      </div>
+    </div>
+  )
+}
+export interface WorkspaceLayoutChildrenProps {
+  updateTopBar?: (el: React.ReactElement) => void
+}
+
+export default function WorkspaceLayout({ children, pagePath, topBarClassname }: Props) {
+  const [isSearchOpen, setSearchOpen] = useState(false)
+  const [topBarContent, setTopBarContent] = useState<ReactElement | null>(null)
 
   const scrollRef = useRef<HTMLDivElement>(null)
-  const chatDetailRef = useRef<ChatDetailRef>(null)
 
   const session = useSession()
   const router = useRouter()
   const signOut = useSignout()
+  const chatId = getQueryParam('chatId')
 
   const [{ data: workspaces, isLoading: isLoadingWorkspaces }] = useWorkspaces()
   const [isSideBarOpen, setSideBarOpen] = useSideBar()
 
   const workspaceId = useStringQuery('workspaceId')
-  const documentId = useStringQuery('documentId')
-  const chatId = useStringQuery('chatId')
 
   useHotkeys(['mod+k'], () => {
     setSearchOpen((prev) => !prev)
@@ -102,61 +170,32 @@ export default function WorkspaceLayout({
     return <BannedPage />
   }
 
-  const send = async (question: string) => {
-    if (chatDetailRef.current) {
-      chatDetailRef.current.addSendMsg(question)
-    }
-  }
-
-  const stop = () => {
-    chatDetailRef.current?.stopSendMsg()
+  let modifiedChildren = children
+  if (isValidElement<WorkspaceLayoutChildrenProps>(children)) {
+    modifiedChildren = cloneElement(children, {
+      updateTopBar: (topBar: ReactElement) => {
+        setTopBarContent(topBar)
+      },
+    })
   }
 
   return (
-    // <div className={`flex h-full w-full ${syne.className}`}>
     <div className={`flex h-full w-full`}>
       <MobileWarning />
 
       <CommandPalette workspaceId={workspaceId} isOpen={isSearchOpen} setOpen={setSearchOpen} />
-
       <div
-        className={clsx(
-          styles.chatLayout,
-          isSideBarOpen ? `flex md:max-w-[33%] lg:max-w-[25%]` : `hidden md:max-w-[0] lg:max-w-[0]`
-        )}>
-        <div className={styles.top}>
-          <img
-            className="cursor-pointer"
-            src="/icons/menu.svg"
-            onClick={() => {
-              router.push('/home')
-            }}
-            width={20}
-            height={20}
-            alt=""
-          />
-          AI助手
-        </div>
-        <div className={styles.middle}>
-          <ChatDetail
-            ref={chatDetailRef}
-            openLoading={() => {
-              setLoading(true)
-            }}
-            closeLoading={() => {
-              setLoading(false)
-            }}></ChatDetail>
-        </div>
-        <div className={styles.bottom}>
-          <div className={styles.chatArea}>
-            <ChatInput loading={loading} showUpload={false} onSend={send} onStop={stop} />
-          </div>
-        </div>
+        style={{ boxShadow: '0px 2px 4px 0px rgba(0, 0, 0, 0.04)' }}
+        className={
+          isSideBarOpen
+            ? `flex h-full min-w-[33%] max-w-[33%] flex-col overflow-hidden lg:min-w-[25%] lg:max-w-[25%]`
+            : `hidden md:max-w-[0] lg:max-w-[0]`
+        }>
+        <ChatLayout chatId={chatId} />
       </div>
 
       <main
         className={clsx(
-          styles.main,
           `flex h-screen w-full flex-col ${syne.className} relative`,
           isSideBarOpen ? `md:max-w-[67%] lg:max-w-[75%]` : `md:max-w-[100%] lg:max-w-[100%]`
         )}>
@@ -169,16 +208,12 @@ export default function WorkspaceLayout({
           <ToggleIcon className="h-4 w-4" />
         </span>
         <div
-          className={clsx(
-            isSideBarOpen ? 'px-8' : 'pr-8',
-            'b-1 flex h-12 w-full shrink-0 justify-between',
-            topBarClassname
-          )}>
+          className={clsx('b-1 flex h-[3.75rem] w-full shrink-0 justify-between', topBarClassname)}>
           <div className="flex w-full">
             <div
               className={clsx(
-                isSideBarOpen ? 'hidden' : 'mr-8',
-                'bg-ceramic-50 hover:bg-ceramic-100 relative h-12 w-12 flex-shrink cursor-pointer text-gray-500'
+                isSideBarOpen ? 'hidden' : '',
+                'bg-ceramic-50 hover:bg-ceramic-100 relative h-[3.75rem] w-[3.75rem] flex-shrink cursor-pointer text-gray-500'
               )}
               onClick={toggleSideBar(true)}>
               <ChevronDoubleRightIcon className="absolute left-1/2 top-1/2 h-5 w-5 -translate-x-1/2 -translate-y-1/2" />
@@ -187,7 +222,7 @@ export default function WorkspaceLayout({
             {topBarContent}
           </div>
         </div>
-        <div className="flex flex-grow overflow-hidden">{children}</div>
+        <div className="flex flex-grow overflow-hidden">{modifiedChildren}</div>
       </main>
     </div>
   )

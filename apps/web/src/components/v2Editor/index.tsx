@@ -1455,7 +1455,6 @@ const Editor = (props: Props) => {
           </div>
         </div>
       )}
-
       <div
         id="editor-scrollview"
         ref={props.scrollViewRef}

@@ -6,12 +6,8 @@ import {
   MapIcon,
 } from '@heroicons/react/24/outline'
 import { ArrowLeftIcon, ArrowRightIcon } from '@heroicons/react/20/solid'
-import { Menu, Transition } from '@headlessui/react'
-import {
-  EllipsisHorizontalIcon,
-  InboxArrowDownIcon,
-  FolderIcon,
-} from '@heroicons/react/24/outline'
+import { Menu, MenuItems, MenuItem, MenuButton, Transition } from '@headlessui/react'
+import { EllipsisHorizontalIcon, InboxArrowDownIcon, FolderIcon } from '@heroicons/react/24/outline'
 import { ChatBubbleBottomCenterTextIcon } from '@heroicons/react/24/outline'
 
 interface Props {
@@ -31,25 +27,23 @@ interface Props {
 function EllipsisDropdown(props: Props) {
   return (
     <Menu as="div" className="relative h-full">
-      <Menu.Button className="flex items-center rounded-sm px-3 py-1 text-sm text-gray-500 hover:bg-gray-100 border border-gray-200 h-full bg-white">
-        <EllipsisHorizontalIcon className="w-4 h-4" />
-      </Menu.Button>
+      <MenuButton className="flex h-full items-center rounded-sm border border-gray-200 bg-white px-3 py-1 text-sm text-gray-500 hover:bg-gray-100">
+        <EllipsisHorizontalIcon className="h-4 w-4" />
+      </MenuButton>
       <Transition
         as="div"
-        className="absolute z-40 right-0"
+        className="absolute right-0 z-40"
         enter="transition-opacity duration-300"
         enterFrom="opacity-0"
         enterTo="opacity-100"
         leave="transition-opacity duration-300"
         leaveFrom="opacity-100"
-        leaveTo="opacity-0"
-      >
-        <Menu.Items
+        leaveTo="opacity-0">
+        <MenuItems
           as="div"
-          className="mt-1 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none font-sans divide-y divide-gray-200 w-52"
-        >
+          className="mt-1 w-52 divide-y divide-gray-200 rounded-md bg-white font-sans shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
           {props.onToggleFiles && (
-            <MenuButton
+            <MenuItemButton
               icon={<FolderIcon className="h-4 w-4" />}
               text="Files"
               onClick={props.onToggleFiles}
@@ -57,12 +51,12 @@ function EllipsisDropdown(props: Props) {
           )}
           {!props.isViewer && !props.isDeleted && (
             <>
-              <MenuButton
+              <MenuItemButton
                 icon={<ClockIcon className="h-4 w-4" />}
                 text="Schedules"
                 onClick={props.onToggleSchedules}
               />
-              <MenuButton
+              <MenuItemButton
                 icon={<InboxArrowDownIcon className="h-4 w-4" />}
                 text="Snapshots"
                 onClick={props.onToggleSnapshots}
@@ -70,14 +64,14 @@ function EllipsisDropdown(props: Props) {
             </>
           )}
 
-          <MenuButton
+          <MenuItemButton
             icon={<ChatBubbleBottomCenterTextIcon className="h-4 w-4" />}
             text="Comments"
             onClick={props.onToggleComments}
           />
 
           {props.onToggleSchemaExplorer && (
-            <MenuButton
+            <MenuItemButton
               icon={<BookOpenIcon className="h-4 w-4" />}
               text="Schema explorer"
               onClick={props.onToggleSchemaExplorer}
@@ -85,7 +79,7 @@ function EllipsisDropdown(props: Props) {
           )}
 
           {props.onToggleFullScreen && (
-            <MenuButton
+            <MenuItemButton
               icon={
                 <div className="flex items-center">
                   {props.isFullScreen ? (
@@ -101,17 +95,13 @@ function EllipsisDropdown(props: Props) {
                   )}
                 </div>
               }
-              text={
-                props.isFullScreen
-                  ? 'Shrink horizontally'
-                  : 'Stretch horizontally'
-              }
+              text={props.isFullScreen ? 'Shrink horizontally' : 'Stretch horizontally'}
               onClick={props.onToggleFullScreen}
             />
           )}
 
           {props.onToggleReusableComponents && (
-            <MenuButton
+            <MenuItemButton
               icon={<CodeBracketSquareIcon className="h-4 w-4" />}
               text="Reusable components"
               onClick={props.onToggleReusableComponents}
@@ -119,7 +109,7 @@ function EllipsisDropdown(props: Props) {
           )}
 
           {props.onToggleShortcuts && (
-            <MenuButton
+            <MenuItemButton
               icon={<MapIcon className="h-4 w-4" />}
               text="Keyboard shortcuts"
               onClick={props.onToggleShortcuts}
@@ -127,13 +117,13 @@ function EllipsisDropdown(props: Props) {
           )}
 
           {props.onTogglePageSettings && (
-            <MenuButton
+            <MenuItemButton
               icon={<Cog6ToothIcon className="h-4 w-4" />}
               text="Page settings"
               onClick={props.onTogglePageSettings}
             />
           )}
-        </Menu.Items>
+        </MenuItems>
       </Transition>
     </Menu>
   )
@@ -144,17 +134,17 @@ interface MenuButtonProps {
   text: string
   onClick: () => void
 }
-function MenuButton(props: MenuButtonProps) {
+
+function MenuItemButton(props: MenuButtonProps) {
   return (
-    <Menu.Item
+    <MenuItem
       as="button"
       onClick={props.onClick}
       type="button"
-      className="w-full flex items-center rounded-sm px-4 py-2 text-gray-500 text-sm gap-x-2 hover:bg-gray-100"
-    >
-      <div className="flex justify-center w-6">{props.icon}</div>
+      className="flex w-full items-center gap-x-2 rounded-sm px-4 py-2 text-sm text-gray-500 hover:bg-gray-100">
+      <div className="flex w-6 justify-center">{props.icon}</div>
       <span>{props.text}</span>
-    </Menu.Item>
+    </MenuItem>
   )
 }
 

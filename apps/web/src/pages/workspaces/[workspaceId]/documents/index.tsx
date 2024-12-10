@@ -20,7 +20,9 @@ export default function DocumentsPage() {
   useEffect(() => {
     const first = documents.first()
     if (!state.loading && first) {
-      router.replace(`/workspaces/${workspaceId}/documents/${first.id}/notebook/edit`)
+      router.replace(
+        `/workspaces/${workspaceId}/documents/${first.id}/notebook/edit${window.location.search}`
+      )
     }
   }, [documents, workspaceId])
 
@@ -31,13 +33,12 @@ export default function DocumentsPage() {
   }, [documents, state.loading, createDocument, workspaceId])
 
   return (
-    <WorkspaceLayout>
-      <div className="flex w-full justify-center">
-        <div className={clsx(widthClasses, 'w-full py-20')}>
-          <TitleSkeleton visible />
-          <ContentSkeleton visible />
-        </div>
+    <div className="flex w-full justify-center">
+      <div className={clsx(widthClasses, 'w-full py-20')}>
+        <TitleSkeleton visible />
+        <ContentSkeleton visible />
       </div>
-    </WorkspaceLayout>
+    </div>
   )
 }
+DocumentsPage.layout = WorkspaceLayout

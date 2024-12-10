@@ -58,6 +58,7 @@ function Title(props: Props) {
     {
       autofocus: true,
       editable: props.isEditable,
+      immediatelyRender: true,
       extensions: [
         Document,
         Text,
