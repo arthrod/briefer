@@ -90,7 +90,7 @@ export default function Dashboard(props: Props) {
   )
 
   const [selectedSidebar, setSelectedSidebar] = useState<
-    'comments' | 'schedules' | 'snapshots' | 'files' | null
+    'comments' | 'schedules' | 'snapshots' | 'files' | 'runAll' | null
   >(null)
 
   const onHideSidebar = useCallback(() => {
@@ -111,6 +111,10 @@ export default function Dashboard(props: Props) {
 
   const onToggleFiles = useCallback(() => {
     setSelectedSidebar((v) => (v === 'files' ? null : 'files'))
+  }, [setSelectedSidebar])
+
+  const onToggleRunAll = useCallback(() => {
+    setSelectedSidebar((v) => (v === 'runAll' ? null : 'runAll'))
   }, [setSelectedSidebar])
 
   const isDeleted = !isNil(props.document.deletedAt)
@@ -205,6 +209,7 @@ export default function Dashboard(props: Props) {
           onToggleSnapshots={onToggleSnapshots}
           onToggleComments={onToggleComments}
           onToggleFiles={onToggleFiles}
+          onToggleRunAll={onToggleRunAll}
           isViewer={props.role === 'viewer'}
           isDeleted={isDeleted}
           isFullScreen={false}
@@ -249,7 +254,7 @@ export default function Dashboard(props: Props) {
         />
         {props.role !== 'viewer' && !isDeleted && (
           <>
-            <Schedules
+            {/* <Schedules
               workspaceId={props.document.workspaceId}
               documentId={props.document.id}
               isPublished={props.document.publishedAt !== null}
@@ -270,7 +275,7 @@ export default function Dashboard(props: Props) {
               visible={selectedSidebar === 'files'}
               onHide={onHideSidebar}
               yDoc={yDoc}
-            />
+            /> */}
           </>
         )}
       </div>

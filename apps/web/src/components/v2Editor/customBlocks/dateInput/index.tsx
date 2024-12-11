@@ -25,19 +25,13 @@ function invalidVariableErrorMessage(
     case 'invalid-variable-and-value':
       return (
         <>
-          The variable name is invalid:
+          变量名称无效:
           <br />
-          It should start with a letter or underscore, followed by letters,
-          digits, or underscores. Spaces are not allowed.
+          变量名称应以字母或下划线开头，后面可以包含字母、数字或下划线。 不允许包含空格。
         </>
       )
     case 'unexpected-error':
-      return (
-        <>
-          Unexpected error occurred while updating the input. Click this icon to
-          retry.
-        </>
-      )
+      return <>更新输入时发生意外错误。单击此图标重试。</>
   }
 }
 
@@ -65,24 +59,19 @@ function DateInput(props: Props) {
   )
 
   const toggleConfigOpen = useCallback(() => {
-    props.block.setAttribute(
-      'configOpen',
-      !Boolean(props.block.getAttribute('configOpen'))
-    )
+    props.block.setAttribute('configOpen', !Boolean(props.block.getAttribute('configOpen')))
   }, [props.block])
 
-  const onChangeVariable: React.ChangeEventHandler<HTMLInputElement> =
-    useCallback(
-      (e) => {
-        updateYText(attrs.newVariable, e.target.value)
-      },
-      [attrs.newVariable, props.block]
-    )
+  const onChangeVariable: React.ChangeEventHandler<HTMLInputElement> = useCallback(
+    (e) => {
+      updateYText(attrs.newVariable, e.target.value)
+    },
+    [attrs.newVariable, props.block]
+  )
 
-  const onBlurVariable: React.FocusEventHandler<HTMLInputElement> =
-    useCallback(() => {
-      props.onRun(props.block)
-    }, [props.block, props.onRun])
+  const onBlurVariable: React.FocusEventHandler<HTMLInputElement> = useCallback(() => {
+    props.onRun(props.block)
+  }, [props.block, props.onRun])
 
   const onSave = useCallback(() => {
     props.onRun(props.block)
@@ -110,27 +99,23 @@ function DateInput(props: Props) {
     <div
       className={clsx(
         'w-full',
-        props.belongsToMultiTabGroup && 'border p-4 rounded-tr-md rounded-b-md',
-        props.isCursorWithin && !props.isCursorInserting
-          ? 'border-blue-400'
-          : 'border-gray-200'
+        props.belongsToMultiTabGroup && 'rounded-b-md rounded-tr-md border p-4',
+        props.isCursorWithin && !props.isCursorInserting ? 'border-blue-400' : 'border-gray-200'
       )}
-      data-block-id={blockId}
-    >
+      data-block-id={blockId}>
       <div
         className={!props.isDashboard ? 'w-1/2' : ''}
         ref={(d) => {
           if (props.dragPreview) {
             props.dragPreview(d)
           }
-        }}
-      >
-        <div className="flex justify-between items-center pb-1.5">
-          <div className="flex items-center flex-grow space-x-1">
+        }}>
+        <div className="flex items-center justify-between pb-1.5">
+          <div className="flex flex-grow items-center space-x-1">
             {/* TODO: use Y.Text the right way */}
             <input
               data-bounding-rect="true"
-              className="block ring-0 text-sm font-medium leading-6 text-gray-900 w-full focus:ring-0 border-0 p-0 bg-transparent"
+              className="block w-full border-0 bg-transparent p-0 text-sm font-medium leading-6 text-gray-900 ring-0 focus:ring-0"
               type="text"
               value={attrs.label.toString()}
               onChange={onChangeLabel}
@@ -142,51 +127,43 @@ function DateInput(props: Props) {
                 <button onClick={toggleConfigOpen}>
                   <Cog6ToothIcon className="h-4 w-4 text-gray-400 hover:text-gray-600" />
                 </button>
-                <div
-                  className={clsx(!props.isEditable && 'hidden', 'relative')}
-                >
+                <div className={clsx(!props.isEditable && 'hidden', 'relative')}>
                   <input
                     className={clsx(
-                      'ring-0 px-1 py-0.5 rounded-md text-ceramic-500 bg-ceramic-100 text-xs font-medium min-w-12 min-h-4 focus:ring-0 border-0 block text-right',
+                      'text-ceramic-500 bg-ceramic-100 block min-h-4 min-w-12 rounded-md border-0 px-1 py-0.5 text-right text-xs font-medium ring-0 focus:ring-0',
                       {
-                        'text-red-500 bg-red-100':
+                        'bg-red-100 text-red-500':
                           attrs.status === 'invalid-variable' ||
                           attrs.status === 'invalid-variable-and-value' ||
                           attrs.status === 'unexpected-error',
-                        'text-ceramic-500 bg-ceramic-100':
-                          execStatus === 'idle',
-                        'text-gray-300 bg-gray-100': execStatus === 'loading',
+                        'text-ceramic-500 bg-ceramic-100': execStatus === 'idle',
+                        'bg-gray-100 text-gray-300': execStatus === 'loading',
                       }
                     )}
                     type="text"
                     value={attrs.newVariable.toString()}
                     onChange={onChangeVariable}
                     onBlur={onBlurVariable}
-                    disabled={
-                      execStatus === 'loading' || execStatus === 'enqueued'
-                    }
+                    disabled={execStatus === 'loading' || execStatus === 'enqueued'}
                   />
-                  <div className="absolute inset-y-0 pl-1 flex items-center group z-10">
+                  <div className="group absolute inset-y-0 z-10 flex items-center pl-1">
                     {execStatus !== 'idle' &&
                       (execStatus === 'loading' ? (
                         <Spin />
                       ) : execStatus === 'enqueued' ? (
-                        <ClockIcon className="w-4 h-4 text-gray-300" />
+                        <ClockIcon className="h-4 w-4 text-gray-300" />
                       ) : attrs.status === 'invalid-variable' ||
                         attrs.status === 'invalid-variable-and-value' ||
                         attrs.status === 'unexpected-error' ? (
                         <>
-                          <button
-                            disabled={attrs.status !== 'invalid-variable'}
-                            onClick={onSave}
-                          >
+                          <button disabled={attrs.status !== 'invalid-variable'} onClick={onSave}>
                             <ExclamationCircleIcon
                               className="h-3 w-3 text-red-300"
                               aria-hidden="true"
                             />
                           </button>
-                          <div className="font-sans pointer-events-none absolute -top-2 left-1/2 -translate-y-full -translate-x-1/2 opacity-0 transition-opacity group-hover:opacity-100 bg-hunter-950 text-white text-xs p-2 rounded-md flex flex-col gap-y-1 w-72">
-                            <span className="inline-flex gap-x-1 items-center text-gray-400 text-center">
+                          <div className="bg-hunter-950 pointer-events-none absolute -top-2 left-1/2 flex w-72 -translate-x-1/2 -translate-y-full flex-col gap-y-1 rounded-md p-2 font-sans text-xs text-white opacity-0 transition-opacity group-hover:opacity-100">
+                            <span className="inline-flex items-center gap-x-1 text-center text-gray-400">
                               {invalidVariableErrorMessage(attrs.status)}
                             </span>
                           </div>

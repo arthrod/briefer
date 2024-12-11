@@ -1,12 +1,7 @@
 import { Awareness } from 'y-protocols/awareness'
 import clsx from 'clsx'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import {
-  ConnectDragPreview,
-  DropTargetMonitor,
-  useDrag,
-  useDrop,
-} from 'react-dnd'
+import { ConnectDragPreview, DropTargetMonitor, useDrag, useDrop } from 'react-dnd'
 import { useLastUpdatedAt, useYDocState } from '@/hooks/useYDoc'
 import * as Y from 'yjs'
 import Title from './Title'
@@ -89,9 +84,7 @@ import RemoveTabDashboardConflictDialog from './RemoveTabDashboardConflictDialog
 import PivotTableBlock from './customBlocks/pivotTable'
 import useHotkeys from '@/hooks/useHotkeys'
 import { HotkeysProvider } from 'react-hotkeys-hook'
-import useEditorAwareness, {
-  EditorAwarenessProvider,
-} from '@/hooks/useEditorAwareness'
+import useEditorAwareness, { EditorAwarenessProvider } from '@/hooks/useEditorAwareness'
 
 export enum ElementType {
   Block = 'BLOCK',
@@ -121,21 +114,15 @@ const Dropzone = ({
     targetIndex: number,
     type: Identifier | null
   ) => void
-  onCheckCanDrop: (
-    id: string,
-    index: number,
-    type: Identifier | null
-  ) => boolean
+  onCheckCanDrop: (id: string, index: number, type: Identifier | null) => boolean
   onAddBlock: (type: BlockType, index: number) => void
   writebackEnabled: boolean
 }) => {
   const [{ isOver, canDrop }, drop] = useDrop(
     () => ({
       accept: [ElementType.Block, ElementType.BlockGroup],
-      drop: (
-        { blockGroupId, blockId }: { blockGroupId: string; blockId: string },
-        monitor
-      ) => onDropItem(blockGroupId, blockId, index, monitor.getItemType()),
+      drop: ({ blockGroupId, blockId }: { blockGroupId: string; blockId: string }, monitor) =>
+        onDropItem(blockGroupId, blockId, index, monitor.getItemType()),
       canDrop: ({ blockGroupId }, monitor) =>
         onCheckCanDrop(blockGroupId, index, monitor.getItemType()),
       collect: (monitor) => ({
@@ -158,8 +145,7 @@ const Dropzone = ({
       ref={(d) => {
         drop(d)
       }}
-      className={clsx('w-full', isOver && canDrop ? 'bg-ceramic-300' : '')}
-    >
+      className={clsx('w-full', isOver && canDrop ? 'bg-ceramic-300' : '')}>
       <PlusButton
         alwaysVisible={false}
         onAddBlock={addBlockHandler}
@@ -248,9 +234,7 @@ function Tab(props: TabProps) {
         return {
           blockGroupId: props.tabRef.blockGroupId,
           blockId: props.tabRef.blockId,
-          dragSize: Math.ceil(
-            buttonRef.current?.getBoundingClientRect().width ?? 0
-          ),
+          dragSize: Math.ceil(buttonRef.current?.getBoundingClientRect().width ?? 0),
         }
       },
       collect: (monitor) => ({
@@ -327,8 +311,7 @@ function Tab(props: TabProps) {
       ref={(d) => {
         drop(d)
       }}
-      className="h-full flex text-xs"
-    >
+      className="flex h-full text-xs">
       {draggingSide === 'left' && isOver && canDrop && (
         <div className={`bg-ceramic-100`} style={{ width: `${dragSize}px` }} />
       )}
@@ -337,20 +320,14 @@ function Tab(props: TabProps) {
         ref={buttonRef}
         onClick={() => props.onSwitchActiveTab(props.tabRef.blockId)}
         className={clsx(
-          'flex gap-x-2 items-center border-l border-r border-t border-gray-200 px-2.5 py-1.5 rounded-t-sm whitespace-nowrap',
-          props.tabRef.isCurrent
-            ? 'bg-white text-gray-950'
-            : 'bg-gray-50 text-gray-400',
+          'flex items-center gap-x-2 whitespace-nowrap rounded-t-sm border-l border-r border-t border-gray-200 px-2.5 py-1.5',
+          props.tabRef.isCurrent ? 'bg-white text-gray-950' : 'bg-gray-50 text-gray-400',
           isDragging ? 'opacity-0' : '',
           !props.isFirst ? '-ml-[1px]' : ''
-        )}
-      >
+        )}>
         <div className="flex items-center gap-x-1">
           <Icon
-            className={clsx(
-              'h-3 w-3',
-              props.tabRef.isCurrent ? 'text-gray-600' : 'text-gray-300'
-            )}
+            className={clsx('h-3 w-3', props.tabRef.isCurrent ? 'text-gray-600' : 'text-gray-300')}
           />
           {props.tabRef.title || getPrettyTitle(props.tabRef.type)}{' '}
           {props.tabRef.isHiddenInPublished && (
@@ -358,8 +335,7 @@ function Tab(props: TabProps) {
               className={clsx(
                 'pl-0.5 text-[10px]',
                 props.tabRef.isCurrent ? 'text-gray-400' : 'text-gray-300'
-              )}
-            >
+              )}>
               hidden
             </span>
           )}
@@ -403,18 +379,10 @@ const DraggableTabbedBlock = (props: {
   onSchemaExplorer: (dataSourceId: string | null) => void
   insertBelow: () => void
 }) => {
-  const { state: layout } = useYDocState<Y.Array<YBlockGroup>>(
-    props.yDoc,
-    layoutGetter
-  )
-  const { state: blocks } = useYDocState<Y.Map<YBlock>>(
-    props.yDoc,
-    blocksGetter
-  )
+  const { state: layout } = useYDocState<Y.Array<YBlockGroup>>(props.yDoc, layoutGetter)
+  const { state: blocks } = useYDocState<Y.Map<YBlock>>(props.yDoc, blocksGetter)
 
-  const { startedAt: environmentStartedAt } = useEnvironmentStatus(
-    props.document.workspaceId
-  )
+  const { startedAt: environmentStartedAt } = useEnvironmentStatus(props.document.workspaceId)
 
   const [{ isDragging }, drag, dragPreview] = useDrag(
     () => ({
@@ -433,8 +401,8 @@ const DraggableTabbedBlock = (props: {
 
   const tabRefs = useMemo(
     () =>
-      getTabsFromBlockGroupId(layout.value, blocks.value, props.id).filter(
-        (t) => (props.isApp ? !t.isHiddenInPublished : true)
+      getTabsFromBlockGroupId(layout.value, blocks.value, props.id).filter((t) =>
+        props.isApp ? !t.isHiddenInPublished : true
       ),
     [props.id, layout, blocks]
   )
@@ -451,12 +419,7 @@ const DraggableTabbedBlock = (props: {
         monitor
       ) => {
         const droppedType = monitor.getItemType()
-        props.onGroup(
-          droppedBlockGroupId,
-          droppedBlockId,
-          props.id,
-          droppedType
-        )
+        props.onGroup(droppedBlockGroupId, droppedBlockId, props.id, droppedType)
       },
       canDrop: ({ blockGroupId }) => blockGroupId !== props.id,
       collect: (monitor) => ({
@@ -495,12 +458,7 @@ const DraggableTabbedBlock = (props: {
 
   const onTry = useCallback(
     (block: YBlock) => {
-      requestTrySuggestion(
-        block,
-        blocks.value,
-        layout.value,
-        environmentStartedAt
-      )
+      requestTrySuggestion(block, blocks.value, layout.value, environmentStartedAt)
     },
     [blocks.value, layout.value, environmentStartedAt]
   )
@@ -511,13 +469,12 @@ const DraggableTabbedBlock = (props: {
         type === 'application/json'
           ? 'json'
           : type === 'text/csv'
-          ? 'csv'
-          : type === 'application/vnd.ms-excel'
-          ? 'xls'
-          : type ===
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-          ? 'xlsx'
-          : ''
+            ? 'csv'
+            : type === 'application/vnd.ms-excel'
+              ? 'xls'
+              : type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                ? 'xlsx'
+                : ''
 
       const source =
         fileExtension !== ''
@@ -542,13 +499,7 @@ file`
         return
       }
 
-      requestRun(
-        pythonBlock,
-        blocks.value,
-        layout.value,
-        environmentStartedAt,
-        true
-      )
+      requestRun(pythonBlock, blocks.value, layout.value, environmentStartedAt, true)
     },
     [blocks, layout, environmentStartedAt]
   )
@@ -586,22 +537,14 @@ file`
         return
       }
 
-      requestRun(
-        sqlBlock,
-        blocks.value,
-        layout.value,
-        environmentStartedAt,
-        true
-      )
+      requestRun(sqlBlock, blocks.value, layout.value, environmentStartedAt, true)
     },
     []
   )
 
   const onToggleIsBlockHiddenInPublished = useCallback(
     (blockId: string) => {
-      const blockGroup = layout.value
-        .toArray()
-        .find((bg) => bg.getAttribute('id') === props.id)
+      const blockGroup = layout.value.toArray().find((bg) => bg.getAttribute('id') === props.id)
       if (!blockGroup) {
         return
       }
@@ -681,12 +624,7 @@ file`
   )
 
   const onReorderTab = useCallback(
-    (
-      blockGroupId: string,
-      blockId: string,
-      targetId: string,
-      side: 'left' | 'right'
-    ) => {
+    (blockGroupId: string, blockId: string, targetId: string, side: 'left' | 'right') => {
       props.yDoc.transact(() => {
         return reorderTab(layout.value, blockGroupId, blockId, targetId, side)
       })
@@ -695,12 +633,7 @@ file`
   )
 
   const onCheckCanReorderTab = useCallback(
-    (
-      blockGroupId: string,
-      blockId: string,
-      targetId: string,
-      side: 'left' | 'right'
-    ) => {
+    (blockGroupId: string, blockId: string, targetId: string, side: 'left' | 'right') => {
       return canReorderTab(layout.value, blockGroupId, blockId, targetId, side)
     },
     [layout]
@@ -722,13 +655,7 @@ file`
       }
 
       if (!execStatusIsDisabled(getExecStatus(block, blocks.value))) {
-        requestRun(
-          block,
-          blocks.value,
-          layout.value,
-          environmentStartedAt,
-          i > 0
-        )
+        requestRun(block, blocks.value, layout.value, environmentStartedAt, i > 0)
       }
     })
   }, [blocks, layout, tabRefs, environmentStartedAt])
@@ -750,10 +677,7 @@ file`
 
       tabs.forEach((tab, i) => {
         const tabBlock = blocks.value.get(tab.blockId)
-        if (
-          !tabBlock ||
-          (i < currentTabIndex && currBlockGroupId === props.id)
-        ) {
+        if (!tabBlock || (i < currentTabIndex && currBlockGroupId === props.id)) {
           return
         }
 
@@ -824,19 +748,15 @@ file`
   }, [layout, blocks, props.id])
 
   return (
-    <div className="flex group/wrapper gap-x-1 relative">
+    <div className="group/wrapper relative flex gap-x-1">
       <div
         // this calc is here because CSS sucks
-        className={clsx(
-          'flex flex-col gap-y-1 absolute -translate-x-[calc(100%+4px)] h-full',
-          {
-            hidden: !props.isEditable || props.isApp,
-          }
-        )}
+        className={clsx('absolute flex h-full -translate-x-[calc(100%+4px)] flex-col gap-y-1', {
+          hidden: !props.isEditable || props.isApp,
+        })}
         ref={(d) => {
           drag(d)
-        }}
-      >
+        }}>
         <DragHandle
           isDragging={isDragging}
           onRunBelowBlock={runBelowBlock}
@@ -849,18 +769,16 @@ file`
           onHideAllTabs={onHideAllTabs}
         />
       </div>
-      <div className="flex-grow max-w-full">
+      <div className="max-w-full flex-grow">
         {hasMultipleTabs && !props.isPDF && (
-          <div className="print:hidden flex">
+          <div className="flex print:hidden">
             <div
-              className="flex max-w-full overflow-x-scroll no-scrollbar scroll-smooth"
-              ref={tabContainerRef}
-            >
+              className="no-scrollbar flex max-w-full overflow-x-scroll scroll-smooth"
+              ref={tabContainerRef}>
               {isScrollable && !isScrolledAllTheWayLeft && (
                 <button
-                  className="sticky left-0 h-full bg-white border-t border-r border-l border-gray-200"
-                  onClick={onClickScrollLeft}
-                >
+                  className="sticky left-0 h-full border-l border-r border-t border-gray-200 bg-white"
+                  onClick={onClickScrollLeft}>
                   <ChevronLeftIcon className="h-5 w-5 text-gray-400" />
                 </button>
               )}
@@ -877,9 +795,8 @@ file`
               ))}
               {isScrollable && !isScrolledAllTheWayRight && (
                 <button
-                  className="sticky right-0 h-full bg-white border-t border-r border-l border-gray-200"
-                  onClick={onClickScrollRight}
-                >
+                  className="sticky right-0 h-full border-l border-r border-t border-gray-200 bg-white"
+                  onClick={onClickScrollRight}>
                   <ChevronRightIcon className="h-5 w-5 text-gray-400" />
                 </button>
               )}
@@ -899,23 +816,14 @@ file`
           className="relative"
           ref={(d) => {
             drop(d)
-          }}
-        >
+          }}>
           <div
             className={clsx(
-              'absolute top-0 left-0 h-full w-full z-30 opacity-50 pointer-events-none',
-              isOver && canDrop
-                ? 'bg-ceramic-100'
-                : isDragging
-                ? 'opacity-50'
-                : ''
+              'pointer-events-none absolute left-0 top-0 z-30 h-full w-full opacity-50',
+              isOver && canDrop ? 'bg-ceramic-100' : isDragging ? 'opacity-50' : ''
             )}
           />
-          {props.isPDF ? (
-            <div className="flex flex-col gap-y-10">{nodes}</div>
-          ) : (
-            nodes
-          )}
+          {props.isPDF ? <div className="flex flex-col gap-y-10">{nodes}</div> : nodes}
         </div>
       </div>
     </div>
@@ -935,11 +843,7 @@ const V2EditorRow = (props: {
     targetIndex: number,
     type: Identifier | null
   ) => void
-  onCheckCanDrop: (
-    id: string,
-    index: number,
-    type: Identifier | null
-  ) => boolean
+  onCheckCanDrop: (id: string, index: number, type: Identifier | null) => boolean
   onRemoveBlock: (blockGroupId: string, id: string) => void
   onRemoveBlockGroup: (id: string) => void
   onGroup: (
@@ -1030,18 +934,9 @@ interface Props {
   scrollViewRef: React.RefObject<HTMLDivElement>
 }
 const Editor = (props: Props) => {
-  const { state: layout } = useYDocState<Y.Array<YBlockGroup>>(
-    props.yDoc,
-    layoutGetter
-  )
-  const { state: blocks } = useYDocState<Y.Map<YBlock>>(
-    props.yDoc,
-    blocksGetter
-  )
-  const { state: dataframes } = useYDocState<Y.Map<DataFrame>>(
-    props.yDoc,
-    dataframesGetter
-  )
+  const { state: layout } = useYDocState<Y.Array<YBlockGroup>>(props.yDoc, layoutGetter)
+  const { state: blocks } = useYDocState<Y.Map<YBlock>>(props.yDoc, blocksGetter)
+  const { state: dataframes } = useYDocState<Y.Map<DataFrame>>(props.yDoc, dataframesGetter)
 
   const editorWrapperRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -1094,12 +989,7 @@ const Editor = (props: Props) => {
           case BlockType.DashboardHeader:
             break
           default:
-            newBlockId = addBlockGroup(
-              layout.value,
-              blocks.value,
-              { type },
-              index
-            )
+            newBlockId = addBlockGroup(layout.value, blocks.value, { type }, index)
             break
         }
 
@@ -1143,9 +1033,7 @@ const Editor = (props: Props) => {
       return
     }
 
-    const blockType = blocks.value
-      .get(editorState.cursorBlockId)
-      ?.getAttribute('type')
+    const blockType = blocks.value.get(editorState.cursorBlockId)?.getAttribute('type')
     if (!blockType) {
       return
     }
@@ -1207,10 +1095,7 @@ const Editor = (props: Props) => {
     )
 
     // If block has one tab, remove whole block group
-    if (
-      getTabsFromBlockGroupId(layout.value, blocks.value, blockGroupId).length >
-      1
-    ) {
+    if (getTabsFromBlockGroupId(layout.value, blocks.value, blockGroupId).length > 1) {
       onRemoveBlock(blockGroupId, editorState.cursorBlockId)
 
       if (nextCursorBlockId) {
@@ -1223,14 +1108,7 @@ const Editor = (props: Props) => {
     if (nextCursorBlockId) {
       editorAPI.focus(nextCursorBlockId, { scrollIntoView: true })
     }
-  }, [
-    layout,
-    blocks,
-    editorState,
-    onRemoveBlock,
-    onRemoveBlockGroup,
-    editorAPI.focus,
-  ])
+  }, [layout, blocks, editorState, onRemoveBlock, onRemoveBlockGroup, editorAPI.focus])
 
   useHotkeys({
     moveCursor: editorAPI.move,
@@ -1240,12 +1118,7 @@ const Editor = (props: Props) => {
   })
 
   const onAddGroupedBlock = useCallback(
-    (
-      type: BlockType,
-      blockGroupId: string,
-      blockId: string,
-      position: 'before' | 'after'
-    ) => {
+    (type: BlockType, blockGroupId: string, blockId: string, position: 'before' | 'after') => {
       props.yDoc.transact(() => {
         switch (type) {
           case BlockType.SQL:
@@ -1275,14 +1148,7 @@ const Editor = (props: Props) => {
           case BlockType.DashboardHeader:
             break
           default:
-            addGroupedBlock(
-              layout.value,
-              blocks.value,
-              blockGroupId,
-              blockId,
-              { type },
-              position
-            )
+            addGroupedBlock(layout.value, blocks.value, blockGroupId, blockId, { type }, position)
             break
         }
       })
@@ -1291,12 +1157,7 @@ const Editor = (props: Props) => {
   )
 
   const onDropItem = useCallback(
-    (
-      blockGroupId: string,
-      blockId: string,
-      targetIndex: number,
-      type: Identifier | null
-    ) => {
+    (blockGroupId: string, blockId: string, targetIndex: number, type: Identifier | null) => {
       props.yDoc.transact(() => {
         if (type === ElementType.BlockGroup) {
           updateOrder(layout.value, blockGroupId, targetIndex)
@@ -1309,12 +1170,7 @@ const Editor = (props: Props) => {
   )
 
   const onGroup = useCallback(
-    (
-      blockGroupId: string,
-      blockId: string,
-      targetId: string,
-      type: Identifier | null
-    ) => {
+    (blockGroupId: string, blockId: string, targetId: string, type: Identifier | null) => {
       props.yDoc.transact(() => {
         if (type === ElementType.Block) {
           groupBlocks(layout.value, blockGroupId, blockId, targetId)
@@ -1358,9 +1214,7 @@ const Editor = (props: Props) => {
 
   const hasWriteback = useMemo(
     () =>
-      props.dataSources.some(
-        (ds) => ds.config.type === 'psql' || ds.config.type === 'bigquery'
-      ),
+      props.dataSources.some((ds) => ds.config.type === 'psql' || ds.config.type === 'bigquery'),
     [props.dataSources]
   )
 
@@ -1434,9 +1288,9 @@ const Editor = (props: Props) => {
   const lastUpdatedAt = useLastUpdatedAt(props.yDoc)
 
   return (
-    <div className="editor-v2 flex flex-col flex-grow justify-center font-primary subpixel-antialiased h-full w-full">
+    <div className="editor-v2 font-primary flex h-full w-full flex-grow flex-col justify-center subpixel-antialiased">
       {props.isDeleted && (
-        <div className="bg-yellow-50 py-6 border-b border-yellow-200">
+        <div className="border-b border-yellow-200 bg-yellow-50 py-6">
           <div className="flex justify-center">
             <div className="flex-shrink-0">
               <ExclamationTriangleIcon className="h-5 w-5 text-yellow-400" />
@@ -1445,9 +1299,8 @@ const Editor = (props: Props) => {
               <p className="text-sm leading-5 text-yellow-700">
                 This document is deleted.{' '}
                 <button
-                  className="hover:underline text-primary-600 hover:text-primary-800 font-medium"
-                  onClick={props.onRestoreDocument}
-                >
+                  className="text-primary-600 hover:text-primary-800 font-medium hover:underline"
+                  onClick={props.onRestoreDocument}>
                   Restore.
                 </button>
               </p>
@@ -1460,20 +1313,15 @@ const Editor = (props: Props) => {
         ref={props.scrollViewRef}
         className={clsx(
           'flex h-full justify-center',
-          props.isFullScreen ? 'px-20' : 'sm:px-0 px-4',
+          props.isFullScreen ? 'px-20' : 'px-4 sm:px-0',
           {
             'overflow-y-auto overflow-x-hidden': !props.isPDF,
           }
-        )}
-      >
+        )}>
         <div
           id="editor-wrapper"
           ref={editorWrapperRef}
-          className={clsx(
-            'flex-grow h-full py-2',
-            props.isFullScreen ? 'w-full' : widthClasses
-          )}
-        >
+          className={clsx('h-full flex-grow py-2', props.isFullScreen ? 'w-full' : widthClasses)}>
           <div className={!props.isPDF ? 'pt-12' : ''}>
             <Title
               content={props.yDoc.getXmlFragment('title')}
@@ -1517,19 +1365,13 @@ const Editor = (props: Props) => {
       <RemoveBlockDashboardConflictDialog
         yDoc={props.yDoc}
         state={
-          removeBlockGroupDialog?._tag === 'dashboard-conflict'
-            ? removeBlockGroupDialog
-            : null
+          removeBlockGroupDialog?._tag === 'dashboard-conflict' ? removeBlockGroupDialog : null
         }
         onClose={() => setRemoveBlockGroupDialog(null)}
       />
       <RemoveTabDashboardConflictDialog
         yDoc={props.yDoc}
-        state={
-          removeBlockDialog?._tag === 'dashboard-conflict'
-            ? removeBlockDialog
-            : null
-        }
+        state={removeBlockDialog?._tag === 'dashboard-conflict' ? removeBlockDialog : null}
         onClose={() => setRemoveBlockDialog(null)}
       />
     </div>
@@ -1551,11 +1393,7 @@ interface TabRefProps {
   onSchemaExplorer: (dataSourceId: string | null) => void
   insertBelow: () => void
   isPDF: boolean
-  addGroupedBlock: (
-    blockId: string,
-    blockType: BlockType,
-    position: 'before' | 'after'
-  ) => void
+  addGroupedBlock: (blockId: string, blockType: BlockType, position: 'before' | 'after') => void
   dataframes: Y.Map<DataFrame>
   isApp: boolean
   onFileUploadBlockPythonUsage: (
@@ -1563,10 +1401,7 @@ interface TabRefProps {
     filename: string,
     type: string
   ) => void
-  onFileUploadBlockQueryUsage: (
-    block: Y.XmlElement<FileUploadBlock>,
-    filename: string
-  ) => void
+  onFileUploadBlockQueryUsage: (block: Y.XmlElement<FileUploadBlock>, filename: string) => void
   currentBlockId: string | undefined
   dragPreview: ConnectDragPreview | null
 }
@@ -1607,9 +1442,7 @@ function TabRef(props: TabRefProps) {
         dashboardMode="none"
         hasMultipleTabs={props.hasMultipleTabs}
         isBlockHiddenInPublished={props.tab.isHiddenInPublished}
-        onToggleIsBlockHiddenInPublished={
-          props.onToggleIsBlockHiddenInPublished
-        }
+        onToggleIsBlockHiddenInPublished={props.onToggleIsBlockHiddenInPublished}
         onSchemaExplorer={props.onSchemaExplorer}
         insertBelow={props.insertBelow}
       />
@@ -1628,9 +1461,7 @@ function TabRef(props: TabRefProps) {
         dashboardPlace={null}
         hasMultipleTabs={props.hasMultipleTabs}
         isBlockHiddenInPublished={props.tab.isHiddenInPublished}
-        onToggleIsBlockHiddenInPublished={
-          props.onToggleIsBlockHiddenInPublished
-        }
+        onToggleIsBlockHiddenInPublished={props.onToggleIsBlockHiddenInPublished}
         insertBelow={props.insertBelow}
       />
     ),
@@ -1647,9 +1478,7 @@ function TabRef(props: TabRefProps) {
         isDashboard={false}
         hasMultipleTabs={props.hasMultipleTabs}
         isBlockHiddenInPublished={props.tab.isHiddenInPublished}
-        onToggleIsBlockHiddenInPublished={
-          props.onToggleIsBlockHiddenInPublished
-        }
+        onToggleIsBlockHiddenInPublished={props.onToggleIsBlockHiddenInPublished}
         isCursorWithin={isCursorWithin}
         isCursorInserting={isCursorInserting}
       />
@@ -1709,13 +1538,9 @@ function TabRef(props: TabRefProps) {
         onPythonUsage={(filename, type) =>
           props.onFileUploadBlockPythonUsage(block, filename, type)
         }
-        onQueryUsage={(filename) =>
-          props.onFileUploadBlockQueryUsage(block, filename)
-        }
+        onQueryUsage={(filename) => props.onFileUploadBlockQueryUsage(block, filename)}
         isBlockHiddenInPublished={props.tab.isHiddenInPublished}
-        onToggleIsBlockHiddenInPublished={
-          props.onToggleIsBlockHiddenInPublished
-        }
+        onToggleIsBlockHiddenInPublished={props.onToggleIsBlockHiddenInPublished}
         isCursorWithin={isCursorWithin}
         isCursorInserting={isCursorInserting}
       />
@@ -1731,9 +1556,7 @@ function TabRef(props: TabRefProps) {
         dataSources={props.dataSources}
         dataframes={props.dataframes}
         isBlockHiddenInPublished={props.tab.isHiddenInPublished}
-        onToggleIsBlockHiddenInPublished={
-          props.onToggleIsBlockHiddenInPublished
-        }
+        onToggleIsBlockHiddenInPublished={props.onToggleIsBlockHiddenInPublished}
         isCursorWithin={isCursorWithin}
         isCursorInserting={isCursorInserting}
       />
@@ -1750,9 +1573,7 @@ function TabRef(props: TabRefProps) {
         dragPreview={props.dragPreview}
         dataframes={props.dataframes}
         isBlockHiddenInPublished={props.tab.isHiddenInPublished}
-        onToggleIsBlockHiddenInPublished={
-          props.onToggleIsBlockHiddenInPublished
-        }
+        onToggleIsBlockHiddenInPublished={props.onToggleIsBlockHiddenInPublished}
         dashboardMode="none"
         isCursorWithin={isCursorWithin}
         isCursorInserting={isCursorInserting}
@@ -1764,11 +1585,8 @@ function TabRef(props: TabRefProps) {
     <div
       key={props.tab.blockId}
       className={
-        props.tab.blockId === props.currentBlockId || props.isPDF
-          ? ''
-          : 'h-0 overflow-hidden'
-      }
-    >
+        props.tab.blockId === props.currentBlockId || props.isPDF ? '' : 'h-0 overflow-hidden'
+      }>
       {jsx}
     </div>
   )

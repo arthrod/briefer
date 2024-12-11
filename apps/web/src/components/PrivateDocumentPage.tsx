@@ -1,36 +1,31 @@
 import dynamic from 'next/dynamic'
 
+import { useSession } from '@/hooks/useAuth'
 import { useDataSources } from '@/hooks/useDatasources'
 import useDocument from '@/hooks/useDocument'
-import React, { ReactElement, useCallback, useEffect, useMemo, useState } from 'react'
-import { useRouter } from 'next/router'
-import type { ApiDocument, ApiUser, UserWorkspaceRole } from '@briefer/database'
-import { isNil } from 'ramda'
 import { useDocuments } from '@/hooks/useDocuments'
-import Comments from './Comments'
-import RunAllV2 from './RunAllV2'
 import useFullScreenDocument from '@/hooks/useFullScreenDocument'
-import Schedules from './Schedules'
-import Snapshots from './Snapshots'
 import { useYDoc } from '@/hooks/useYDoc'
-import EllipsisDropdown from './EllipsisDropdown'
+import type { ApiDocument, ApiUser, UserWorkspaceRole } from '@briefer/database'
 import Link from 'next/link'
-import { useSession } from '@/hooks/useAuth'
+import { useRouter } from 'next/router'
+import { isNil } from 'ramda'
+import { ReactElement, useCallback, useEffect, useMemo, useState } from 'react'
+import Comments from './Comments'
+import EllipsisDropdown from './EllipsisDropdown'
+import RunAllV2 from './RunAllV2'
 
-import { BookUpIcon } from 'lucide-react'
+import PreviewIcon from '@/icons/preview.svg'
+import { NEXT_PUBLIC_PUBLIC_URL } from '@/utils/env'
 import clsx from 'clsx'
-import { widthClasses } from './v2Editor/constants'
-import { ContentSkeleton, TitleSkeleton } from './v2Editor/ContentSkeleton'
-import Files from './Files'
-import { PublishBlinkingSignal } from './BlinkingSignal'
-import { Tooltip } from './Tooltips'
 import SchemaExplorer from './schemaExplorer'
 import ShortcutsModal from './ShortcutsModal'
-import { NEXT_PUBLIC_PUBLIC_URL } from '@/utils/env'
-import ReusableComponents from './ReusableComponents'
-import PageSettingsPanel from './PageSettingsPanel'
+import { widthClasses } from './v2Editor/constants'
+import { ContentSkeleton, TitleSkeleton } from './v2Editor/ContentSkeleton'
 
+import RunAllList from './mf/RunAllList/RunAllList'
 import styles from './PrivateDocumentPage.module.scss'
+import SchemaList from './mf/SchemaList/SchemaList'
 // this is needed because this component only works with the browser
 const V2Editor = dynamic(() => import('@/components/v2Editor'), {
   ssr: false,
@@ -57,7 +52,6 @@ export default function PrivateDocumentPage(props: Props) {
     props.workspaceId,
     props.documentId
   )
-
   if (loading || !document) {
     return (
       <div className="flex w-full justify-center">
@@ -87,7 +81,6 @@ function PrivateDocumentPageInner(
   }
 ) {
   const documentTitle = useMemo(() => props.document.title || 'Untitled', [props.document.title])
-
   const [selectedSidebar, setSelectedSidebar] = useState<
     | { _tag: 'comments' }
     | { _tag: 'schedules' }
@@ -97,6 +90,8 @@ function PrivateDocumentPageInner(
     | { _tag: 'shortcuts' }
     | { _tag: 'reusableComponents' }
     | { _tag: 'pageSettings' }
+    | { _tag: 'runAll' }
+    | { _tag: 'schema'}
     | null
   >(null)
 
@@ -147,6 +142,14 @@ function PrivateDocumentPageInner(
 
   const onToggleFiles = useCallback(() => {
     setSelectedSidebar((v) => (v?._tag === 'files' ? null : { _tag: 'files' }))
+  }, [setSelectedSidebar])
+
+  const onToggleRunAll = useCallback(() => {
+    setSelectedSidebar((v) => (v?._tag === 'runAll' ? null : { _tag: 'runAll' }))
+  }, [setSelectedSidebar])
+
+  const onToggleSchema = useCallback(() => {
+    setSelectedSidebar((v) => (v?._tag === 'schema' ? null : { _tag: 'schema' }))
   }, [setSelectedSidebar])
 
   const onTogglePageSettings = useCallback(() => {
@@ -220,6 +223,7 @@ function PrivateDocumentPageInner(
 
         <div className="flex h-[36px] w-full items-center justify-end gap-x-4">
           {!isViewer && <RunAllV2 disabled={false} yDoc={yDoc} primary={props.isApp} />}
+          {/* {!isViewer && <RunAllButton/>} */}
           {props.isApp ? (
             <Link
               className="flex items-center gap-x-1.5 rounded-sm px-3 py-2 text-sm"
@@ -228,24 +232,15 @@ function PrivateDocumentPageInner(
               <span>编辑</span>
             </Link>
           ) : (
-            <Tooltip
-              title="Click to publish"
-              message="This notebook has unpublished changes."
-              active={props.document.publishedAt !== null && isDirty}
-              position="bottom"
-              tooltipClassname="w-40">
-              <button
-                className="bg-primary-200 hover:bg-primary-300 group relative flex items-center gap-x-1.5 rounded-sm px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-                onClick={onPublish}
-                disabled={props.publishing}>
-                <BookUpIcon
-                  className="duration-400 h-4 w-4 rotate-12 transition-transform group-hover:rotate-0"
-                  strokeWidth={1}
-                />
-                <span>预览</span>
-                {isDirty && props.document.publishedAt && <PublishBlinkingSignal />}
-              </button>
-            </Tooltip>
+            <button
+              className={clsx(
+                'flex h-[36px] items-center gap-x-1.5 rounded-sm bg-white px-3 py-1 text-sm text-gray-500 ring-1 ring-gray-200 hover:bg-gray-100'
+              )}
+              onClick={() => {}}
+              disabled={props.publishing}>
+              <PreviewIcon />
+              <span>预览</span>
+            </button>
           )}
 
           <EllipsisDropdown
@@ -258,6 +253,8 @@ function PrivateDocumentPageInner(
             onToggleReusableComponents={onToggleReusableComponents}
             onToggleShortcuts={onToggleShortcuts}
             onTogglePageSettings={onTogglePageSettings}
+            onToggleRunAll={onToggleRunAll}
+            onToggleSchema={onToggleSchema}
             isViewer={isViewer}
             isDeleted={isDeleted}
             isFullScreen={isFullScreen}
@@ -320,7 +317,7 @@ function PrivateDocumentPageInner(
 
       {!isViewer && !isDeleted && (
         <>
-          <Schedules
+          {/* <Schedules
             workspaceId={props.workspaceId}
             documentId={props.documentId}
             isPublished={props.document.publishedAt !== null}
@@ -335,14 +332,24 @@ function PrivateDocumentPageInner(
             visible={selectedSidebar?._tag === 'snapshots'}
             onHide={onHideSidebar}
             isPublished={props.document.publishedAt !== null}
-          />
-          <Files
+          /> */}
+          <RunAllList
+            visible={selectedSidebar?._tag === 'runAll'}
+            onHide={onHideSidebar}
+            documnetId={props.documentId}
+            workspaceId={props.workspaceId}></RunAllList>
+          <SchemaList
+            visible={selectedSidebar?._tag === 'schema'}
+            onHide={onHideSidebar}
+            documnetId={props.documentId}
+            workspaceId={props.workspaceId}></SchemaList>
+          {/* <Files
             workspaceId={props.workspaceId}
             visible={selectedSidebar?._tag === 'files'}
             onHide={onHideSidebar}
             yDoc={yDoc}
-          />
-          <ReusableComponents
+          /> */}
+          {/* <ReusableComponents
             workspaceId={props.workspaceId}
             visible={selectedSidebar?._tag === 'reusableComponents'}
             onHide={onHideSidebar}
@@ -353,7 +360,7 @@ function PrivateDocumentPageInner(
             documentId={props.documentId}
             visible={selectedSidebar?._tag === 'pageSettings'}
             onHide={onHideSidebar}
-          />
+          /> */}
         </>
       )}
     </div>

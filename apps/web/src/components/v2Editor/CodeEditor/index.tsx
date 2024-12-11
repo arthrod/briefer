@@ -74,8 +74,8 @@ function createTextSync(source: Y.Text) {
               typeof change.insert === 'string'
                 ? change.insert
                 : Array.isArray(change.insert)
-                ? change.insert.join('')
-                : ''
+                  ? change.insert.join('')
+                  : ''
             changeSpecs.push({
               from: pos,
               to: pos,
@@ -211,11 +211,7 @@ export function CodeEditor(props: Props) {
         }),
         basicSetup,
         EditorView.lineWrapping,
-        ...(props.language === 'python'
-          ? [python]
-          : props.language === 'sql'
-          ? [sql]
-          : []),
+        ...(props.language === 'python' ? [python] : props.language === 'sql' ? [sql] : []),
         keymap.of(vscodeKeymap),
         EditorState.readOnly.of(props.disabled || props.readOnly),
         createTextSync(source),
@@ -224,15 +220,12 @@ export function CodeEditor(props: Props) {
     }
 
     function getSelection() {
-      const selection =
-        viewRef.current?.state.selection ??
-        mergeRef.current?.view.a.state.selection
+      const selection = viewRef.current?.state.selection ?? mergeRef.current?.view.a.state.selection
 
       const isOutOfRange =
         selection &&
         selection.ranges.some(
-          (range) =>
-            range.from > props.source.length || range.to > props.source.length
+          (range) => range.from > props.source.length || range.to > props.source.length
         )
 
       if (isOutOfRange) {
@@ -338,10 +331,7 @@ export function CodeEditor(props: Props) {
   ])
 
   useEffect(() => {
-    if (
-      editorState.cursorBlockId === props.blockId &&
-      editorState.mode === 'insert'
-    ) {
+    if (editorState.cursorBlockId === props.blockId && editorState.mode === 'insert') {
       if (viewRef.current && !viewRef.current.hasFocus) {
         viewRef.current.focus()
       } else if (

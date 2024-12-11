@@ -466,12 +466,12 @@ function PythonBlock(props: Props) {
           onToggleIsBlockHiddenInPublished={onToggleIsBlockHiddenInPublished}
           hasMultipleTabs={props.hasMultipleTabs}
         />
-        <SaveReusableComponentButton
+        {/* <SaveReusableComponentButton
           isComponent={blockId === component?.blockId}
           onSave={onSaveReusableComponent}
           disabled={!props.isEditable || isComponentInstance}
           isComponentInstance={isComponentInstance}
-        />
+        /> */}
       </div>
     </div>
   )
@@ -480,9 +480,9 @@ function PythonBlock(props: Props) {
 function RunPythonTooltip() {
   return (
     <div>
-      <PlayIcon className="h-3 w-3 text-gray-500" />
+      <PlayIcon className="h-3 w-3 text-white" />
       <div className="bg-hunter-950 pointer-events-none absolute -top-1 left-1/2 flex w-max -translate-x-1/2 -translate-y-full flex-col gap-y-1 rounded-md p-2 font-sans text-xs text-white opacity-0 transition-opacity group-hover:opacity-100">
-        <span>Run code</span>
+        <span>运行代码</span>
         <span className="inline-flex items-center gap-x-1 text-gray-400">
           <span>⌘</span>
           <span>+</span>

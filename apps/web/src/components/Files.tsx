@@ -195,7 +195,7 @@ file`
 
   return (
     <>
-      <Transition
+        <Transition
         as="div"
         show={props.visible}
         className="top-0 right-0 h-full absolute bg-white z-30"

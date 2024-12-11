@@ -16,10 +16,7 @@ import { CalendarIcon, QueueListIcon } from '@heroicons/react/24/solid'
 import { Menu, Transition } from '@headlessui/react'
 import { Table2Icon } from 'lucide-react'
 
-const useClickOutside = (
-  ref: React.RefObject<HTMLDivElement>,
-  callback: () => void
-) => {
+const useClickOutside = (ref: React.RefObject<HTMLDivElement>, callback: () => void) => {
   const handleClickOutside = useCallback(
     (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) {
@@ -64,28 +61,24 @@ function PlusButton(props: Props) {
   )
 
   return (
-    <div className="w-full group relative py-2" ref={wrapperRef}>
+    <div className="group relative w-full py-2" ref={wrapperRef}>
       <button
         className={clsx(
-          'flex items-center justify-center gap-x-2 group-hover:opacity-100 transition-opacity duration-200 w-full h-6',
+          'flex h-6 w-full items-center justify-center gap-x-2 transition-opacity duration-200 group-hover:opacity-100',
           !props.isEditable && 'invisible',
           props.alwaysVisible || showOptions ? 'opacity-100' : 'opacity-0'
         )}
-        onClick={toggleOptions}
-      >
-        <div className="w-full h-[1px] bg-gray-200" />
-        <div className="flex text-gray-400 justify-center items-center gap-x-1 text-[10px] whitespace-nowrap">
+        onClick={toggleOptions}>
+        <div className="h-[1px] w-full bg-gray-200" />
+        <div className="flex items-center justify-center gap-x-1 whitespace-nowrap text-[10px] text-gray-400">
           <PlusIcon className="h-3 w-3 text-gray-400" />
           <span>Add block</span>
         </div>
-        <div className="w-full h-[1px] bg-gray-200" />
+        <div className="h-[1px] w-full bg-gray-200" />
       </button>
 
       {props.isEditable && (showOptions || props.alwaysVisible) && (
-        <BlockList
-          onAddBlock={addBlockHandler}
-          writebackEnabled={props.writebackEnabled}
-        />
+        <BlockList onAddBlock={addBlockHandler} writebackEnabled={props.writebackEnabled} />
       )}
     </div>
   )
@@ -93,7 +86,7 @@ function PlusButton(props: Props) {
 
 const TriangleUp = () => {
   return (
-    <div className="h-3 w-3 bg-white border-t border-l border-gray-200 rotate-45 translate-y-1/2"></div>
+    <div className="h-3 w-3 translate-y-1/2 rotate-45 border-l border-t border-gray-200 bg-white"></div>
   )
 }
 
@@ -105,11 +98,12 @@ function BlockList(props: BlockListProps) {
   const onAddText = useCallback(() => {
     props.onAddBlock(BlockType.RichText)
   }, [props.onAddBlock])
-  const onAddSQL = useCallback(() => {
-    props.onAddBlock(BlockType.SQL)
-  }, [props.onAddBlock])
+
   const onAddPython = useCallback(() => {
     props.onAddBlock(BlockType.Python)
+  }, [props.onAddBlock])
+  const onAddSQL = useCallback(() => {
+    props.onAddBlock(BlockType.SQL)
   }, [props.onAddBlock])
   const onAddVisualization = useCallback(() => {
     props.onAddBlock(BlockType.Visualization)
@@ -131,61 +125,61 @@ function BlockList(props: BlockListProps) {
   }, [props.onAddBlock])
 
   return (
-    <div className="w-full absolute z-30 -translate-y-2">
-      <div className="w-full flex justify-center relative z-30">
+    <div className="absolute z-30 w-full -translate-y-2">
+      <div className="relative z-30 flex w-full justify-center">
         <TriangleUp />
       </div>
-      <div className="w-full bg-white py-1 rounded-md border border-gray-200 flex items-center justify-center divide-x divide-gray-200 shadow-lg">
+      <div className="flex w-full items-center justify-center divide-x divide-gray-200 rounded-md border border-gray-200 bg-white py-1 shadow-lg">
         <BlockSuggestion
-          icon={<Bars3CenterLeftIcon className="w-4 h-4" />}
+          icon={<Bars3CenterLeftIcon className="h-4 w-4" />}
           onAdd={onAddText}
-          text="Text"
+          text="富文本"
         />
         <BlockSuggestion
-          icon={<CircleStackIcon className="w-4 h-4" />}
-          onAdd={onAddSQL}
-          text="Query"
-        />
-        <BlockSuggestion
-          icon={<CodeBracketIcon className="w-4 h-4" />}
+          icon={<CodeBracketIcon className="h-4 w-4" />}
           onAdd={onAddPython}
           text="Python"
         />
         <BlockSuggestion
-          icon={<ChartBarIcon className="w-4 h-4" />}
-          onAdd={onAddVisualization}
-          text="Visualization"
+          icon={<CircleStackIcon className="h-4 w-4" />}
+          onAdd={onAddSQL}
+          text="SQL"
         />
         <BlockSuggestion
-          icon={<Table2Icon className="w-4 h-4" />}
+          icon={<ChartBarIcon className="h-4 w-4" />}
+          onAdd={onAddVisualization}
+          text="可视化"
+        />
+        <BlockSuggestion
+          icon={<Table2Icon className="h-4 w-4" />}
           onAdd={onAddPivotTable}
-          text="Pivot"
+          text="透视表"
         />
         {props.writebackEnabled && (
           <BlockSuggestion
-            icon={<ArrowUpTrayIcon className="w-4 h-4" />}
+            icon={<ArrowUpTrayIcon className="h-4 w-4" />}
             onAdd={onAddWriteback}
-            text="Writeback"
+            text="回写"
           />
         )}
         <MultiBlockSuggestion
-          icon={<PencilSquareIcon className="w-4 h-4" />}
-          text="Input"
+          icon={<PencilSquareIcon className="h-4 w-4" />}
+          text="变量"
           onAdd={onAddInput}
           options={[
             {
-              icon: <PencilSquareIcon className="w-4 h-4" />,
-              text: 'Text',
+              icon: <PencilSquareIcon className="h-4 w-4" />,
+              text: '文本',
               onClick: onAddInput,
             },
             {
-              icon: <QueueListIcon className="w-4 h-4" />,
-              text: 'Dropdown',
+              icon: <QueueListIcon className="h-4 w-4" />,
+              text: '枚举',
               onClick: onAddDropdownInput,
             },
             {
-              icon: <CalendarIcon className="w-4 h-4" />,
-              text: 'Date',
+              icon: <CalendarIcon className="h-4 w-4" />,
+              text: '日期',
               onClick: onAddDateInput,
             },
           ]}
@@ -207,11 +201,10 @@ function BlockSuggestion(props: BlockSuggestionProps) {
   }, [props.onAdd])
 
   return (
-    <div className="w-full text-sm px-1 relative z-30">
+    <div className="relative z-30 w-full px-1 text-sm">
       <button
-        className="w-full transition-colors transition-100 flex items-center justify-center gap-x-2 p-2 rounded-md text-gray-400 bg-white hover:bg-gray-100 hover:text-gray-700"
-        onClick={onClick}
-      >
+        className="transition-100 flex w-full items-center justify-center gap-x-2 rounded-md bg-white p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+        onClick={onClick}>
         {props.icon}
         <span>{props.text}</span>
       </button>
@@ -227,26 +220,24 @@ interface MultiBlockSuggestionProps {
 }
 function MultiBlockSuggestion(props: MultiBlockSuggestionProps) {
   return (
-    <Menu as="div" className="w-full text-sm px-1 relative z-30">
-      <Menu.Button className="w-full transition-colors transition-100 flex items-center justify-center gap-x-2 p-2 rounded-md text-gray-400 bg-white hover:bg-gray-100 hover:text-gray-700 relative">
+    <Menu as="div" className="relative z-30 w-full px-1 text-sm">
+      <Menu.Button className="transition-100 relative flex w-full items-center justify-center gap-x-2 rounded-md bg-white p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700">
         {props.icon}
         <span>{props.text}</span>
-        <ChevronDownIcon className="w-4 h-4" />
+        <ChevronDownIcon className="h-4 w-4" />
       </Menu.Button>
       <Transition
         as="div"
-        className="absolute z-40 right-0"
+        className="absolute right-0 z-40"
         enter="transition-opacity duration-300"
         enterFrom="opacity-0"
         enterTo="opacity-100"
         leave="transition-opacity duration-300"
         leaveFrom="opacity-100"
-        leaveTo="opacity-0"
-      >
+        leaveTo="opacity-0">
         <Menu.Items
           as="div"
-          className="w-44 mt-2 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none font-sans divide-y divide-gray-200"
-        >
+          className="mt-2 w-44 divide-y divide-gray-200 rounded-md bg-white font-sans shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
           {props.options.map((option, index) => (
             <Menu.Item key={index}>
               {({ active }) => (
@@ -255,10 +246,9 @@ function MultiBlockSuggestion(props: MultiBlockSuggestionProps) {
                     active ? 'bg-gray-100 text-gray-900' : 'text-gray-700',
                     index === 0 ? 'rounded-t-md' : '',
                     index === props.options.length - 1 ? 'rounded-b-md' : '',
-                    'flex items-center gap-x-2 w-full text-sm px-4 py-3'
+                    'flex w-full items-center gap-x-2 px-4 py-3 text-sm'
                   )}
-                  onClick={option.onClick}
-                >
+                  onClick={option.onClick}>
                   {option.icon}
                   {option.text}
                 </button>

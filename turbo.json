@@ -1,12 +1,8 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "globalDependencies": [
-    "**/.env.*local",
-    "**/.env",
-    ".eslintrc.js"
-  ],
+  "globalDependencies": ["**/.env.*local", "**/.env", ".eslintrc.js"],
   "globalEnv": [],
-  "tasks": {
+  "pipeline": {
     "build": {
       "outputs": [
         "types/**",
@@ -15,20 +11,14 @@
         "!.next/cache/**",
         "public/dist/**"
       ],
-      "dependsOn": [
-        "^build"
-      ]
+      "dependsOn": ["^build"]
     },
     "test": {
-      "outputs": [
-        "coverage/**"
-      ],
+      "outputs": ["coverage/**"],
       "dependsOn": []
     },
     "lint": {
-      "dependsOn": [
-        "^build"
-      ]
+      "dependsOn": ["^build"]
     },
     "dev": {
       "cache": false,

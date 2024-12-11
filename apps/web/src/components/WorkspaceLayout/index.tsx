@@ -208,7 +208,7 @@ export default function WorkspaceLayout({ children, pagePath, topBarClassname }:
           <ToggleIcon className="h-4 w-4" />
         </span>
         <div
-          className={clsx('b-1 flex h-[3.75rem] w-full shrink-0 justify-between', topBarClassname)}>
+          className={clsx('min-w-[850px] b-1 flex h-[3.75rem] w-full shrink-0 justify-between', topBarClassname)}>
           <div className="flex w-full">
             <div
               className={clsx(
@@ -222,7 +222,7 @@ export default function WorkspaceLayout({ children, pagePath, topBarClassname }:
             {topBarContent}
           </div>
         </div>
-        <div className="flex flex-grow overflow-hidden">{modifiedChildren}</div>
+        <div className="flex flex-grow overflow-hidden min-w-[850px]">{modifiedChildren}</div>
       </main>
     </div>
   )

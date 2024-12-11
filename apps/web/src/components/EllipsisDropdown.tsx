@@ -1,9 +1,11 @@
 import {
+  Bars4Icon,
   BookOpenIcon,
   ClockIcon,
   CodeBracketSquareIcon,
   Cog6ToothIcon,
   MapIcon,
+  RocketLaunchIcon,
 } from '@heroicons/react/24/outline'
 import { ArrowLeftIcon, ArrowRightIcon } from '@heroicons/react/20/solid'
 import { Menu, MenuItems, MenuItem, MenuButton, Transition } from '@headlessui/react'
@@ -19,6 +21,8 @@ interface Props {
   onToggleSchemaExplorer?: () => void
   onToggleShortcuts?: () => void
   onTogglePageSettings?: () => void
+  onToggleRunAll?: () => void
+  onToggleSchema?: () => void
   onToggleReusableComponents?: () => void
   isViewer: boolean
   isDeleted: boolean
@@ -42,7 +46,28 @@ function EllipsisDropdown(props: Props) {
         <MenuItems
           as="div"
           className="mt-1 w-52 divide-y divide-gray-200 rounded-md bg-white font-sans shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
-          {props.onToggleFiles && (
+          {props.onToggleSchema && (
+            <MenuItemButton
+              icon={<Bars4Icon className="h-4 w-4" />}
+              text="数据目录"
+              onClick={props.onToggleSchema}
+            />
+          )}
+          {props.onToggleRunAll && (
+            <MenuItemButton
+              icon={<RocketLaunchIcon className="h-4 w-4" />}
+              text="全量运行记录"
+              onClick={props.onToggleRunAll}
+            />
+          )}
+          {/* {props.onToggleFiles && (
+            <MenuItemButton
+              icon={<FolderIcon className="h-4 w-4" />}
+              text="Files"
+              onClick={props.onToggleFiles}
+            />
+          )} */}
+          {/* {props.onToggleFiles && (
             <MenuItemButton
               icon={<FolderIcon className="h-4 w-4" />}
               text="Files"
@@ -122,7 +147,7 @@ function EllipsisDropdown(props: Props) {
               text="Page settings"
               onClick={props.onTogglePageSettings}
             />
-          )}
+          )} */}
         </MenuItems>
       </Transition>
     </Menu>

@@ -58,8 +58,7 @@ import { SaveReusableComponentButton } from '@/components/ReusableComponents'
 import { useReusableComponents } from '@/hooks/useReusableComponents'
 import { CodeEditor } from '../../CodeEditor'
 
-const NO_DS_TEXT = `-- No data sources connected. Please add one using the "data sources" menu on the bottom left
--- Alternatively, you can upload files using the file upload block and query them using DuckDB as a data source.`
+const NO_DS_TEXT = `-- 未找到数据源`
 
 interface Props {
   block: Y.XmlElement<SQLBlock>
@@ -670,11 +669,9 @@ const ToChartButton = (props: ToChartButtonProps) => {
       disabled={isDisabled}>
       <ChartBarIcon className="h-3 w-3 text-gray-400 group-hover:text-gray-500" />
       <div className="bg-hunter-950 pointer-events-none absolute -top-1 left-1/2 flex w-max max-w-40 -translate-x-1/2 -translate-y-full flex-col gap-y-1 rounded-md p-2 font-sans text-xs text-white opacity-0 transition-opacity group-hover:opacity-100">
-        <span>Create visualization</span>
+        <span>创建可视化</span>
         <span className="inline-flex items-center text-gray-400">
-          {isDisabled
-            ? 'Run a successful query before creating a visualization.'
-            : "Create graphs based on this query's results."}
+          {isDisabled ? '创建可视化之前需要先成功运行SQL查询。' : '根据SQL查询的结果创建图形'}
         </span>
       </div>
     </button>
@@ -684,12 +681,10 @@ const ToChartButton = (props: ToChartButtonProps) => {
 const MissingDataSourceTooltip = () => {
   return (
     <div>
-      <PlayIcon className="h-3 w-3 text-gray-500" />
+      <PlayIcon className="h-3 w-3 text-white" />
       <div className="bg-hunter-950 pointer-events-none absolute -top-1 left-1/2 flex w-max -translate-x-1/2 -translate-y-full flex-col gap-y-1 rounded-md p-2 font-sans text-xs text-white opacity-0 transition-opacity group-hover:opacity-100">
-        <span>No data sources.</span>
-        <span className="inline-flex items-center text-gray-400">
-          Add a data source to run queries.
-        </span>
+        <span>没有数据输入源</span>
+        <span className="inline-flex items-center text-gray-400">添加一个数据输入源</span>
       </div>
     </div>
   )
@@ -698,9 +693,9 @@ const MissingDataSourceTooltip = () => {
 const RunQueryTooltip = () => {
   return (
     <div>
-      <PlayIcon className="h-3 w-3 text-gray-500" />
+      <PlayIcon className="h-3 w-3 text-white" />
       <div className="bg-hunter-950 pointer-events-none absolute -top-1 left-1/2 flex w-max -translate-x-1/2 -translate-y-full flex-col gap-y-1 rounded-md p-2 font-sans text-xs text-white opacity-0 transition-opacity group-hover:opacity-100">
-        <span>Run query</span>
+        <span>运行查询</span>
         <span className="inline-flex items-center gap-x-1 text-gray-400">
           <span>⌘</span>
           <span>+</span>

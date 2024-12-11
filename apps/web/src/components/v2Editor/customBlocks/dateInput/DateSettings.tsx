@@ -44,12 +44,12 @@ export default function DateSettings(props: Props) {
       <div className="flex items-center justify-between w-full">
         <span className="text-xs font-semibold py-1 flex gap-x-1 text-gray-400 w-full">
           <Cog6ToothIcon className="w-4 h-4" />
-          Date input settings
+          日期输入设置
         </span>
 
         <div>
           <Tooltip
-            message="This field's value will be available in Python and SQL blocks as an datetime object. To use it in SQL, interpolate it as {{variable_name}}."
+            message="这个字段的值将在 Python 和 SQL 块中作为 datetime 对象使用。在 SQL 中使用时，请将其插入为 {{variable_name}}"
             className="flex w-full"
             tooltipClassname="w-64"
             position="top"

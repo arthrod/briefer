@@ -37,31 +37,30 @@ body {
 }
 
 :root {
-  --tw-color-primary-50: 250 255 229; /* #faffe5 */
-  --tw-color-primary-100: 242 255 200; /* #f2ffc8 */
-  /* Original is 200 */
-  --tw-color-primary-200: 222 255 128; /* #deff80 */
-  --tw-color-primary-300: 206 251 91; /* #cefb5b */
-  --tw-color-primary-400: 184 242 41; /* #b8f229 */
-  --tw-color-primary-500: 152 216 10; /* #98d80a */
-  --tw-color-primary-600: 118 173 3; /* #76ad03 */
-  --tw-color-primary-700: 89 131 8; /* #598308 */
-  --tw-color-primary-800: 72 103 13; /* #48670d */
-  --tw-color-primary-900: 60 87 16; /* #3c5710 */
-  --tw-color-primary-950: 30 49 2; /* #1e3102 */
+  --tw-color-primary-50: 230 240 255; /* 浅色 */
+  --tw-color-primary-100: 192 214 255; /* 稍深色 */
+  --tw-color-primary-200: 47 105 254; /* 给定色 #2f69fe */
+  --tw-color-primary-300: 31 91 219; /* 稍深 */
+  --tw-color-primary-400: 23 81 195; /* 深一些 */
+  --tw-color-primary-500: 19 72 162; /* 更深的主色 */
+  --tw-color-primary-600: 17 62 143; /* 更深 */
+  --tw-color-primary-700: 15 53 125; /* 暗蓝色 */
+  --tw-color-primary-800: 12 45 107; /* 更深的蓝色 */
+  --tw-color-primary-900: 10 37 97; /* 近乎深蓝 */
+  --tw-color-primary-950: 8 29 87; /* 极深的蓝色 */
 
   /* Original is 50 */
-  --tw-color-ceramic-50: 246 249 243;
-  --tw-color-ceramic-100: 228 238 217;
-  --tw-color-ceramic-200: 198 220 179;
-  --tw-color-ceramic-300: 160 195 133;
-  --tw-color-ceramic-400: 121 165 92;
-  --tw-color-ceramic-500: 93 138 66;
-  --tw-color-ceramic-600: 72 110 51;
-  --tw-color-ceramic-700: 60 89 44;
-  --tw-color-ceramic-800: 50 72 39;
-  --tw-color-ceramic-900: 44 61 36;
-  --tw-color-ceramic-950: 22 35 16;
+  --tw-color-ceramic-50: 240 248 255; /* AliceBlue */
+  --tw-color-ceramic-100: 220 233 252; /* 浅蓝 */
+  --tw-color-ceramic-200: 190 216 249; /* 更浅的蓝 */
+  --tw-color-ceramic-300: 145 190 245; /* 中等浅蓝 */
+  --tw-color-ceramic-400: 95 158 239; /* 标准蓝 */
+  --tw-color-ceramic-500: 50 130 232; /* 主色蓝 */
+  --tw-color-ceramic-600: 40 104 185; /* 深蓝 */
+  --tw-color-ceramic-700: 33 86 153; /* 更深蓝 */
+  --tw-color-ceramic-800: 25 67 118; /* 暗蓝 */
+  --tw-color-ceramic-900: 20 54 95; /* 更深暗蓝 */
+  --tw-color-ceramic-950: 10 30 52; /* 最深蓝 */
 
   --tw-color-selago-50: 247 245 253;
   /* Original is 100 */

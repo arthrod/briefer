@@ -1,23 +1,16 @@
 import { format } from 'date-fns'
-import {
-  CheckCircleIcon,
-  CloudArrowDownIcon,
-  Cog8ToothIcon,
-} from '@heroicons/react/20/solid'
+import { CheckCircleIcon, CloudArrowDownIcon, Cog8ToothIcon } from '@heroicons/react/20/solid'
 
 type LastExecutedStatusTextProps = {
   lastExecutionTime: string
 }
 
-export const QuerySucceededText = ({
-  lastExecutionTime,
-}: LastExecutedStatusTextProps) => {
+export const QuerySucceededText = ({ lastExecutionTime }: LastExecutedStatusTextProps) => {
   return (
-    <span className="font-syne text-gray-300 text-xs flex items-center select-none">
-      <CheckCircleIcon className="w-4 h-4 mr-1" />
+    <span className="font-syne flex select-none items-center text-xs text-gray-300">
+      <CheckCircleIcon className="mr-1 h-4 w-4" />
       <span className="pt-0.5">
-        This query was last executed at{' '}
-        {format(new Date(lastExecutionTime), "h:mm a '-' do MMM, yyyy")}
+        该查询最后一次执行的时间是 {format(new Date(lastExecutionTime), 'HH:mm yyyy-MM-dd')}
       </span>
     </span>
   )
@@ -25,40 +18,37 @@ export const QuerySucceededText = ({
 
 export const LoadingQueryText = () => {
   return (
-    <span className="font-syne text-gray-400 text-xs flex items-center select-none">
-      <CloudArrowDownIcon className="w-4 h-4 mr-1" />
-      <span className="pt-0.5">Executing query...</span>
+    <span className="font-syne flex select-none items-center text-xs text-gray-400">
+      <CloudArrowDownIcon className="mr-1 h-4 w-4" />
+      <span className="pt-0.5">正在执行查询...</span>
     </span>
   )
 }
 
 export const LoadingEnvText = () => {
   return (
-    <span className="font-syne text-gray-400 text-xs flex items-center select-none">
-      <Cog8ToothIcon className="w-4 h-4 mr-1" />
-      <span className="pt-0.5">Starting your environment...</span>
+    <span className="font-syne flex select-none items-center text-xs text-gray-400">
+      <Cog8ToothIcon className="mr-1 h-4 w-4" />
+      <span className="pt-0.5">正在启动您的环境...</span>
     </span>
   )
 }
 
 export const ExecutingPythonText = () => {
   return (
-    <span className="font-syne text-gray-400 text-xs flex items-center select-none">
-      <CloudArrowDownIcon className="w-4 h-4 mr-1" />
-      <span className="pt-0.5">Executing Python code...</span>
+    <span className="font-syne flex select-none items-center text-xs text-gray-400">
+      <CloudArrowDownIcon className="mr-1 h-4 w-4" />
+      <span className="pt-0.5">正在执行 Python 代码...</span>
     </span>
   )
 }
 
-export const PythonSucceededText = ({
-  lastExecutionTime,
-}: LastExecutedStatusTextProps) => {
+export const PythonSucceededText = ({ lastExecutionTime }: LastExecutedStatusTextProps) => {
   return (
-    <span className="font-syne text-gray-300 text-xs flex items-center select-none">
-      <CheckCircleIcon className="w-4 h-4 mr-1" />
+    <span className="font-syne flex select-none items-center text-xs text-gray-300">
+      <CheckCircleIcon className="mr-1 h-4 w-4" />
       <span className="pt-0.5">
-        This code was last executed at{' '}
-        {format(new Date(lastExecutionTime), "h:mm a '-' do MMM, yyyy")}
+        这段代码最后一次执行的时间是 {format(new Date(lastExecutionTime), 'HH:mm yyyy-MM-dd')}
       </span>
     </span>
   )

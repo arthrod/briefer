@@ -37,11 +37,7 @@ interface Props {
     block: Y.XmlElement<PivotTableBlock>,
     customCallback?: (block: Y.XmlElement<PivotTableBlock>) => void
   ) => void
-  onAddGroupedBlock: (
-    blockId: string,
-    blockType: BlockType,
-    position: 'before' | 'after'
-  ) => void
+  onAddGroupedBlock: (blockId: string, blockType: BlockType, position: 'before' | 'after') => void
   hasMultipleTabs: boolean
   isBlockHiddenInPublished: boolean
   onToggleIsBlockHiddenInPublished: (blockId: string) => void
@@ -189,9 +185,7 @@ function PivotTableBlock(props: Props) {
   const onPrevPage = useCallback(() => {
     const run = () => {
       props.block.setAttribute('page', attrs.page - 1)
-      props.onRun(props.block, (b) =>
-        b.setAttribute('status', 'page-requested')
-      )
+      props.onRun(props.block, (b) => b.setAttribute('status', 'page-requested'))
     }
     if (props.block.doc) {
       props.block.doc.transact(run)
@@ -203,9 +197,7 @@ function PivotTableBlock(props: Props) {
   const onNextPage = useCallback(() => {
     const run = () => {
       props.block.setAttribute('page', attrs.page + 1)
-      props.onRun(props.block, (b) =>
-        b.setAttribute('status', 'page-requested')
-      )
+      props.onRun(props.block, (b) => b.setAttribute('status', 'page-requested'))
     }
     if (props.block.doc) {
       props.block.doc.transact(run)
@@ -218,9 +210,7 @@ function PivotTableBlock(props: Props) {
     (page: number) => {
       const run = () => {
         props.block.setAttribute('page', page + 1)
-        props.onRun(props.block, (b) =>
-          b.setAttribute('status', 'page-requested')
-        )
+        props.onRun(props.block, (b) => b.setAttribute('status', 'page-requested'))
       }
 
       if (props.block.doc) {
@@ -265,9 +255,7 @@ function PivotTableBlock(props: Props) {
   }, [attrs.status])
 
   const isEditable =
-    props.isEditable &&
-    attrs.status !== 'run-all-enqueued' &&
-    attrs.status !== 'run-all-running'
+    props.isEditable && attrs.status !== 'run-all-enqueued' && attrs.status !== 'run-all-running'
 
   const execStatus = getPivotTableBlockExecStatus(props.block)
 
@@ -283,16 +271,12 @@ function PivotTableBlock(props: Props) {
     props.onToggleIsBlockHiddenInPublished(attrs.id)
   }, [props.onToggleIsBlockHiddenInPublished, attrs.id])
 
-  const { status: envStatus, loading: envLoading } = useEnvironmentStatus(
-    props.workspaceId
-  )
+  const { status: envStatus, loading: envLoading } = useEnvironmentStatus(props.workspaceId)
 
   const onSort = useCallback(
     (sort: PivotTableSort | null) => {
       props.block.setAttribute('sort', sort)
-      props.onRun(props.block, (b) =>
-        b.setAttribute('status', 'page-requested')
-      )
+      props.onRun(props.block, (b) => b.setAttribute('status', 'page-requested'))
     },
     [props.block, props.onRun]
   )
@@ -305,7 +289,7 @@ function PivotTableBlock(props: Props) {
   if (props.dashboardMode !== 'none') {
     if (!attrs.result) {
       return (
-        <div className="flex items-center justify-center h-full">
+        <div className="flex h-full items-center justify-center">
           {attrs.status !== 'idle' ? (
             <LargeSpinner color="#b8f229" />
           ) : (
@@ -344,47 +328,45 @@ function PivotTableBlock(props: Props) {
     <div
       onClick={onClickWithin}
       className={clsx(
-        'relative group/block bg-white printable-block h-full rounded-md border',
+        'group/block printable-block relative h-full rounded-md border bg-white',
         props.isBlockHiddenInPublished && 'border-dashed',
         props.hasMultipleTabs ? 'rounded-tl-none' : 'rounded-tl-md',
         props.isCursorWithin ? 'border-blue-400 shadow-sm' : 'border-gray-200'
       )}
-      data-block-id={attrs.id}
-    >
+      data-block-id={attrs.id}>
       <div className="h-full">
         <div className="py-3">
           <div
-            className="flex items-center justify-between px-3 pr-3 gap-x-2 h-[1.6rem] font-sans"
+            className="flex h-[1.6rem] items-center justify-between gap-x-2 px-3 pr-3 font-sans"
             ref={(d) => {
               props.dragPreview?.(d)
-            }}
-          >
-            <div className="flex gap-x-4 h-full w-full">
+            }}>
+            <div className="flex h-full w-full gap-x-4">
               <input
                 type="text"
                 disabled={!isEditable}
                 className={clsx(
-                  'font-sans bg-transparent pl-1 ring-gray-200 focus:ring-gray-400 block w-full rounded-md border-0 text-gray-500 disabled:ring-0 hover:ring-1 focus:ring-1 ring-inset placeholder:text-gray-400 focus:ring-inset h-full py-0 text-xs h-full'
+                  'block h-full w-full rounded-md border-0 bg-transparent py-0 pl-1 font-sans text-xs text-gray-500 ring-inset ring-gray-200 placeholder:text-gray-400 hover:ring-1 focus:ring-1 focus:ring-inset focus:ring-gray-400 disabled:ring-0'
                 )}
                 placeholder="Pivot Table"
                 value={attrs.title}
                 onChange={onChangeTitle}
               />
-              <div className="print:hidden flex gap-x-2 min-h-3 text-xs">
+              <div className="flex min-h-3 gap-x-2 text-xs print:hidden">
                 <HeaderSelect
                   value={dataframe?.name ?? ''}
                   onChange={onChangeDataframe}
                   options={dataframeOptions}
                   onAdd={onNewSQL}
-                  onAddLabel="New query"
+                  onAddLabel="新建查询"
                   disabled={!isEditable}
-                  placeholders={['No dataframe selected', 'No dataframes']}
+                  placeholders={['没有可选的dataframe', '没有dataframe']}
                 />
               </div>
             </div>
           </div>
         </div>
-        <div className="h-[496px] border-t border-gray-200 flex items-center">
+        <div className="flex h-[496px] items-center border-t border-gray-200">
           <PivotTableControls
             dataframe={dataframe}
             rows={attrs.rows}
@@ -421,39 +403,33 @@ function PivotTableBlock(props: Props) {
       </div>
       <div
         className={clsx(
-          'absolute transition-opacity opacity-0 group-hover/block:opacity-100 right-0 translate-x-full pl-1.5 top-0 flex flex-col gap-y-1',
+          'absolute right-0 top-0 flex translate-x-full flex-col gap-y-1 pl-1.5 opacity-0 transition-opacity group-hover/block:opacity-100',
           execStatusIsDisabled(execStatus) ? 'opacity-100' : 'opacity-0',
           {
             hidden: !props.isEditable,
           }
-        )}
-      >
+        )}>
         <button
           className={clsx(
             {
-              'bg-gray-200 cursor-not-allowed':
+              'cursor-not-allowed bg-gray-200':
                 attrs.status !== 'idle' && attrs.status !== 'running',
-              'bg-red-200':
-                attrs.status === 'running' && envStatus === 'Running',
-              'bg-yellow-300':
-                attrs.status === 'running' && envStatus !== 'Running',
+              'bg-red-200': attrs.status === 'running' && envStatus === 'Running',
+              'bg-yellow-300': attrs.status === 'running' && envStatus !== 'Running',
               'bg-primary-200': attrs.status === 'idle',
             },
-            'rounded-sm h-6 min-w-6 flex items-center justify-center relative group'
+            'group relative flex h-6 min-w-6 items-center justify-center rounded-sm'
           )}
           onClick={onRunAbort}
           disabled={
-            !dataframe ||
-            !isEditable ||
-            (attrs.status !== 'idle' && attrs.status !== 'running')
-          }
-        >
+            !dataframe || !isEditable || (attrs.status !== 'idle' && attrs.status !== 'running')
+          }>
           {attrs.status !== 'idle' ? (
             <div>
               {execStatus === 'enqueued' ? (
-                <ClockIcon className="w-3 h-3 text-gray-500" />
+                <ClockIcon className="h-3 w-3 text-white" />
               ) : (
-                <StopIcon className="w-3 h-3 text-gray-500" />
+                <StopIcon className="h-3 w-3 text-white" />
               )}
               <PivotTableExecTooltip
                 envStatus={envStatus}
@@ -479,9 +455,9 @@ function PivotTableBlock(props: Props) {
 function RunPivotTableTooltip() {
   return (
     <div>
-      <ArrowPathIcon className="w-3 h-3 text-gray-500" />
-      <div className="font-sans pointer-events-none absolute -top-1 left-1/2 -translate-y-full -translate-x-1/2 w-max opacity-0 transition-opacity group-hover:opacity-100 bg-hunter-950 text-white text-xs p-2 rounded-md flex flex-col gap-y-1">
-        <span>Refresh</span>
+      <ArrowPathIcon className="h-3 w-3 text-white" />
+      <div className="bg-hunter-950 pointer-events-none absolute -top-1 left-1/2 flex w-max -translate-x-1/2 -translate-y-full flex-col gap-y-1 rounded-md p-2 font-sans text-xs text-white opacity-0 transition-opacity group-hover:opacity-100">
+        <span>刷新</span>
       </div>
     </div>
   )
