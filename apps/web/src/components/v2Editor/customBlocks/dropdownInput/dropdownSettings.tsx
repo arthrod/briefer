@@ -292,7 +292,7 @@ const DynamicInput = (props: DynamicInputProps) => {
         label="Dataframe"
         options={dataframes}
         placeholder={
-          dataframes.length === 0 ? 'No dataframes' : 'Select a dataframe'
+          dataframes.length === 0 ? '没有dataframe' : '请选择dataframe'
         }
         value={attrs.dataframeName ?? ''}
         onChange={onChangeDataFrameName}
@@ -302,7 +302,7 @@ const DynamicInput = (props: DynamicInputProps) => {
         disabled={attrs.dataframeName === null}
         value={attrs.columnName ?? ''}
         label="Column"
-        placeholder="Select a column"
+        placeholder="选择一列"
         options={columns}
         onChange={onChangeColumnName}
       />

@@ -7,7 +7,7 @@ import FormattingToolbar from './FormattingToolbar'
 import Link from '@tiptap/extension-link'
 import Highlight from '@tiptap/extension-highlight'
 import TextStyle from '@tiptap/extension-text-style'
-import Paragraph from '@tiptap/extension-paragraph'
+// import Paragraph from '@tiptap/extension-paragraph'
 import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
 import Color from '@tiptap/extension-color'
@@ -27,6 +27,7 @@ import 'katex/dist/katex.min.css'
 
 import ImageExtension from './ImageExtension'
 import useEditorAwareness from '@/hooks/useEditorAwareness'
+import VariableExtension from './VariableExtension'
 
 const useBlockEditor = ({
   content,
@@ -45,7 +46,6 @@ const useBlockEditor = ({
       editable: isEditable,
       immediatelyRender: true,
       extensions: [
-        Paragraph,
         TaskList,
         TaskItem.configure({
           nested: true,
@@ -92,6 +92,7 @@ const useBlockEditor = ({
         TableRow,
         TableHeader,
         TableCell,
+        VariableExtension,
         Extension.create({
           name: 'brieferKeyboardShortcuts',
           addKeyboardShortcuts: () => ({
@@ -105,9 +106,8 @@ const useBlockEditor = ({
       onUpdate({ editor }) {
         const content = editor.getJSON()?.content
         const firstLineContent = content?.[0]?.content?.[0]?.text ?? ''
+        // editor.commands.setVariable(editor.getText())
         if (needTransform && firstLineContent) {
-          console.log(editor.storage.markdown.getMarkdown())
-
           editor.commands.setContent(firstLineContent)
         }
         setTitle(firstLineContent)

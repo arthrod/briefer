@@ -160,7 +160,7 @@ function WritebackBlock(props: Props) {
                 className={clsx(
                   'font-sans pl-1 ring-gray-200 focus:ring-gray-400 block w-full rounded-md border-0 text-gray-500 hover:ring-1 focus:ring-1 ring-inset focus:ring-inset placeholder:text-gray-400 focus:ring-inset h-full py-0 text-xs disabled:ring-0 h-full bg-transparent'
                 )}
-                placeholder="Writeback"
+                placeholder="回写"
                 value={title}
                 onChange={onChangeTitle}
                 disabled={!props.isEditable}
@@ -243,9 +243,9 @@ function WritebackBlock(props: Props) {
             </div>
           ) : (
             <div>
-              <PlayIcon className="w-3 h-3 text-gray-500" />
+              <PlayIcon className="w-3 h-3 text-white" />
               <div className="font-sans pointer-events-none absolute -top-1 left-1/2 -translate-y-full -translate-x-1/2 w-max opacity-0 transition-opacity group-hover:opacity-100 bg-hunter-950 text-white text-xs p-2 rounded-md flex flex-col gap-y-1">
-                <span>Run writeback</span>
+                <span>运行writeback</span>
               </div>
             </div>
           )}

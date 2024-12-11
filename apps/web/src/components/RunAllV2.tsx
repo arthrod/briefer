@@ -54,7 +54,7 @@ export default function RunAllV2(props: Props) {
             loading &&
             (docRunStatus === 'run-requested' || docRunStatus === 'running'),
         },
-        'flex items-center gap-x-1.5 rounded-sm px-3 py-1 text-sm'
+        'flex h-[36px] items-center gap-x-1.5 rounded-sm px-3 py-1 text-sm'
       )}
       onClick={onClick}
       disabled={props.disabled || docRunStatus === 'schedule-running'}>

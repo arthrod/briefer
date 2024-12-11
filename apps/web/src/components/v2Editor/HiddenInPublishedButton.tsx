@@ -17,17 +17,15 @@ function HiddenInPublishedButton(props: Props) {
   return (
     <button
       onClick={onToggle}
-      className="rounded-sm border border-gray-200 h-6 min-w-6 flex items-center justify-center relative group hover:bg-gray-50"
-    >
+      className="group relative flex h-6 min-w-6 items-center justify-center rounded-sm border border-gray-200 hover:bg-gray-50">
       {props.isBlockHiddenInPublished ? (
-        <EyeIcon className="w-3 h-3 text-gray-400 group-hover:text-gray-500" />
+        <EyeIcon className="h-3 w-3 text-gray-400 group-hover:text-gray-500" />
       ) : (
-        <EyeSlashIcon className="w-3 h-3 text-gray-400 group-hover:text-gray-500" />
+        <EyeSlashIcon className="h-3 w-3 text-gray-400 group-hover:text-gray-500" />
       )}
-      <div className="font-sans pointer-events-none absolute -top-1 left-1/2 -translate-y-full -translate-x-1/2 w-max opacity-0 transition-opacity group-hover:opacity-100 bg-hunter-950 text-white text-xs p-2 rounded-md flex flex-col gap-y-1 max-w-40">
+      <div className="bg-hunter-950 pointer-events-none absolute -top-1 left-1/2 flex w-max max-w-40 -translate-x-1/2 -translate-y-full flex-col gap-y-1 rounded-md p-2 font-sans text-xs text-white opacity-0 transition-opacity group-hover:opacity-100">
         <span className="inline-flex items-center text-gray-400">
-          {props.isBlockHiddenInPublished ? 'Show' : 'Hide'} this{' '}
-          {props.hasMultipleTabs ? 'tab' : 'block'} on the published page.
+          {`在发布页面${props.isBlockHiddenInPublished ? '展示' : '隐藏'}这个${props.hasMultipleTabs ? 'tab' : 'block'}`}
         </span>
       </div>
     </button>

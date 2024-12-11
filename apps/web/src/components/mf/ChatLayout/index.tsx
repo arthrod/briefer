@@ -573,10 +573,9 @@ export default function ChatLayout({ children }: Props) {
     }
   }
 
-  const ChatListItem = ({ key, chat }: { key: string; chat: HistoryChat }) => {
+  const ChatListItem = ({ chat }: { chat: HistoryChat }) => {
     return (
       <div
-        key={key}
         className={clsx(
           styles.chatItem,
           chat.id === chatId ? styles.active : '' // 添加选中样式

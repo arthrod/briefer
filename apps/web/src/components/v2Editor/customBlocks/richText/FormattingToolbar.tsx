@@ -1,11 +1,4 @@
-import {
-  Fragment,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BubbleMenu, Editor } from '@tiptap/react'
 import { Level } from '@tiptap/extension-heading'
 import { Menu, Transition } from '@headlessui/react'
@@ -94,7 +87,7 @@ const NodeTypeDropdown = ({ editor }: { editor: Editor }) => {
   return (
     <div className="inline-flex">
       <Menu as="div" className="relative block">
-        <Menu.Button className="relative inline-flex gap-x-1 items-center hover:bg-gray-100 py-1.5 px-1.5 rounded-md">
+        <Menu.Button className="relative inline-flex items-center gap-x-1 rounded-md px-1.5 py-1.5 hover:bg-gray-100">
           {items[currentType].name}
           <ChevronDownIcon className="h-4 w-4" aria-hidden="true" />
         </Menu.Button>
@@ -105,9 +98,8 @@ const NodeTypeDropdown = ({ editor }: { editor: Editor }) => {
           enterTo="transform opacity-100 scale-100"
           leave="transition ease-in duration-75"
           leaveFrom="transform opacity-100 scale-100"
-          leaveTo="transform opacity-0 scale-95"
-        >
-          <Menu.Items className="absolute right-0 z-10 -mr-1 mt-2 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none whitespace-nowrap">
+          leaveTo="transform opacity-0 scale-95">
+          <Menu.Items className="absolute right-0 z-10 -mr-1 mt-2 origin-top-right whitespace-nowrap rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
             <div className="py-0.5">
               {Object.values(items).map((item) => (
                 <Menu.Item key={item.name}>
@@ -117,8 +109,7 @@ const NodeTypeDropdown = ({ editor }: { editor: Editor }) => {
                       className={clsx(
                         active ? 'bg-gray-100 text-gray-900' : 'text-gray-700',
                         'block w-full px-4 py-2 text-left'
-                      )}
-                    >
+                      )}>
                       {item.name}
                     </button>
                   )}
@@ -147,16 +138,15 @@ const ToggleFormattingButton = (props: {
       onClick={props.onToggle}
       className={clsx(
         isActive ? 'bg-gray-100' : '',
-        'h-full text-sm px-2.5 hover:bg-gray-100 relative rounded-md group/toggle-button'
-      )}
-    >
+        'group/toggle-button relative h-full rounded-md px-2.5 text-sm hover:bg-gray-100'
+      )}>
       {props.children}
       <span className="sr-only">{props.name}</span>
-      <div className="font-sans pointer-events-none absolute -top-2 left-1/2 -translate-y-full -translate-x-1/2 w-max opacity-0 transition-opacity group-hover/toggle-button:opacity-100 bg-hunter-950 text-white text-xs p-2 rounded-md flex flex-col gap-y-1 shadow-lg">
+      <div className="bg-hunter-950 pointer-events-none absolute -top-2 left-1/2 flex w-max -translate-x-1/2 -translate-y-full flex-col gap-y-1 rounded-md p-2 font-sans text-xs text-white opacity-0 shadow-lg transition-opacity group-hover/toggle-button:opacity-100">
         <span>{props.name}</span>
-        <span className="text-xs text-gray-400 flex gap-x-0.5 flex justify-center items-center">
-          {props.shortcut.split('').map((key) => {
-            return <span>{key}</span>
+        <span className="flex items-center justify-center gap-x-0.5 text-xs text-gray-400">
+          {props.shortcut.split('').map((key, index) => {
+            return <span key={key + index}>{key}</span>
           })}
         </span>
       </div>
@@ -199,19 +189,17 @@ const ColorOption = (props: {
 }) => {
   return (
     <button
-      className="flex gap-x-1 items-center hover:bg-gray-100 px-2 py-1 rounded-md w-full"
-      onClick={() => props.onShiftColor(props.color)}
-    >
+      className="flex w-full items-center gap-x-1 rounded-md px-2 py-1 hover:bg-gray-100"
+      onClick={() => props.onShiftColor(props.color)}>
       <div
         className="rounded-md border border-gray-200 p-0.5"
         style={{
           backgroundColor: props.color.type === 'bg' ? props.color.hex : '#fff',
           color: props.color.type === 'fg' ? props.color.hex : '#000',
-        }}
-      >
-        <span className="text-[10px] px-1">A</span>
+        }}>
+        <span className="px-1 text-[10px]">A</span>
       </div>
-      <div className="flex items-center justify-between gap-x-8 w-full">
+      <div className="flex w-full items-center justify-between gap-x-8">
         <span>{props.color.name}</span>
         <span className={clsx({ 'opacity-0': !props.isSelected })}>
           <CheckIcon className="h-3 w-3 text-gray-600" />
@@ -249,51 +237,48 @@ const ColorTextButton = (props: { editor: Editor }) => {
   }, [setShowColorsMenu, props.editor.view.state.selection.empty])
 
   return (
-    <div className="pr-0.5 py-[1px] h-full relative group/toggle-button">
+    <div className="group/toggle-button relative h-full py-[1px] pr-0.5">
       <button
         onClick={toggleShowColorsMenu}
         className={clsx(
-          'h-full text-sm px-2.5 relative rounded-md ring-1 ring-inset ring-gray-200 relative overflow-hidden'
+          'relative h-full overflow-hidden rounded-md px-2.5 text-sm ring-1 ring-inset ring-gray-200'
         )}
         style={{
           color: currentColor ?? 'inherit',
           backgroundColor: currentBgColor ?? 'inherit',
-        }}
-      >
-        <div className="h-full w-full absolute top-0 left-0 flex items-center justify-center hover:bg-gray-100/30" />
-        <span className="font-bold text-xs">A</span>
+        }}>
+        <div className="absolute left-0 top-0 flex h-full w-full items-center justify-center hover:bg-gray-100/30" />
+        <span className="text-xs font-bold">A</span>
       </button>
 
-      <div className="font-sans pointer-events-none absolute -top-2 left-1/2 -translate-y-full -translate-x-1/2 w-max opacity-0 transition-opacity group-hover/toggle-button:opacity-100 bg-hunter-950 text-white text-xs p-2 rounded-md flex flex-col gap-y-1 shadow-lg">
+      <div className="bg-hunter-950 pointer-events-none absolute -top-2 left-1/2 flex w-max -translate-x-1/2 -translate-y-full flex-col gap-y-1 rounded-md p-2 font-sans text-xs text-white opacity-0 shadow-lg transition-opacity group-hover/toggle-button:opacity-100">
         <span>Colors</span>
       </div>
 
       {showColorsMenu && (
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-[calc(100%+8px)] bg-white border border-gray-200 px-1 py-2 flex gap-x-2 rounded-md shadow-md">
+        <div className="absolute bottom-0 left-1/2 flex -translate-x-1/2 translate-y-[calc(100%+8px)] gap-x-2 rounded-md border border-gray-200 bg-white px-1 py-2 shadow-md">
           <div className="flex flex-col gap-y-1">
-            <span className="font-medium px-2">Text</span>
+            <span className="px-2 font-medium">Text</span>
             {textColors.map((color) => (
               <ColorOption
                 key={color.name}
                 color={color}
                 onShiftColor={onShiftColor}
                 isSelected={
-                  (color.name === 'Default' && !currentColor) ||
-                  color.hex === currentColor
+                  (color.name === 'Default' && !currentColor) || color.hex === currentColor
                 }
               />
             ))}
           </div>
           <div className="flex flex-col gap-y-1">
-            <span className="font-medium px-2">Background</span>
+            <span className="px-2 font-medium">Background</span>
             {bgColors.map((color) => (
               <ColorOption
                 key={color.name}
                 color={color}
                 onShiftColor={onShiftColor}
                 isSelected={
-                  (color.name === 'Default' && !currentBgColor) ||
-                  color.hex === currentBgColor
+                  (color.name === 'Default' && !currentBgColor) || color.hex === currentBgColor
                 }
               />
             ))}
@@ -358,20 +343,18 @@ const AddLinkButton = (props: {
         onClick={onClickLinkButton}
         className={clsx(
           isActive ? 'bg-gray-100' : '',
-          'h-full text-sm px-2.5 hover:bg-gray-100 relative rounded-md group/toggle-button'
-        )}
-      >
+          'group/toggle-button relative h-full rounded-md px-2.5 text-sm hover:bg-gray-100'
+        )}>
         {props.children}
       </button>
       <form
         className={clsx(
-          'absolute top-0 left-1/2 -translate-x-1/2 -translate-y-[calc(100%+8px)] bg-white p-1.5 ring-1 ring-inset ring-gray-300 rounded-md flex items-center gap-x-1.5 h-8 shadow-md',
+          'absolute left-1/2 top-0 flex h-8 -translate-x-1/2 -translate-y-[calc(100%+8px)] items-center gap-x-1.5 rounded-md bg-white p-1.5 shadow-md ring-1 ring-inset ring-gray-300',
           { hidden: !showLinkForm }
         )}
-        onSubmit={onSubmit}
-      >
+        onSubmit={onSubmit}>
         <input
-          className="text-xs focus:outline-none w-40 px-1 py-0.5 border-0 rounded-sm ring-1 ring-gray-200 focus:ring-1 focus:ring-gray-300 placeholder-gray-300 w-48"
+          className="w-40 w-48 rounded-sm border-0 px-1 py-0.5 text-xs placeholder-gray-300 ring-1 ring-gray-200 focus:outline-none focus:ring-1 focus:ring-gray-300"
           placeholder="Enter a link and press Enter"
           ref={inputRef}
           onChange={(e) => setUrl(e.target.value)}
@@ -379,8 +362,7 @@ const AddLinkButton = (props: {
         />
         <button
           type="submit"
-          className="bg-primary-100 hover:bg-primary-200 h-full px-2 ring-1 ring-primary-400 rounded-sm"
-        >
+          className="bg-primary-100 hover:bg-primary-200 ring-primary-400 h-full rounded-sm px-2 ring-1">
           <CheckIcon className="h-4 w-4 text-gray-600" />
         </button>
       </form>
@@ -408,20 +390,18 @@ const FormattingToolbar = ({ editor }: { editor: Editor }) => {
         },
         duration: 100,
       }}
-      className="bg-white ring-1 ring-inset ring-gray-300 text-gray-600 py-1 rounded-md shadow-md text-xs flex divide-x divide-gray-200"
-    >
-      <div className="flex gap-x-1 items-center justify-center px-1">
+      className="flex divide-x divide-gray-200 rounded-md bg-white py-1 text-xs text-gray-600 shadow-md ring-1 ring-inset ring-gray-300">
+      <div className="flex items-center justify-center gap-x-1 px-1">
         <NodeTypeDropdown editor={editor} />
       </div>
 
-      <div className="flex gap-x-1 items-center justify-center px-1">
+      <div className="flex items-center justify-center gap-x-1 px-1">
         <ToggleFormattingButton
           name="Bold"
           shortcut="⌘+b"
           type="bold"
           onToggle={() => editor.chain().focus().toggleBold().run()}
-          editor={editor}
-        >
+          editor={editor}>
           <strong>B</strong>
         </ToggleFormattingButton>
         <ToggleFormattingButton
@@ -429,8 +409,7 @@ const FormattingToolbar = ({ editor }: { editor: Editor }) => {
           shortcut="⌘+i"
           type="italic"
           onToggle={() => editor.chain().focus().toggleItalic().run()}
-          editor={editor}
-        >
+          editor={editor}>
           <em className="italic">i</em>
         </ToggleFormattingButton>
 
@@ -439,8 +418,7 @@ const FormattingToolbar = ({ editor }: { editor: Editor }) => {
           shortcut="⌘+u"
           type="underline"
           onToggle={() => editor.commands.toggleUnderline()}
-          editor={editor}
-        >
+          editor={editor}>
           <u className="underline">U</u>
         </ToggleFormattingButton>
 
@@ -449,15 +427,14 @@ const FormattingToolbar = ({ editor }: { editor: Editor }) => {
           shortcut="⌘+⇧+x"
           type="strike"
           onToggle={() => editor.chain().focus().toggleStrike().run()}
-          editor={editor}
-        >
+          editor={editor}>
           <s className="line-through">S</s>
         </ToggleFormattingButton>
 
         <ColorTextButton editor={editor} />
       </div>
 
-      <div className="flex gap-x-1 items-center justify-center px-1">
+      <div className="flex items-center justify-center gap-x-1 px-1">
         <AddLinkButton
           onLink={(url) => {
             editor.chain().setLink({ href: url }).run()
@@ -465,8 +442,7 @@ const FormattingToolbar = ({ editor }: { editor: Editor }) => {
           onUnlink={() => {
             editor.chain().focus().unsetLink().run()
           }}
-          editor={editor}
-        >
+          editor={editor}>
           <LinkIcon className="h-4 w-4" />
         </AddLinkButton>
       </div>

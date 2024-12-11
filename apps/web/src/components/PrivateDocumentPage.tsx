@@ -17,7 +17,7 @@ import EllipsisDropdown from './EllipsisDropdown'
 import Link from 'next/link'
 import { useSession } from '@/hooks/useAuth'
 
-import { BookUpIcon } from 'lucide-react'
+import PreviewIcon from '@/icons/preview.svg'
 import clsx from 'clsx'
 import { widthClasses } from './v2Editor/constants'
 import { ContentSkeleton, TitleSkeleton } from './v2Editor/ContentSkeleton'
@@ -234,24 +234,15 @@ function PrivateDocumentPageInner(
               <span>编辑</span>
             </Link>
           ) : (
-            <Tooltip
-              title="Click to publish"
-              message="This notebook has unpublished changes."
-              active={props.document.publishedAt !== null && isDirty}
-              position="bottom"
-              tooltipClassname="w-40">
-              <button
-                className="bg-primary-200 hover:bg-primary-300 group relative flex items-center gap-x-1.5 rounded-sm px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-                onClick={onPublish}
-                disabled={props.publishing}>
-                <BookUpIcon
-                  className="duration-400 h-4 w-4 rotate-12 transition-transform group-hover:rotate-0"
-                  strokeWidth={1}
-                />
-                <span>预览</span>
-                {isDirty && props.document.publishedAt && <PublishBlinkingSignal />}
-              </button>
-            </Tooltip>
+            <button
+              className={clsx(
+                'flex h-[36px] items-center gap-x-1.5 rounded-sm bg-white px-3 py-1 text-sm text-gray-500 ring-1 ring-gray-200 hover:bg-gray-100'
+              )}
+              onClick={() => {}}
+              disabled={props.publishing}>
+              <PreviewIcon />
+              <span>预览</span>
+            </button>
           )}
 
           <EllipsisDropdown

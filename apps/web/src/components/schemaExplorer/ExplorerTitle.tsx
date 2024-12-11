@@ -19,28 +19,18 @@ export default function ExplorerTitle(props: Props) {
   }, [props.dataSource, props.onRetrySchema])
 
   return (
-    <div className="px-6 pt-6 pb-2">
-      <h3 className="text-lg font-medium leading-6 text-gray-900">
-        {props.title}
-      </h3>
-      <p className="text-gray-500 text-sm pt-1">{props.description}</p>
-      {props.canRetrySchema &&
-        props.dataSource?.structure.status === 'success' && (
-          <div className="text-sm pt-1 text-gray-500">
-            Loaded at{' '}
-            {dfns.format(
-              new Date(props.dataSource.structure.updatedAt),
-              "h:mm a '-' do MMM, yyyy"
-            )}
-            .{' '}
-            <span
-              onClick={onRefresh}
-              className="cursor-pointer underline hover:text-gray-800"
-            >
-              Refresh.
-            </span>
-          </div>
-        )}
+    <div className="px-6 pb-2 pt-6">
+      <h3 className="text-lg font-medium leading-6 text-gray-900">{props.title}</h3>
+      <p className="pt-1 text-sm text-gray-500">{props.description}</p>
+      {props.canRetrySchema && props.dataSource?.structure.status === 'success' && (
+        <div className="pt-1 text-sm text-gray-500">
+          Loaded at{' '}
+          {dfns.format(new Date(props.dataSource.structure.updatedAt), "h:mm a '-' do MMM, yyyy")}.{' '}
+          <span onClick={onRefresh} className="cursor-pointer underline hover:text-gray-800">
+            刷新
+          </span>
+        </div>
+      )}
     </div>
   )
 }

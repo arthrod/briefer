@@ -56,7 +56,7 @@ function WritebackDataframe(props: Props) {
       label="Dataframe"
       options={options}
       placeholder={
-        options.length === 0 ? 'No dataframes' : 'Select a dataframe'
+        options.length === 0 ? '没有dataframe' : '选择一个dataframe'
       }
       value={props.value?.name ?? ''}
       onChange={onChange}

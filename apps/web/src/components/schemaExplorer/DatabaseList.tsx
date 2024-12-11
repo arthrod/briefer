@@ -18,7 +18,7 @@ export default function DatabaseList(props: Props) {
   }, [props.dataSources])
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex h-full flex-col">
       <ExplorerTitle
         title="Schema explorer"
         description="Choose a data source to explore its schema."
@@ -26,18 +26,15 @@ export default function DatabaseList(props: Props) {
         onRetrySchema={() => {}}
         canRetrySchema={false}
       />
-      <div className="flex-grow text-sm text-gray-500 font-sans font-medium overflow-y-auto border-t border-gray-200 mt-4">
+      <div className="mt-4 flex-grow overflow-y-auto border-t border-gray-200 font-sans text-sm font-medium text-gray-500">
         <ul className="h-full">
           {sortedDataSources.map((dataSource) => {
             return (
               <li
                 key={dataSource.config.data.id}
-                className="px-4 xl:px-6 py-2 border-b border-gray-200 cursor-pointer hover:bg-gray-50 flex items-center justify-between"
-                onClick={() =>
-                  props.onSelectDataSource(dataSource.config.data.id)
-                }
-              >
-                <div className="flex gap-x-2.5 items-center font-mono text-xs">
+                className="flex cursor-pointer items-center justify-between border-b border-gray-200 px-4 py-2 hover:bg-gray-50 xl:px-6"
+                onClick={() => props.onSelectDataSource(dataSource.config.data.id)}>
+                <div className="flex items-center gap-x-2.5 font-mono text-xs">
                   <img
                     src={databaseImages(dataSource.config.type)}
                     alt=""
@@ -45,20 +42,18 @@ export default function DatabaseList(props: Props) {
                   />
                   <h4>{dataSource.config.data.name}</h4>
                 </div>
-                <div className="flex gap-x-1 items-center">
+                <div className="flex items-center gap-x-1">
                   {isDataSourceStructureLoading(dataSource.structure) ? (
-                    <span className="font-normal text-xs text-gray-400 animate-pulse">
+                    <span className="animate-pulse text-xs font-normal text-gray-400">
                       Refreshing...
                     </span>
                   ) : dataSource.structure.status === 'failed' ? (
                     <>
                       <ExclamationTriangleIcon className="h-3 w-3 text-yellow-400/70" />
-                      <span className="font-normal text-xs text-gray-400">
-                        Schema not loaded
-                      </span>
+                      <span className="text-xs font-normal text-gray-400">Schema not loaded</span>
                     </>
                   ) : null}
-                  <ChevronRightIcon className="h-3 w-3 text-gray-500" />
+                  <ChevronRightIcon className="h-3 w-3 text-white" />
                 </div>
               </li>
             )

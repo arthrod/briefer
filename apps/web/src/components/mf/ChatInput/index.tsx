@@ -50,7 +50,6 @@ const ChatInput = ({ className, showUpload, loading = false, onSend, onStop }: I
       setIsOpen(true)
       const xhr = new XMLHttpRequest()
       xhr.open('POST', NEXT_PUBLIC_MF_API_URL() + '/upload/file', true)
-      xhr.setRequestHeader('Content-Type', 'multipart/form-data')
       xhr.withCredentials = true
       // 设置请求头，确保服务器知道文件名是 URL 编码的
       xhr.setRequestHeader('X-File-Name', fileName)
@@ -145,6 +144,8 @@ const ChatInput = ({ className, showUpload, loading = false, onSend, onStop }: I
 
   const deleteFile = () => {
     setFileId('')
+    setUploadFileName('')
+    setUploadPercent(-2)
     setIsOpen(false)
 
     if (xhrRef.current) {
@@ -223,6 +224,7 @@ const ChatInput = ({ className, showUpload, loading = false, onSend, onStop }: I
                     onClick={() => {
                       deleteFile()
                     }}>
+                    {uploadPercent === -1 ? '上传失败' : ''}
                     <DeleteIcon />
                   </div>
                 ) : (
