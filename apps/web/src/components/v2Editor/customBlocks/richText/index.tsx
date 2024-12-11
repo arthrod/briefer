@@ -27,7 +27,7 @@ import 'katex/dist/katex.min.css'
 
 import ImageExtension from './ImageExtension'
 import useEditorAwareness from '@/hooks/useEditorAwareness'
-import VariableExtension from './VariableExtension'
+// import VariableExtension from './VariableExtension'
 
 const useBlockEditor = ({
   content,
@@ -92,7 +92,7 @@ const useBlockEditor = ({
         TableRow,
         TableHeader,
         TableCell,
-        VariableExtension,
+        // VariableExtension,
         Extension.create({
           name: 'brieferKeyboardShortcuts',
           addKeyboardShortcuts: () => ({
@@ -104,12 +104,14 @@ const useBlockEditor = ({
         }),
       ],
       onUpdate({ editor }) {
-        const content = editor.getJSON()?.content
+        const { content } = editor.getJSON()
         const firstLineContent = content?.[0]?.content?.[0]?.text ?? ''
-        // editor.commands.setVariable(editor.getText())
+        // const text = editor.getText()
+        // editor.commands.setVariable(text)
         if (needTransform && firstLineContent) {
           editor.commands.setContent(firstLineContent)
         }
+
         setTitle(firstLineContent)
       },
       editorProps: {

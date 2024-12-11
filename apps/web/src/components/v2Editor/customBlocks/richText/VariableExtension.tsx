@@ -1,4 +1,4 @@
-import { Node, NodeViewProps, mergeAttributes } from '@tiptap/core'
+import { JSONContent, Node, NodeViewProps, mergeAttributes } from '@tiptap/core'
 import { ReactNodeViewRenderer } from '@tiptap/react'
 import React from 'react'
 import { NodeViewWrapper } from '@tiptap/react'
@@ -11,6 +11,19 @@ declare module '@tiptap/core' {
   }
 }
 
+const serializeNodes = (node: JSONContent): any => {
+  if (!node) {
+    return
+  }
+  if (node.type === 'variable' && node.attrs) {
+    return `{${node.attrs.text}}`
+  }
+  if (node.content) {
+    return node.content.map(serializeNodes).join('')
+  }
+  return node.text || ''
+}
+
 const VariableNodeView: React.FC<NodeViewProps> = ({ node }) => {
   return (
     <NodeViewWrapper as="span" className="inline-block">
@@ -18,7 +31,7 @@ const VariableNodeView: React.FC<NodeViewProps> = ({ node }) => {
         contentEditable={false}
         className="inline-flex items-center whitespace-nowrap rounded bg-blue-100 px-1.5 text-sm text-blue-800"
         style={{ lineHeight: '1.2em' }}>
-        {node.attrs.text}
+        {node.attrs.value}
       </span>
     </NodeViewWrapper>
   )
@@ -78,19 +91,26 @@ export default Node.create<VariableOptions>({
       setVariable:
         (value) =>
         ({ commands }) => {
-          const match = value.match(/\{([^}]{1,30})\}/)
-          if (!match) {
-            return false
+          const matchs = Array.from(value.matchAll(/\{([^}]{1,30})\}/g))
+          if (matchs && matchs.length > 0) {
+            for (let index = matchs.length - 1; index >= 0; index--) {
+              const match = matchs[index]
+              if (!match) {
+                return false
+              }
+              const from = match.index + 1
+              const to = from + match[0].length
+              if (match) {
+                commands.deleteRange({ from: from, to })
+                commands.insertContentAt(from, {
+                  type: this.name,
+                  attrs: { value: match[1] },
+                })
+              }
+            }
+            return true
           }
-          const from = value.indexOf(match[0]) + 1
-          const to = from + match[0].length
-          if (match) {
-            commands.deleteRange({ from: from, to })
-            return commands.insertContentAt(from, {
-              type: this.name,
-              attrs: { text: match[1] },
-            })
-          }
+
           return false
         },
     }
@@ -123,7 +143,10 @@ export default Node.create<VariableOptions>({
         const match = text.match(/\{([^}]{1,30})\}/)
         if (match) {
           editor.commands.deleteRange({ from: from - match[0].length, to: from })
-          editor.commands.setVariable(match[1])
+          editor.commands.insertContentAt(from - match[0].length, {
+            type: this.name,
+            attrs: { value: match[1] },
+          })
           return true
         }
 

@@ -50,17 +50,17 @@ body {
   --tw-color-primary-950: 8 29 87; /* 极深的蓝色 */
 
   /* Original is 50 */
-  --tw-color-ceramic-50: 246 249 243;
-  --tw-color-ceramic-100: 228 238 217;
-  --tw-color-ceramic-200: 198 220 179;
-  --tw-color-ceramic-300: 160 195 133;
-  --tw-color-ceramic-400: 121 165 92;
-  --tw-color-ceramic-500: 93 138 66;
-  --tw-color-ceramic-600: 72 110 51;
-  --tw-color-ceramic-700: 60 89 44;
-  --tw-color-ceramic-800: 50 72 39;
-  --tw-color-ceramic-900: 44 61 36;
-  --tw-color-ceramic-950: 22 35 16;
+  --tw-color-ceramic-50: 240 248 255; /* AliceBlue */
+  --tw-color-ceramic-100: 220 233 252; /* 浅蓝 */
+  --tw-color-ceramic-200: 190 216 249; /* 更浅的蓝 */
+  --tw-color-ceramic-300: 145 190 245; /* 中等浅蓝 */
+  --tw-color-ceramic-400: 95 158 239; /* 标准蓝 */
+  --tw-color-ceramic-500: 50 130 232; /* 主色蓝 */
+  --tw-color-ceramic-600: 40 104 185; /* 深蓝 */
+  --tw-color-ceramic-700: 33 86 153; /* 更深蓝 */
+  --tw-color-ceramic-800: 25 67 118; /* 暗蓝 */
+  --tw-color-ceramic-900: 20 54 95; /* 更深暗蓝 */
+  --tw-color-ceramic-950: 10 30 52; /* 最深蓝 */
 
   --tw-color-selago-50: 247 245 253;
   /* Original is 100 */

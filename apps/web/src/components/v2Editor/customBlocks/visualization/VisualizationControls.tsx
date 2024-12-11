@@ -616,20 +616,18 @@ function VisualizationControls(props: Props) {
                         <div className="font-sans text-white text-xs rounded-md w-72 -translate-x-1/2">
                           <div className="bg-hunter-950 p-2 rounded-md">
                             <span className="text-gray-400 text-center">
-                              This fields accepts{' '}
+                            该字段接受{' '}
                               <a
                                 href="https://d3js.org/d3-format#locale_format"
                                 target="_blank"
                                 className="underline"
                                 rel="noreferrer"
                               >
-                                D3 format strings
+                                D3 格式字符串
                               </a>
-                              . For example, use{' '}
-                              <span className="font-mono">%</span> to format the
-                              numbers as percentage or{' '}
-                              <span className="font-mono">$.2f</span> to format
-                              the numbers as currency with two decimal places.
+                              例如，使用{' '}
+                              <span className="font-mono">%</span>可以将数字格式化为百分比，或者{' '}
+                              <span className="font-mono">$.2f</span>可以将数字格式化为带有两位小数的货币格式
                             </span>
                           </div>
                         </div>

@@ -17,6 +17,7 @@ import { NoData } from '../NoData'
 import styles from './index.module.scss'
 import { StatusItem, StatusList, useQueryStatus } from '@/hooks/mf/runall/useQueryStatus'
 import { NEXT_PUBLIC_MF_API_URL } from '@/utils/env'
+import { useApprove } from '@/hooks/mf/runall/useApprove'
 export interface IProps {
   workspaceId: string
   documnetId: string
@@ -24,14 +25,14 @@ export interface IProps {
   onHide: () => void
 }
 
-export default function RunAll(props: IProps) {
+export default function RunAllList(props: IProps) {
   const observer = useRef<IntersectionObserver | null>(null)
   const listEndRef = useRef<HTMLDivElement | null>(null)
 
   const [loading, setLoading] = useState(true)
   const [isLoadingMore, setIsLoadingMore] = useState(false) // 用于控制分页加载动画
   const [currentPage, setCurrentPage] = useState(1)
-  const [hasMore, setHasMore] = useState(false)
+  const [hasMore, setHasMore] = useState(true)
   const [statusIds, setStatusIds] = useState<number[]>([])
   const eventTimeoutId = useRef(-1)
   const [list, setList] = useState<RunAllItem[]>([])
@@ -62,7 +63,8 @@ export default function RunAll(props: IProps) {
         if (
           item.runStatus === RunAllStatus.Running ||
           item.runStatus === RunAllStatus.CodePushing ||
-          item.approveStatus === ApproveStatus.InReview
+          (item.runStatus === RunAllStatus.RunSuccess &&
+            item.approveStatus === ApproveStatus.InReview)
         ) {
           continueIds.push(item.id)
         }
@@ -100,7 +102,12 @@ export default function RunAll(props: IProps) {
       const ids: number[] = []
       for (const key in list) {
         const item = list[key]
-        if (item.runStatus === RunAllStatus.Running) {
+        if (
+          item.runStatus === RunAllStatus.Running ||
+          item.runStatus === RunAllStatus.CodePushing ||
+          (item.runStatus === RunAllStatus.RunSuccess &&
+            item.approveStatus === ApproveStatus.InReview)
+        ) {
           ids.push(item.id)
         }
       }
@@ -110,6 +117,7 @@ export default function RunAll(props: IProps) {
   )
   const getRunAllList = useRunAllList()
   const getStatusList = useQueryStatus()
+  const requestApprove = useApprove()
   useEffect(() => {
     if (props.visible) {
       setStatusIds([])
@@ -121,7 +129,6 @@ export default function RunAll(props: IProps) {
         .finally(() => {
           setLoading(false)
         })
-      checkRunning(list)
     }
   }, [props.visible])
   const loadMoreData = useCallback(() => {
@@ -216,7 +223,23 @@ export default function RunAll(props: IProps) {
     switch (item.approveStatus) {
       case ApproveStatus.NoSubmit:
         return (
-          <div className={styles.successLayout}>
+          <div
+            className={styles.successLayout}
+            onClick={() => {
+              requestApprove(item.id).then(() => {
+                setList((prevItems) =>
+                  prevItems.map((origin) =>
+                    origin.id === item.id
+                      ? {
+                          ...origin,
+                          approveStatus: ApproveStatus.InReview,
+                        }
+                      : origin
+                  )
+                )
+                checkRunning([item])
+              })
+            }}>
             <div>
               <ApproveIcon></ApproveIcon>
             </div>

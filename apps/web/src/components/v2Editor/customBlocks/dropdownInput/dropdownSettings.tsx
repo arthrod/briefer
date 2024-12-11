@@ -35,7 +35,7 @@ export default function DropdownSettings(props: Props) {
     <div className="bg-gray-50 px-3 py-3 border border-gray-200 flex flex-col gap-y-2 rounded-md shadow-sm">
       <span className="text-xs font-semibold py-1 flex gap-x-1 text-gray-400">
         <Cog6ToothIcon className="w-4 h-4" />
-        Dropdown settings
+        下拉菜单设置
       </span>
 
       <span className="isolate inline-flex rounded-md shadow-sm w-full">
@@ -189,7 +189,7 @@ const StaticInput = (props: StaticInputProps) => {
           className="flex-1 border-0 focus:ring-0 focus:outline-0 rounded-md text-sm placeholder-gray-400 bg-transparent"
           onKeyDown={onOptionsInputKeydown}
           onBlur={onOptionsInputBlur}
-          placeholder="Type an option and press enter or tab"
+          placeholder="输入一个选项并按回车"
         />
       </div>
     </div>
