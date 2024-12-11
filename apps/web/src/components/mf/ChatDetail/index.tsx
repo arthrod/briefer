@@ -11,6 +11,72 @@ export interface ChatDetailProps {
   roundList: MessageContent[]
   onRegenerate: (message: MessageContent) => void
 }
+type Status = 'waiting' | 'running' | 'success' | 'failed'
+interface Task {
+  title: string
+  status: Status
+  blockId: string
+}
+
+interface Module {
+  title: string
+  status: Status
+  blockId: string
+  tasks?: Task[]
+}
+
+interface Job {
+  title: string
+  summary: string
+  status: Status
+  modules?: Module[]
+}
+
+interface StepContent {
+  jobs: Job[]
+}
+
+interface StepJsonType {
+  type: 'step'
+  content: StepContent
+}
+interface TextJsonType {
+  type: 'text'
+  content: string
+}
+type ContentJsonType = StepJsonType | TextJsonType
+
+const data: StepJsonType = {
+  type: 'step',
+  content: {
+    jobs: [
+      {
+        title: '报告模版解析',
+        summary: '解析出30个文档模块',
+        status: 'waiting',
+        modules: [
+          {
+            title: '模块1 (共3个任务)',
+            status: 'waiting',
+            blockId: 'blockId',
+            tasks: [
+              {
+                title: 'Task1: 数据查询代码生成成功',
+                status: 'waiting',
+                blockId: 'blockId',
+              },
+            ],
+          },
+          {
+            title: 'Task1: 数据查询代码生成成功',
+            status: 'waiting',
+            blockId: 'blockId',
+          },
+        ],
+      },
+    ],
+  },
+}
 
 const ChatDetail = ({ roundList, loading = false, onRegenerate }: ChatDetailProps) => {
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -54,6 +120,8 @@ const ChatDetail = ({ roundList, loading = false, onRegenerate }: ChatDetailProp
   const getMessageElm = useCallback(
     (message: MessageContent, index: number) => {
       if (message.role === 'system' || message.role === 'assistant') {
+        const contentJson = JSON.parse(message.content) as ContentJsonType
+
         return (
           <div className={clsx(styles.chatItem, styles.robot)} key={index}>
             <span className={styles.robot}>
@@ -68,6 +136,8 @@ const ChatDetail = ({ roundList, loading = false, onRegenerate }: ChatDetailProp
                   </div>
                 </div>
               </div>
+            ) : contentJson.type === 'step' ? (
+              <div></div>
             ) : (
               <div className={styles.content}>
                 <Markdown>{message.content}</Markdown>
@@ -76,16 +146,15 @@ const ChatDetail = ({ roundList, loading = false, onRegenerate }: ChatDetailProp
             )}
           </div>
         )
-      } else {
-        return (
-          <div className={clsx(styles.chatItem, styles.user)} key={index}>
-            <div className={styles.userAvatar}>{firstLetter}</div>
-            <div className={styles.content}>
-              <span key={index}>{message.content}</span>
-            </div>
-          </div>
-        )
       }
+      return (
+        <div className={clsx(styles.chatItem, styles.user)} key={index}>
+          <div className={styles.userAvatar}>{firstLetter}</div>
+          <div className={styles.content}>
+            <span key={index}>{message.content}</span>
+          </div>
+        </div>
+      )
     },
     [loading, roundList]
   )

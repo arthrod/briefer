@@ -46,94 +46,44 @@ import { useChatCreate } from '@/hooks/mf/chat/useCreateChat'
 
 const defaultMsg: MessageContent = { id: '', role: 'system', content: '我是你的AI小助手' }
 interface Item {
-  type: string
+  type: 'del' | 'edit'
   label: string
 }
 
 interface IMoreBtnProps {
   items: Item[]
-  onItemClick?: (type: string) => void
+  onItemClick?: (type: 'del' | 'edit') => void
 }
 
 const MoreBtn = ({ items, onItemClick }: IMoreBtnProps) => {
   const [isOpen, setIsOpen] = useState(false)
-  const [isDialogOpen, setDialogOpen] = useState(false)
 
-  const handleDialogClose = () => {
-    setDialogOpen(false)
-  }
   return (
     <Popover className={styles.moreOpt}>
-      {({ open, close }) => (
-        <>
-          <PopoverButton as="div" onClick={() => setIsOpen(!open)}>
-            <img src="/icons/more.svg" width={16} />
-          </PopoverButton>
-          <PopoverPanel
-            anchor="bottom"
-            className={clsx('shadow-lg', styles.morePopoverLayout)}
-            style={{ marginTop: '8px' }}>
-            <div className={styles.moreBtnLayout}>
-              {items.map((item, index) =>
-                item.type === 'del' ? (
-                  <AlertDialog key={index} open={isDialogOpen} onOpenChange={setDialogOpen}>
-                    <AlertDialogTrigger
-                      className="w-[100%]"
-                      onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        setDialogOpen(true)
-                      }}>
-                      <div className={styles.moreBtn} key={index}>
-                        {item.label}
-                      </div>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>删除对话</AlertDialogTitle>
-                        <AlertDialogDescription>确定删除该对话么？</AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            e.preventDefault()
-                            close()
-                            handleDialogClose()
-                          }}>
-                          取消
-                        </AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            e.preventDefault()
-                            close()
-                            handleDialogClose()
-                            onItemClick && onItemClick(item.type)
-                          }}>
-                          确定
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                ) : (
-                  <div
-                    className={styles.moreBtn}
-                    key={index}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      e.preventDefault()
-                      close()
-                      onItemClick && onItemClick(item.type)
-                    }}>
-                    {item.label}
-                  </div>
-                )
-              )}
-            </div>
-          </PopoverPanel>
-        </>
-      )}
+      <PopoverButton as="div" onClick={() => setIsOpen(!isOpen)}>
+        <img src="/icons/more.svg" width={16} />
+      </PopoverButton>
+      <PopoverPanel
+        anchor="bottom"
+        className={clsx('shadow-lg', styles.morePopoverLayout)}
+        style={{ marginTop: '8px' }}>
+        {({ close }) => (
+          <div className={styles.moreBtnLayout}>
+            {items.map((item, index) => (
+              <div
+                className={styles.moreBtn}
+                key={index}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  close()
+                  onItemClick && onItemClick(item.type)
+                }}>
+                {item.label}
+              </div>
+            ))}
+          </div>
+        )}
+      </PopoverPanel>
     </Popover>
   )
 }
@@ -454,11 +404,12 @@ export const useChatLayoutContext = () => {
 
 export default function ChatLayout({ children }: Props) {
   const [updateTitleEvent, setUpdateTitleEvent] = useState<EventSource | null>(null)
+  const [isDialogOpen, setDialogOpen] = useState(false)
 
   const [routeTitle, setRouteTitle] = useState('')
   const [currentTitle, setCurrentTitle] = useState('')
   const [isCommit, setIsCommit] = useState(false)
-
+  const delChatId = useRef('')
   const eventTimeoutId = useRef(-1)
   const lastedTimeoutId = useRef(-1)
   const lastedEvent = useRef<EventSource | null>(updateTitleEvent)
@@ -533,6 +484,7 @@ export default function ChatLayout({ children }: Props) {
 
   const deleteChatById = (id: string) => {
     deleteChat(id).then(() => {
+      setDialogOpen(false)
       setChatList((prevChatList) => prevChatList.filter((chat) => chat.id !== id))
       showToast('删除成功', 'success')
       if (chatId === id) {
@@ -628,7 +580,8 @@ export default function ChatLayout({ children }: Props) {
           ]}
           onItemClick={(type) => {
             if (type === 'del') {
-              deleteChatById(chat.id)
+              setDialogOpen(true)
+              delChatId.current = chat.id
             } else if (type === 'edit') {
               setCurrentTitle(chat.title)
               setChatList((prevItems) =>
@@ -697,6 +650,25 @@ export default function ChatLayout({ children }: Props) {
         </div>
         {children}
       </div>
+      <AlertDialog open={isDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>删除对话</AlertDialogTitle>
+            <AlertDialogDescription>确定删除该对话么？</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (delChatId.current) {
+                  deleteChatById(delChatId.current)
+                }
+              }}>
+              确定
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

@@ -2,7 +2,7 @@
   "$schema": "https://turbo.build/schema.json",
   "globalDependencies": ["**/.env.*local", "**/.env", ".eslintrc.js"],
   "globalEnv": [],
-  "pipeline": {
+  "tasks": {
     "build": {
       "outputs": [
         "types/**",
