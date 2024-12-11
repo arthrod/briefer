@@ -61,33 +61,52 @@ function formatDate(date: Date): string {
 // 文件存储配置
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    const uploadDir = path.join('/opt/mindflow/upload/files', formatDate(new Date()))
+    // 默认目录
+    const defaultDir = path.join('/opt/mindflow/upload/files', formatDate(new Date()));
+    // 用户目录（隐藏目录）
+    const fallbackDir = path.join(process.env['HOME'] || '', '.mindflow/upload/files', formatDate(new Date()));
+
+    // 尝试创建默认目录
     try {
-      fs.mkdirSync(uploadDir, { recursive: true })
-      cb(null, uploadDir)
+      fs.mkdirSync(defaultDir, { recursive: true });
+      cb(null, defaultDir);
     } catch (error: unknown) {
+      // 如果没有权限，使用用户目录
       if (error instanceof Error && 'code' in error && error.code === 'EACCES') {
-        Logger.error('创建上传目录失败：没有权限', {
-          uploadDir,
+        Logger.error('创建上传目录失败：没有权限，使用用户目录', {
+          defaultDir,
           error,
           userId: req.session?.user?.id,
-        })
-        cb(Object.assign(new Error('没有权限创建上传目录'), { code: ErrorCode.FORBIDDEN }), uploadDir)
+        });
+        // 确保用户目录存在
+        try {
+          fs.mkdirSync(fallbackDir, { recursive: true });
+          cb(null, fallbackDir);
+        } catch (fallbackError: unknown) {
+          Logger.error('创建用户上传目录失败', {
+            fallbackDir,
+            error: fallbackError,
+            userId: req.session?.user?.id,
+          });
+          cb(Object.assign(new Error('没有权限创建上传目录'), { code: ErrorCode.FORBIDDEN }), fallbackDir);
+        }
       } else {
+        // 其他错误
         Logger.error('创建上传目录失败', {
-          uploadDir,
+          defaultDir,
           error,
           userId: req.session?.user?.id,
-        })
-        cb(Object.assign(new Error('创建上传目录失败'), { code: ErrorCode.SERVER_ERROR }), uploadDir)
+        });
+        cb(Object.assign(new Error('创建上传目录失败'), { code: ErrorCode.SERVER_ERROR }), defaultDir);
       }
     }
   },
   filename: function (req, file, cb) {
-    const fileId = uuidv4()
-    cb(null, fileId)
+    const fileId = uuidv4();
+    cb(null, fileId);
   },
-})
+});
+
 
 // Multer配置
 const upload = multer({
