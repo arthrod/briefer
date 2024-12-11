@@ -169,7 +169,7 @@ export class DropdownInputObserver implements IDropdownInputObserver {
           blockId: block.getAttribute('id'),
           error,
         },
-        'Failed to save variable value'
+        '保存变量值失败'
       )
       updateDropdownInputVariable(block, this.blocks, {
         status: 'idle',
@@ -198,7 +198,7 @@ export class DropdownInputObserver implements IDropdownInputObserver {
         blockId: attrs.id,
         status: attrs.variable.status,
       },
-      'Handling dropdown input block variable status'
+      '已处理下拉输入块变量状态'
     )
 
     if (attrs.variable.status === 'save-requested') {
@@ -214,7 +214,7 @@ export class DropdownInputObserver implements IDropdownInputObserver {
         blockId: block.getAttribute('id'),
         status: attrs.variable.status,
       },
-      'Handled dropdown input block variable status'
+      '已处理下拉输入块变量状态'
     )
   }
 
@@ -232,7 +232,7 @@ export class DropdownInputObserver implements IDropdownInputObserver {
           blockId: block.getAttribute('id'),
           error,
         },
-        'Failed to save dropdown input value'
+        '保存下拉输入值失败'
       )
       updateDropdownInputValue(block, {
         status: 'idle',

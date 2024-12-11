@@ -25,10 +25,9 @@ function errorMessage(
     case 'invalid-variable-name':
       return (
         <>
-          The variable name is invalid:
+          变量名称无效:
           <br />
-          It should start with a letter or underscore, followed by letters,
-          digits, or underscores. Spaces are not allowed.
+          变量名称应以字母或下划线开头，后面可以包含字母、数字或下划线。 不允许包含空格。
         </>
       )
     case 'invalid-value': {
@@ -44,12 +43,7 @@ function errorMessage(
       }
     }
     case 'unexpected-error':
-      return (
-        <>
-          Unexpected error occurred while updating the input. Click this icon to
-          retry.
-        </>
-      )
+      return <>Unexpected error occurred while updating the input. Click this icon to retry.</>
   }
 }
 
@@ -116,10 +110,7 @@ function InputBlock(props: Props) {
     })
   }, [props.block, props.blocks])
 
-  const inputVariableExecStatus = getInputVariableExecStatus(
-    props.block,
-    props.blocks
-  )
+  const inputVariableExecStatus = getInputVariableExecStatus(props.block, props.blocks)
   const inputValueExecStatus = getInputValueExecStatus(props.block)
 
   const selectRef = useRef<HTMLInputElement>(null)
@@ -142,88 +133,69 @@ function InputBlock(props: Props) {
     editorAPI.blur()
   }, [props.block, props.onRun, attrs.value, editorAPI.blur])
 
-  const unfocusOnEscape = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === 'Escape') {
-        selectRef.current?.blur()
-      }
-    },
-    []
-  )
+  const unfocusOnEscape = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Escape') {
+      selectRef.current?.blur()
+    }
+  }, [])
 
   return (
     <div
       className={clsx(
         'w-full',
-        props.belongsToMultiTabGroup && 'border p-4 rounded-tr-md rounded-b-md',
-        props.isCursorWithin && !props.isCursorInserting
-          ? 'border-blue-400'
-          : 'border-gray-200'
+        props.belongsToMultiTabGroup && 'rounded-b-md rounded-tr-md border p-4',
+        props.isCursorWithin && !props.isCursorInserting ? 'border-blue-400' : 'border-gray-200'
       )}
-      data-block-id={blockId}
-    >
+      data-block-id={blockId}>
       <div
         className={!props.isDashboard ? 'w-1/2' : ''}
         ref={(d) => {
           if (props.dragPreview) {
             props.dragPreview(d)
           }
-        }}
-      >
-        <div className="flex justify-between items-center pb-1">
+        }}>
+        <div className="flex items-center justify-between pb-1">
           <div className="flex-grow">
             <input
               data-bounding-rect="true"
-              className="ring-0 text-sm font-medium leading-6 text-gray-900 w-full focus:ring-0 border-0 p-0 bg-transparent"
+              className="w-full border-0 bg-transparent p-0 text-sm font-medium leading-6 text-gray-900 ring-0 focus:ring-0"
               type="text"
               value={attrs.label}
               onChange={onChangeLabel}
               disabled={!props.isEditable || props.isApp}
             />
           </div>
-          <div
-            className={clsx(
-              (!props.isEditable || props.isApp) && 'hidden',
-              'relative py-0.5'
-            )}
-          >
+          <div className={clsx((!props.isEditable || props.isApp) && 'hidden', 'relative py-0.5')}>
             <input
               className={clsx(
-                'ring-0 px-1 py-0.5 rounded-md text-ceramic-500 bg-ceramic-100 text-xs font-medium min-w-12 min-h-4 focus:ring-0 border-0 block text-right',
+                'text-ceramic-500 bg-ceramic-100 block min-h-4 min-w-12 rounded-md border-0 px-1 py-0.5 text-right text-xs font-medium ring-0 focus:ring-0',
                 {
-                  'text-red-500 bg-red-100':
+                  'bg-red-100 text-red-500':
                     attrs.variable.error && inputVariableExecStatus === 'idle',
                   'text-ceramic-500 bg-ceramic-100':
                     !attrs.variable.error && inputVariableExecStatus === 'idle',
-                  'text-gray-300 bg-gray-100':
-                    inputVariableExecStatus === 'loading',
+                  'bg-gray-100 text-gray-300': inputVariableExecStatus === 'loading',
                 }
               )}
               type="text"
               value={attrs.variable.newValue}
               onChange={onChangeVariable}
               onBlur={onBlurVariable}
-              disabled={inputVariableExecStatus !== 'idle'}
+              disabled={inputVariableExecStatus !== 'idle' && inputVariableExecStatus !== 'error'}
             />
-            <div className="absolute inset-y-0 flex items-center pl-1 group z-10">
+            <div className="group absolute inset-y-0 z-10 flex items-center pl-1">
               {(attrs.variable.error || inputVariableExecStatus !== 'idle') &&
                 (inputVariableExecStatus === 'loading' ? (
                   <Spin />
                 ) : inputVariableExecStatus === 'enqueued' ? (
-                  <ClockIcon className="w-4 h-4 text-gray-300" />
+                  <ClockIcon className="h-4 w-4 text-gray-300" />
                 ) : attrs.variable.error ? (
                   <>
-                    <button
-                      disabled={attrs.variable.error === null}
-                      onClick={onRetryVariable}
-                    >
-                      <ExclamationCircleIcon
-                        className="h-3 w-3 text-red-300"
-                        aria-hidden="true"
-                      />
+                    <button disabled={attrs.variable.error === null} onClick={onRetryVariable}>
+                      <ExclamationCircleIcon className="h-3 w-3 text-red-300" aria-hidden="true" />
                     </button>
-                    <div className="font-sans pointer-events-none absolute -top-2 left-1/2 -translate-y-full -translate-x-1/2 opacity-0 transition-opacity group-hover:opacity-100 bg-hunter-950 text-white text-xs p-2 rounded-md flex flex-col gap-y-1 w-72">
-                      <span className="inline-flex gap-x-1 items-center text-gray-400 text-center">
+                    <div className="bg-hunter-950 pointer-events-none absolute -top-2 left-1/2 flex w-72 -translate-x-1/2 -translate-y-full flex-col gap-y-1 rounded-md p-2 font-sans text-xs text-white opacity-0 transition-opacity group-hover:opacity-100">
+                      <span className="inline-flex items-center gap-x-1 text-center text-gray-400">
                         {errorMessage(attrs.variable.error, attrs.inputType)}
                       </span>
                     </div>
@@ -239,46 +211,31 @@ function InputBlock(props: Props) {
             onBlur={onBlur}
             onKeyDown={unfocusOnEscape}
             className={clsx(
-              'block rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset placeholder:text-gray-400 focus:ring-2 focus:ring-inset w-full disabled:bg-gray-100 disabled:cursor-not-allowed bg-white',
-              attrs.value.error
-                ? 'ring-red-200 focus:ring-red-200'
-                : 'focus:ring-primary-200',
-              props.isCursorWithin &&
-                !props.isCursorInserting &&
-                !props.belongsToMultiTabGroup
+              'block w-full rounded-md border-0 bg-white py-1.5 text-gray-900 shadow-sm ring-1 ring-inset placeholder:text-gray-400 focus:ring-2 focus:ring-inset disabled:cursor-not-allowed disabled:bg-gray-100',
+              attrs.value.error ? 'ring-red-200 focus:ring-red-200' : 'focus:ring-primary-200',
+              props.isCursorWithin && !props.isCursorInserting && !props.belongsToMultiTabGroup
                 ? 'ring-blue-400'
                 : 'ring-gray-200'
             )}
             type="text"
             value={attrs.value.newValue}
             onChange={onChangeValue}
-            disabled={
-              inputValueExecStatus !== 'idle' ||
-              (!props.isEditable && !props.isApp)
-            }
+            disabled={inputValueExecStatus !== 'idle' || (!props.isEditable && !props.isApp)}
           />
-          <div className="absolute inset-y-0 right-0 flex items-center pr-3 group">
+          <div className="group absolute inset-y-0 right-0 flex items-center pr-3">
             {(attrs.value.error || inputValueExecStatus !== 'idle') &&
               (inputValueExecStatus === 'loading' ? (
                 <Spin />
               ) : inputValueExecStatus === 'enqueued' ? (
-                <ClockIcon className="w-4 h-4 text-gray-300" />
+                <ClockIcon className="h-4 w-4 text-gray-300" />
               ) : attrs.value.error ? (
                 <>
-                  <button
-                    disabled={attrs.value.error === null}
-                    onClick={onRetryValue}
-                  >
-                    <ExclamationCircleIcon
-                      className="h-4 w-4 text-red-300"
-                      aria-hidden="true"
-                    />
+                  <button disabled={attrs.value.error === null} onClick={onRetryValue}>
+                    <ExclamationCircleIcon className="h-4 w-4 text-red-300" aria-hidden="true" />
                   </button>
-                  <div className="font-sans pointer-events-none absolute -top-2 left-1/2 -translate-y-full -translate-x-1/2 opacity-0 transition-opacity group-hover:opacity-100 bg-hunter-950 text-white text-xs p-2 rounded-md flex flex-col gap-y-1 w-72">
-                    <span className="inline-flex gap-x-1 items-center text-gray-400">
-                      <span>
-                        {errorMessage(attrs.value.error, attrs.inputType)}
-                      </span>
+                  <div className="bg-hunter-950 pointer-events-none absolute -top-2 left-1/2 flex w-72 -translate-x-1/2 -translate-y-full flex-col gap-y-1 rounded-md p-2 font-sans text-xs text-white opacity-0 transition-opacity group-hover:opacity-100">
+                    <span className="inline-flex items-center gap-x-1 text-gray-400">
+                      <span>{errorMessage(attrs.value.error, attrs.inputType)}</span>
                     </span>
                   </div>
                 </>

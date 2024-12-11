@@ -17,7 +17,7 @@ export class RunAllController {
               documentId: 'string',
               jobId: 'string',
               runStatus: 2,
-              approveStatus: 1,
+              approveStatus: 4,
               startTime: '2024/10/28 18:49:09',
               duration: 'string',
               des: 'string',
@@ -96,14 +96,14 @@ export class RunAllController {
     const reqJson = req.body
     try {
       const jobsRes = await fetchWithTimeout(
-        `${CONFIG.RUN_ALL_URL}${CONFIG.ENDPOINTS.LIST}`,
+        `${CONFIG.MANAGER_URL}${CONFIG.ENDPOINTS.LIST}`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            identity: reqJson.documentId,
+            identity: reqJson.chatId,
             page: reqJson.pageNum,
             pageSize: reqJson.pageSize,
             sValue: reqJson.keyword,
@@ -117,7 +117,29 @@ export class RunAllController {
       sendResponse(res, handleError(500, '获取全量运行列表失败'))
     }
   }
-  async createRunAll(req: Request, res: Response) {}
+  async createRunAll(req: Request, res: Response) {
+    const reqJson = req.body
+    try {
+      const jobsRes = await fetchWithTimeout(
+        `${CONFIG.MANAGER_URL}${CONFIG.ENDPOINTS.RUN}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            experimentId: reqJson.chatId,
+            versionName: reqJson.name
+          }),
+        },
+        5000
+      )
+      const result = await jobsRes.json()
+      sendResponse(res, success({ result }))
+    } catch (e) {
+      sendResponse(res, handleError(500, '创建全量运行记录失败'))
+    }
+  }
   async queryStatus(req: Request, res: Response) {
     if (CONFIG.IS_MOCK) {
       return sendResponse(
@@ -130,7 +152,7 @@ export class RunAllController {
               documentId: 'string',
               jobId: 'string',
               runStatus: 2,
-              approveStatus: 1,
+              approveStatus: 4,
               startTime: '2024/10/28 18:49:09',
               endTime: '2024/10/28 18:49:09',
               duration: 'string',
@@ -215,7 +237,7 @@ export class RunAllController {
     const reqJson = req.body
     try {
       const jobsRes = await fetchWithTimeout(
-        `${CONFIG.RUN_ALL_URL}${CONFIG.ENDPOINTS.STATUS}`,
+        `${CONFIG.MANAGER_URL}${CONFIG.ENDPOINTS.STATUS}`,
         {
           method: 'POST',
           headers: {
@@ -237,7 +259,7 @@ export class RunAllController {
     const reqJson = req.body
     try {
       const jobsRes = await fetchWithTimeout(
-        `${CONFIG.RUN_ALL_URL}${CONFIG.ENDPOINTS.APPROVE}`,
+        `${CONFIG.MANAGER_URL}${CONFIG.ENDPOINTS.APPROVE}`,
         {
           method: 'POST',
           headers: {
@@ -252,7 +274,7 @@ export class RunAllController {
       const result = await jobsRes.json()
       sendResponse(res, success({ result }))
     } catch (e) {
-      sendResponse(res, handleError(500, '获取全量运行列表失败'))
+      sendResponse(res, handleError(500, '申请下载失败'))
     }
   }
   async stop(req: Request, res: Response) {}
@@ -269,7 +291,7 @@ export class RunAllController {
       }
       // 获取文件的 URL
       const fileStreamRes = await fetch(
-        `${CONFIG.RUN_ALL_URL}${CONFIG.ENDPOINTS.DOWNLOAD}?id=${id}`,
+        `${CONFIG.MANAGER_URL}${CONFIG.ENDPOINTS.DOWNLOAD}?id=${id}`,
         {
           method: 'GET',
           headers: {

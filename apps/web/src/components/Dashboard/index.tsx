@@ -254,7 +254,7 @@ export default function Dashboard(props: Props) {
         />
         {props.role !== 'viewer' && !isDeleted && (
           <>
-            <Schedules
+            {/* <Schedules
               workspaceId={props.document.workspaceId}
               documentId={props.document.id}
               isPublished={props.document.publishedAt !== null}
@@ -275,7 +275,7 @@ export default function Dashboard(props: Props) {
               visible={selectedSidebar === 'files'}
               onHide={onHideSidebar}
               yDoc={yDoc}
-            />
+            /> */}
           </>
         )}
       </div>

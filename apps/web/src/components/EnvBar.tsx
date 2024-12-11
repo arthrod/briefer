@@ -24,13 +24,10 @@ function EnvBar(props: Props) {
 
   // distance from now
   const publishedAtDisplay = dfns.formatDistanceToNow(props.publishedAt ?? new Date())
-
+    
   const lastUpdatedAt = props.lastUpdatedAt
-    ? `Last updated at ${dfns.format(
-        props.lastUpdatedAt ?? new Date(),
-        `hh:mm a, do 'of' MMMM yyyy`
-      )}.`
-    : 'Never executed.'
+    ? `最后执行的时间 ${dfns.format(props.lastUpdatedAt ?? new Date(), `HH:mm, yyyy-MM-dd`)}`
+    : ''
 
   return (
     <div
@@ -50,7 +47,7 @@ function EnvBar(props: Props) {
             <div>
               <EnvironmentButton name="Python 3.9" workspaceId={workspaceId} />
             </div>
-            <div>
+            {/* <div>
               <Link
                 href={`/workspaces/${workspaceId}/environments/current/variables`}
                 className="flex cursor-pointer items-center gap-x-2 rounded-sm border border-gray-200 px-3 py-1 text-sm hover:bg-gray-50">
@@ -63,7 +60,7 @@ function EnvBar(props: Props) {
               onClick={props.onOpenFiles}>
               <FolderIcon className="h-4 w-4 text-gray-600" />
               <span className="text-gray-700">Files</span>
-            </button>
+            </button> */}
             <div>{`${lastUpdatedAt}`}</div>
           </>
         )}
@@ -77,12 +74,12 @@ function EnvBar(props: Props) {
 
 const EnvironmentButton = ({ name, workspaceId }: { name: string; workspaceId: string }) => {
   return (
-    <Link
-      href={`/workspaces/${workspaceId}/environments/current`}
-      className="flex cursor-pointer items-center gap-x-2 rounded-sm border border-gray-200 px-3 py-1 text-sm hover:bg-gray-50">
+    <div
+      // href={`/workspaces/${workspaceId}/environments/current`}
+      className="flex items-center gap-x-2 rounded-sm border border-gray-200 px-3 py-1 text-sm hover:bg-gray-50">
       <CpuChipIcon className="h-4 w-4 text-gray-600" />
       <span className="text-gray-700">{name}</span>
-    </Link>
+    </div>
   )
 }
 

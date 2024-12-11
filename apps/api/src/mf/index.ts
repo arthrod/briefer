@@ -6,6 +6,7 @@ import uploadRouter from './upload/index.js'
 import resourceRouter from './resource/index.js'
 import { initializeTasks } from './tasks.js'
 import runAllRouter from './runall/index.js'
+import schemaRouter from './schema/index.js'
 
 export default function mfRouter(socketServer: IOServer) {
   const router = Router({ mergeParams: true })
@@ -15,6 +16,7 @@ export default function mfRouter(socketServer: IOServer) {
   router.use('/upload', uploadRouter)
   router.use('/run-all', runAllRouter())
   router.use('/resource', resourceRouter)
+  router.use('/schema', schemaRouter())
   // 初始化后台任务
   initializeTasks()
 

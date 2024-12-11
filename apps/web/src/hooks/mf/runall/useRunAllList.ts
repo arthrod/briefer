@@ -36,7 +36,7 @@ export type RunAllItem = {
 }
 
 export const useRunAllList = () => {
-  const getRunAllList = useCallback(async (pageNum: number, pageSize: number, documentId:string, keyword?: string) => {
+  const getRunAllList = useCallback(async (pageNum: number, pageSize: number, chatId:string, keyword?: string) => {
     const res = await fetch(`${NEXT_PUBLIC_MF_API_URL()}/run-all/list`, {
       credentials: 'include',
       method: 'POST',
@@ -46,6 +46,7 @@ export const useRunAllList = () => {
       body: JSON.stringify({
         pageNum: pageNum,
         pageSize: pageSize,
+        chatId: chatId,
         keyword: keyword,
       }),
     })
