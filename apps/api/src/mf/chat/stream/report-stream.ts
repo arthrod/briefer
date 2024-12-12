@@ -21,7 +21,7 @@ import fs from 'fs'
 import path from 'path'
 import { IOServer } from '../../../websocket/index.js'
 import { ValidationError, APIError, ERROR_CODES } from '../types/errors.js'
-import { ChatRecordStatus } from '../types/interfaces.js'
+import { ChatRecordStatus, ChatRecordTaskStatus } from '../types/interfaces.js'
 
 // 定义更新目标类型
 export interface ReportUpdateTarget {
@@ -287,21 +287,39 @@ async function handleJsonContent(
                 }
             })
 
-            // 获取或创建 ChatRecord
-            const chatRecord = await prisma().chatRecord.create({
-                data: {
-                    id: crypto.randomUUID(),
+            // 查找现有的 ChatRecord
+            const existingChatRecord = await prisma().chatRecord.findFirst({
+                where: {
                     chatId: updateTarget.chatId,
                     roundId: updateTarget.roundId,
-                    question: '',
-                    answer: Buffer.from(JSON.stringify(parsedJson)),
-                    speakerType: 'assistant',
-                    status: ChatRecordStatus.COMPLETED,
-                    createdTime: new Date(),
-                    updateTime: new Date()
+                },
+                orderBy: {
+                    createdTime: 'desc'
                 }
             });
 
+            let chatRecord;
+            if (existingChatRecord) {
+                // 如果存在，使用现有的 ChatRecord
+                chatRecord = existingChatRecord;
+            } else {
+                // 如果不存在，创建新的 ChatRecord
+                chatRecord = await prisma().chatRecord.create({
+                    data: {
+                        id: crypto.randomUUID(),  // 生成新的 UUID
+                        chatId: updateTarget.chatId,
+                        roundId: updateTarget.roundId,  // 使用原始记录的 ID 作为 roundId
+                        question: '',  // 添加空的 question 字段
+                        answer: Buffer.from(JSON.stringify(parsedJson)),
+                        speakerType: 'assistant',
+                        status: ChatRecordStatus.COMPLETED,
+                        createdTime: new Date(),
+                        updateTime: new Date()
+                    }
+                });
+            }
+
+            let chatRecordTask;
             if (parsedJson.phase === 'CREATE') {
                 // 如果有父任务ID，先查找对应的ChatRecordTask记录
                 let parentTaskId: string | null = null;
@@ -315,7 +333,7 @@ async function handleJsonContent(
                     if (parentTask) {
                         parentTaskId = parentTask.id;
                     }
-                    
+
                     logger().info({
                         msg: 'Found parent task',
                         data: {
@@ -327,7 +345,7 @@ async function handleJsonContent(
                 }
 
                 // 创建新任务
-                const task = await prisma().chatRecordTask.create({
+                chatRecordTask = await prisma().chatRecordTask.create({
                     data: {
                         id: crypto.randomUUID(),
                         chatRecordId: chatRecord.id,
@@ -336,7 +354,7 @@ async function handleJsonContent(
                         description: parsedJson.params.description,
                         parentId: parentTaskId, // 使用查询到的父任务ID
                         subTaskCount: parseInt(parsedJson.params.sub_task_count) || 0,
-                        status: parsedJson.params.status || 'waiting',
+                        status: parsedJson.params.status || ChatRecordTaskStatus.PENDING,
                         variable: parsedJson.params.variable
                     }
                 })
@@ -346,18 +364,23 @@ async function handleJsonContent(
                     type: 'task',
                     phase: 'CREATE',
                     params: {
-                        id: task.id,
-                        agent_task_id: task.agentTaskId,
-                        name: task.name,
-                        description: task.description,
-                        parent_id: task.parentId,
-                        sub_task_count: task.subTaskCount,
-                        status: task.status,
-                        variable: task.variable
+                        id: chatRecordTask.id,
+                        agent_task_id: chatRecordTask.agentTaskId,
+                        name: chatRecordTask.name,
+                        description: chatRecordTask.description,
+                        parent_id: chatRecordTask.parentId,
+                        sub_task_count: chatRecordTask.subTaskCount,
+                        status: chatRecordTask.status,
+                        variable: chatRecordTask.variable
                     }
                 })}\n\n`)
 
             } else if (parsedJson.phase === 'UPDATE') {
+                // 验证 status 是否是 ChatRecordTaskStatus 枚举的值
+                if (!Object.values(ChatRecordTaskStatus).includes(parsedJson.params.status)) {
+                    throw new Error(`Invalid status: ${parsedJson.params.status}`);
+                }
+
                 // 查找对应的 ChatRecord
                 const chatRecord = await prisma().chatRecord.findFirst({
                     where: {
@@ -380,7 +403,9 @@ async function handleJsonContent(
                         agentTaskId: parsedJson.params.id
                     },
                     data: {
+                        name: parsedJson.params.name,
                         status: parsedJson.params.status,
+                        description: parsedJson.params.description,
                         updateTime: new Date()
                     }
                 })
@@ -712,8 +737,8 @@ class ReportStreamProcessor extends BaseStreamProcessor {
             // 处理之前缓存的消息（如果有）
             if (this.pendingJsonMessage) {
                 await handleJsonContent(
-                    this.pendingJsonMessage, 
-                    this.config.res, 
+                    this.pendingJsonMessage,
+                    this.config.res,
                     this.updateTarget,
                     false  // 不是最后一条消息，因为现在有新消息
                 );

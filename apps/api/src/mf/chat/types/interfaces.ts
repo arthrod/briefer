@@ -250,3 +250,11 @@ export enum RoleType {
   USER = 'user',     // 用户角色
   ASSISTANT = 'assistant' // AI助手
 }
+
+// 定义 ChatRecordTask 状态的枚举
+export enum ChatRecordTaskStatus {
+  PENDING = 'waiting',
+  IN_PROGRESS = 'running',
+  COMPLETED = 'success',
+  FAILED = 'failed'
+}
