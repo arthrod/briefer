@@ -121,9 +121,10 @@ const ChatDetail = ({ roundList, loading = false, onRegenerate }: ChatDetailProp
   const getMessageElm = useCallback(
     (message: MessageContent, index: number) => {
       if (message.role === 'system' || message.role === 'assistant') {
-        const contentJson = JSON.parse(
-          `{"type":"text", "content": "${message.content}"}`
-        ) as ContentJsonType
+        const contentJson = data
+        // JSON.parse(
+        //   `{"type":"text", "content": "${message.content}"}`
+        // ) as ContentJsonType
 
         return (
           <div className={clsx(styles.chatItem, styles.robot)} key={index}>

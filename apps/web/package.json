@@ -100,6 +100,7 @@
     "plotly.js": "^2.27.1",
     "posthog-js": "^1.160.3",
     "ramda": "^0.29.1",
+    "rc-steps": "^6.0.1",
     "react": "^18.2.0",
     "react-calendly": "^4.3.0",
     "react-copy-to-clipboard": "^5.1.0",
