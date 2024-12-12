@@ -37,6 +37,7 @@ export interface ReportUpdateTarget {
 interface BlockRequest {
     type: string
     variable?: string
+    variables?: string[]
     label?: string
     content?: string
     options?: Array<{ label: string; value: any }>
@@ -76,7 +77,7 @@ function createBlockFromRequest(blockRequest: BlockRequest): YBlock {
             return makeDateInputBlock(id, blocks)
 
         case 'RICH_TEXT':
-            const richTextBlock = makeRichTextBlock(id)
+            const richTextBlock = makeRichTextBlock(id, blockRequest.variables)
             if (blockRequest.content) {
                 const content = new Y.XmlFragment()
                 // Create paragraph element for proper structure

@@ -11,13 +11,17 @@ import {
 
 export type RichTextBlock = BaseBlock<BlockType.RichText> & {
   needTransform: boolean
+  variables?: string[]
   content: Y.XmlFragment
 }
 export const isRichTextBlock = (block: YBlock): block is Y.XmlElement<RichTextBlock> => {
   return block.getAttribute('type') === BlockType.RichText
 }
 
-export const makeRichTextBlock = (id: string): Y.XmlElement<RichTextBlock> => {
+export const makeRichTextBlock = (
+  id: string,
+  variables?: string[]
+): Y.XmlElement<RichTextBlock> => {
   const yBlock = new Y.XmlElement<RichTextBlock>('block')
 
   const attrs: RichTextBlock = {
@@ -27,6 +31,7 @@ export const makeRichTextBlock = (id: string): Y.XmlElement<RichTextBlock> => {
     title: '',
     type: BlockType.RichText,
     content: new Y.XmlFragment(),
+    variables: variables ?? [],
   }
 
   for (const [key, value] of Object.entries(attrs)) {

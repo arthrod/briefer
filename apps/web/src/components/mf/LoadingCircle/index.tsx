@@ -1,8 +1,12 @@
 import LoadingIcon from '@/icons/loading-circle.svg'
 import styles from './index.module.scss'
-export const LoadingCircle = () => {
+import clsx from 'clsx'
+interface Props {
+  size?: 'sm' | 'md'
+}
+export const LoadingCircle = ({ size = 'md' }: Props) => {
   return (
-    <span className={styles['loading-circle']}>
+    <span className={clsx(styles['loading-circle'], styles[`${size}`])}>
       <LoadingIcon />
     </span>
   )
