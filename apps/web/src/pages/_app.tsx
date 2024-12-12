@@ -11,6 +11,7 @@ import '@/styles/globals.css'
 import '@/styles/markdown.scss'
 import '@/styles/highlingt-light.scss'
 import 'simplebar-react/dist/simplebar.min.css'
+import '@/styles/rc-steps.scss'
 
 import '../../scripts/wdyr'
 import DndBackendProvider from '@/components/DndBackendProvider'

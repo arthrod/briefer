@@ -1,6 +1,12 @@
 .loading-circle {
   display: inline-block;
   animation: rotate 2s linear infinite;
+  font-size: inherit;
+  &.sm {
+    svg {
+      transform: scale(0.5);
+    }
+  }
 }
 @keyframes rotate {
   0% {
