@@ -169,12 +169,9 @@ export class ChatController {
     const { chatId } = result.data
     const userId = req.session.user.id
 
-    const statusResult = await chatService.getChatStatus(chatId, userId)
-    return {
-      code: 0,
-      data: statusResult,
-      msg: 'success'
-    }
+    const statusResult = await chatService.getChatStatus(userId, chatId)
+
+    return sendSuccess(res, statusResult, '获取成功')
   }
 
   /**
