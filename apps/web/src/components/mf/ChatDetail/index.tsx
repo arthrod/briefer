@@ -6,6 +6,7 @@ import { useSession } from '@/hooks/useAuth'
 import ScrollBar from '@/components/ScrollBar'
 import Pointer from '../Pointer'
 import Markdown from '../markdown'
+import ReportStep from './ReportStep'
 export interface ChatDetailProps {
   loading?: boolean
   roundList: MessageContent[]
@@ -120,7 +121,9 @@ const ChatDetail = ({ roundList, loading = false, onRegenerate }: ChatDetailProp
   const getMessageElm = useCallback(
     (message: MessageContent, index: number) => {
       if (message.role === 'system' || message.role === 'assistant') {
-        const contentJson = JSON.parse(message.content) as ContentJsonType
+        const contentJson = JSON.parse(
+          `{"type":"text", "content": "${message.content}"}`
+        ) as ContentJsonType
 
         return (
           <div className={clsx(styles.chatItem, styles.robot)} key={index}>
@@ -137,7 +140,7 @@ const ChatDetail = ({ roundList, loading = false, onRegenerate }: ChatDetailProp
                 </div>
               </div>
             ) : contentJson.type === 'step' ? (
-              <div></div>
+              <ReportStep></ReportStep>
             ) : (
               <div className={styles.content}>
                 <Markdown>{message.content}</Markdown>
@@ -161,7 +164,9 @@ const ChatDetail = ({ roundList, loading = false, onRegenerate }: ChatDetailProp
 
   return (
     <ScrollBar ref={scrollRef} className={styles.chatDetailLayout}>
-      {(roundList || []).map((message, index) => getMessageElm(message, index))}
+      {(roundList || []).map((message, index) => {
+        return getMessageElm(message, index)
+      })}
     </ScrollBar>
   )
 }
