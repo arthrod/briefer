@@ -976,6 +976,110 @@ export class ChatService {
     const status = chat.records[0]?.status === ChatRecordStatus.PROCESSING ? 'chatting' : 'idle'
     const roundId = status === 'chatting' ? chat.records[0]?.id : ''
 
+    const history: { type: string; content: any }[] = []
+    const records = await prisma().chatRecord.findMany({
+      where: {
+        chatId: chatId,
+      },
+      select: {
+        id: true,
+        question: true,
+        speakerType: true,
+        answer: true,
+        status: true,
+        createdTime: true
+      },
+      orderBy: {
+        createdTime: 'asc'
+      }
+    });
+
+    // Process records sequentially
+    for (const record of records) {
+      if (record.speakerType === 'user') {
+        history.push({
+          type: 'text',
+          content: record.question
+        });
+      } else {
+        // Handle both assistant responses and report responses
+        const answerContent = record.answer.toString();
+        if (answerContent) {
+          history.push({
+            type: 'text',
+            content: answerContent
+          });
+        }
+
+        // Fetch ChatRecordTask entries for this record
+        const tasks = await prisma().chatRecordTask.findMany({
+          where: { chatRecordId: record.id },
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            status: true,
+            parentId: true,
+            createdTime: true
+          },
+          orderBy: {
+            createdTime: 'asc'
+          }
+        });
+
+        if (tasks.length > 0) {
+          // Group tasks by parentId
+          const taskMap = new Map();
+          const rootTasks: any[] = [];
+          const moduleMap = new Map();
+          const subTaskMap = new Map();
+
+          // First pass: Organize all tasks into their respective groups
+          tasks.forEach(task => {
+            if (!task.parentId) {
+              // Root level tasks (jobs)
+              rootTasks.push({
+                title: task.name,
+                summary: task.description,
+                status: task.status,
+                modules: []
+              });
+              taskMap.set(task.id, rootTasks[rootTasks.length - 1]);
+            } else if (taskMap.has(task.parentId)) {
+              // Module level tasks
+              const moduleTask = {
+                title: task.name,
+                status: task.status,
+                blockId: task.id,
+                tasks: []
+              };
+              taskMap.get(task.parentId).modules.push(moduleTask);
+              moduleMap.set(task.id, moduleTask);
+            } else if (moduleMap.has(task.parentId)) {
+              // Sub-tasks
+              const subTask = {
+                title: task.name,
+                status: task.status,
+                blockId: task.id
+              };
+              moduleMap.get(task.parentId).tasks.push(subTask);
+              subTaskMap.set(task.id, subTask);
+            }
+          });
+
+          // Add task records to history
+          if (rootTasks.length > 0) {
+            history.push({
+              type: 'task',
+              content: {
+                jobs: rootTasks
+              }
+            });
+          }
+        }
+      }
+    }
+
     logger().info({
       msg: 'Chat status retrieved successfully',
       data: {
@@ -986,7 +1090,14 @@ export class ChatService {
       },
     })
 
-    return { status, roundId }
+    return {
+      status,
+      roundId,
+      answers: [{
+        id: roundId,
+        content: JSON.stringify(history)
+      }]
+    }
   }
 
   async stopChat(roundId: string, userId: string) {
