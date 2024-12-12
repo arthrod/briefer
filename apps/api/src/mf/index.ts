@@ -4,7 +4,7 @@ import chatRouter from './chat/index.js'
 import userRouter from './user/index.js'
 import uploadRouter from './upload/index.js'
 import resourceRouter from './resource/index.js'
-import { initializeTasks } from './tasks.js'
+import { initializeTasks } from './chat/task/tasks.js'
 import runAllRouter from './runall/index.js'
 import schemaRouter from './schema/index.js'
 

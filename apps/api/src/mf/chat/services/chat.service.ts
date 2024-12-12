@@ -11,10 +11,10 @@ import { ChatDetailResponse, ChatRecordStatus, Message, RelationCheckResponse, U
 import * as fs from 'fs/promises'
 import { v4 as uuidv4 } from 'uuid'
 import { sanitizeInput, formatDate } from '../../../utils/format.js'
-import { titleUpdateEmitter } from '../title-summarizer.js'
+import { titleUpdateEmitter } from '../task/title-summarizer.js'
 import { IOServer } from '../../../websocket/index.js'
 import { validateEnvVars } from '../../../utils/validation.js'
-import { handleReportStreamResponse } from '../report-stream.js'
+import { handleReportStreamResponse } from '../stream/report-stream.js'
 
 export class ChatService {
 

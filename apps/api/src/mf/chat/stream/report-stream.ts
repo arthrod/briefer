@@ -2,9 +2,9 @@ import * as Y from 'yjs'
 import { Response as FetchResponse } from 'node-fetch'
 import { Request, Response } from 'express'
 import { prisma } from '@briefer/database'
-import { logger } from '../../logger.js'
-import { WSSharedDocV2, getYDocForUpdate, getDocId } from '../../yjs/v2/index.js'
-import { DocumentPersistor } from '../../yjs/v2/persistors.js'
+import { logger } from '../../../logger.js'
+import { WSSharedDocV2, getYDocForUpdate, getDocId } from '../../../yjs/v2/index.js'
+import { DocumentPersistor } from '../../../yjs/v2/persistors.js'
 import { YBlock, YBlockGroup } from '@briefer/editor'
 import { addBlockGroup, AddBlockGroupBlock } from '@briefer/editor'
 import {
@@ -19,9 +19,9 @@ import {
 import crypto from 'crypto'
 import fs from 'fs'
 import path from 'path'
-import { IOServer } from '../../websocket/index.js'
-import { ValidationError, APIError, ERROR_CODES } from './types/errors.js'
-import { ChatRecordStatus } from './types/interfaces.js'
+import { IOServer } from '../../../websocket/index.js'
+import { ValidationError, APIError, ERROR_CODES } from '../types/errors.js'
+import { ChatRecordStatus } from '../types/interfaces.js'
 
 // 定义更新目标类型
 export interface ReportUpdateTarget {

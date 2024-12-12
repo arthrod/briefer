@@ -1,5 +1,5 @@
 import { prisma } from '@briefer/database'
-import { logger } from '../../logger.js'
+import { logger } from '../../../logger.js'
 import fetch from 'node-fetch'
 import { EventEmitter } from 'events'
 
