@@ -14,7 +14,7 @@ import { Transition } from '@headlessui/react'
 import { ExclamationCircleIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import clsx from 'clsx'
 import { CheckCircle2Icon, XCircleIcon } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import ApproveIcon from '../../../icons/approve-icon.svg'
 import DownloadIocn from '../../../icons/download-icon.svg'
 import { NoData } from '../NoData'
@@ -113,35 +113,24 @@ export default function RunAllList(props: IProps) {
       })
     }
   }
-
   useEffect(() => {
-    console.log(statusIds)
-  }, [statusIds])
+    if (!props.visible || statusIds.size === 0) {
+      return
+    }
+    checkStatus(Array.from(statusIds))
+  }, [props.visible, statusIds])
 
-  const checkStatus = () => {
-    if (!props.visible) {
-      window.clearTimeout(eventTimeoutId.current)
-      return
-    }
+  const checkStatus = (ids: number[]) => {
     window.clearTimeout(eventTimeoutId.current)
-    eventTimeoutId.current = window.setTimeout(updateStatus, 5000)
-  }
-  const updateStatus = () => {
-    if (!statusIds || statusIds.size == 0) {
-      checkStatus()
-      return
-    }
-    getStatusList(Array.from(statusIds))
-      .then((res) => {
+    eventTimeoutId.current = window.setTimeout(() => {
+      getStatusList(ids).then((res) => {
         updateStatusItem(res)
       })
-      .finally(() => {
-        checkStatus()
-      })
+    }, 5000)
   }
-  const checkRunning = (list: RunAllItem[]) => {
-    const ids: number[] = []
 
+  const addRunning = useCallback((list: RunAllItem[]) => {
+    const ids: number[] = []
     for (const key in list) {
       const item = list[key]
       if (
@@ -160,15 +149,13 @@ export default function RunAllList(props: IProps) {
         return newSet // 返回更新后的 Set
       })
     }
-  }
+  }, [])
+
   const getRunAllList = useRunAllList()
   const getStatusList = useQueryStatus()
   const requestApprove = useApprove()
   const chatId = getQueryParam('chatId')
   useEffect(() => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.removeEventListener('scroll', handleScroll)
-    }
     window.clearTimeout(eventTimeoutId.current)
     setCurrentPage(1)
     setLoading(true)
@@ -177,12 +164,11 @@ export default function RunAllList(props: IProps) {
     setStatusIds(new Set())
     setList([])
     if (props.visible) {
-      checkStatus()
       getRunAllList(1, 100, chatId)
         .then((res) => {
           setList(res.list)
           setHasMore(res.list.length > 0)
-          checkRunning(res.list)
+          addRunning(res.list)
         })
         .finally(() => {
           setLoading(false)
@@ -199,7 +185,7 @@ export default function RunAllList(props: IProps) {
         if (res.list.length > 0) {
           setList((prevList) => [...prevList, ...res.list])
           setCurrentPage((prevPage) => prevPage + 1)
-          checkRunning(res.list)
+          addRunning(res.list)
           setHasMore(res.list.length > 0)
         } else {
           setHasMore(false)
@@ -276,7 +262,8 @@ export default function RunAllList(props: IProps) {
                       : origin
                   )
                 )
-                checkRunning([item])
+                item.approveStatus = ApproveStatus.InReview
+                addRunning([item])
               })
             }}>
             <div>
@@ -321,9 +308,7 @@ export default function RunAllList(props: IProps) {
         )
     }
   }
-  useEffect(() => {
-    console.log(statusIds)
-  }, [statusIds])
+
   return (
     <Transition
       as="div"
