@@ -169,7 +169,8 @@ async function handleDocumentBlock(
             ...(blockData.variable && { variable: blockData.variable }),
             ...(blockData.label && { label: blockData.label }),
             ...(blockData.options && { options: blockData.options }),
-            ...(blockData.tables && { tables: blockData.tables })
+            ...(blockData.tables && { tables: blockData.tables }),
+            ...(blockData.variables && { variables: blockData.variables })
         }
 
         let blockId: string;
