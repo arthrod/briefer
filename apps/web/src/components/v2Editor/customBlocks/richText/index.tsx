@@ -34,11 +34,13 @@ const useBlockEditor = ({
   isEditable,
   needTransform,
   setTitle,
+  variables,
 }: {
   content: Y.XmlFragment
   needTransform: boolean
   isEditable: boolean
   setTitle: (title: string) => void
+  variables: string[]
 }) => {
   const editor = useEditor(
     {
@@ -106,10 +108,11 @@ const useBlockEditor = ({
       onUpdate({ editor }) {
         const { content } = editor.getJSON()
         const firstLineContent = content?.[0]?.content?.[0]?.text ?? ''
-        // const text = editor.getText()
-        // editor.commands.setVariable(text)
         if (needTransform && firstLineContent) {
           editor.commands.setContent(firstLineContent)
+          // if(variables){
+          //   editor.commands.setVariables(variables)
+          // }
         }
 
         setTitle(firstLineContent)
@@ -175,6 +178,7 @@ const RichTextBlock = (props: Props) => {
     needTransform: !!needTransform,
     setTitle,
     isEditable: props.isEditable,
+    variables: props.block.getAttribute('variables') || [],
   })
 
   useEffect(() => {

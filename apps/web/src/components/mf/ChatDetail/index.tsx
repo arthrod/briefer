@@ -6,46 +6,12 @@ import { useSession } from '@/hooks/useAuth'
 import ScrollBar from '@/components/ScrollBar'
 import Pointer from '../Pointer'
 import Markdown from '../markdown'
-import ReportStep from './ReportStep'
+import ReportStep, { ContentJsonType, StepJsonType } from './ReportStep'
 export interface ChatDetailProps {
   loading?: boolean
   roundList: MessageContent[]
   onRegenerate: (message: MessageContent) => void
 }
-type Status = 'waiting' | 'running' | 'success' | 'failed'
-interface Task {
-  title: string
-  status: Status
-  blockId: string
-}
-
-interface Module {
-  title: string
-  status: Status
-  blockId: string
-  tasks?: Task[]
-}
-
-interface Job {
-  title: string
-  summary: string
-  status: Status
-  modules?: Module[]
-}
-
-interface StepContent {
-  jobs: Job[]
-}
-
-interface StepJsonType {
-  type: 'step'
-  content: StepContent
-}
-interface TextJsonType {
-  type: 'text'
-  content: string
-}
-type ContentJsonType = StepJsonType | TextJsonType
 
 const data: StepJsonType = {
   type: 'step',
@@ -53,25 +19,44 @@ const data: StepJsonType = {
     jobs: [
       {
         title: '报告模版解析',
-        summary: '解析出30个文档模块',
-        status: 'waiting',
+        description: '解析出30个文档模块',
+        status: 'success',
+        modules: [],
+      },
+      {
+        title: '文档模块撰写',
+        description: '撰写完毕，共40个数据分析任务',
+        status: 'running',
         modules: [
           {
             title: '模块1 (共3个任务)',
+            description: '模块1描述',
             status: 'waiting',
             blockId: 'blockId',
             tasks: [
               {
-                title: 'Task1: 数据查询代码生成成功',
+                title:
+                  '数据查询代码生成成功数据查询代码生成成功数据查询代码生成成功数据查询代码生成成功数据查询代码生成成功',
+                description: '',
+                variable: 'mei1',
+                status: 'success',
+                blockId: 'blockId',
+              },
+              {
+                title: '数据查询代码生成成功数据查询代码生成成功数据查询代码生成成功',
+                description: '',
+                variable: 'mei2',
                 status: 'waiting',
                 blockId: 'blockId',
               },
             ],
           },
           {
-            title: 'Task1: 数据查询代码生成成功',
+            title: '模块2: 数据查询代码生成成功',
+            description: 'asdasd',
             status: 'waiting',
             blockId: 'blockId',
+            tasks: [],
           },
         ],
       },
@@ -120,11 +105,21 @@ const ChatDetail = ({ roundList, loading = false, onRegenerate }: ChatDetailProp
 
   const getMessageElm = useCallback(
     (message: MessageContent, index: number) => {
-      if (message.role === 'system' || message.role === 'assistant') {
-        const contentJson = data
-        // JSON.parse(
-        //   `{"type":"text", "content": "${message.content}"}`
-        // ) as ContentJsonType
+      if (message.role === 'system') {
+        return (
+          <div className={clsx(styles.chatItem, styles.robot)} key={index}>
+            <span className={styles.robot}>
+              <img width={14} src="/icons/logo.svg" alt="" />
+            </span>
+            <div className={styles.content}>
+              <Markdown>{message.content}</Markdown>
+              {!!(loading && index === roundList.length - 1) ? <Pointer /> : null}
+            </div>
+          </div>
+        )
+      } else if (message.role === 'assistant') {
+        // const contentJson = data
+        const contentJson = JSON.parse(message.content) as ContentJsonType
 
         return (
           <div className={clsx(styles.chatItem, styles.robot)} key={index}>
@@ -141,7 +136,7 @@ const ChatDetail = ({ roundList, loading = false, onRegenerate }: ChatDetailProp
                 </div>
               </div>
             ) : contentJson.type === 'step' ? (
-              <ReportStep></ReportStep>
+              <ReportStep jobs={contentJson.content.jobs}></ReportStep>
             ) : (
               <div className={styles.content}>
                 <Markdown>{message.content}</Markdown>

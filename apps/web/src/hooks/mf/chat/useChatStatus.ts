@@ -2,9 +2,14 @@ import { NEXT_PUBLIC_MF_API_URL } from '@/utils/env'
 import { useCallback, useMemo } from 'react'
 import { getData } from '../useResponse'
 
+interface ChatAnswer {
+  id: string
+  content: string
+}
 export type ChatStatus = {
   status: 'idle' | 'chatting'
   roundId?: string
+  answers: ChatAnswer[]
 }
 export const useChatStatus = () => {
   const getChatStatus = useCallback(async (id: string): Promise<ChatStatus> => {

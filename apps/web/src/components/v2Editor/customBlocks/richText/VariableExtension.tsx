@@ -6,7 +6,7 @@ import { NodeViewWrapper } from '@tiptap/react'
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
     variable: {
-      setVariable: (value: string) => ReturnType
+      setVariable: (text: string, variables: string[]) => ReturnType
     }
   }
 }
@@ -89,27 +89,11 @@ export default Node.create<VariableOptions>({
   addCommands() {
     return {
       setVariable:
-        (value) =>
+        (text, variables) =>
         ({ commands }) => {
-          const matchs = Array.from(value.matchAll(/\{([^}]{1,30})\}/g))
-          if (matchs && matchs.length > 0) {
-            for (let index = matchs.length - 1; index >= 0; index--) {
-              const match = matchs[index]
-              if (!match) {
-                return false
-              }
-              const from = match.index + 1
-              const to = from + match[0].length
-              if (match) {
-                commands.deleteRange({ from: from, to })
-                commands.insertContentAt(from, {
-                  type: this.name,
-                  attrs: { value: match[1] },
-                })
-              }
-            }
-            return true
-          }
+          variables.forEach((variable) => {
+            text = text.replace(`{${variable}}`, `{{${variable}}}`)
+          })
 
           return false
         },
