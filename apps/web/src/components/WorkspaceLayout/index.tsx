@@ -32,6 +32,7 @@ import ChatInput from '@/components/mf/ChatInput'
 import styles from './index.module.scss'
 import { useChatLayoutContext } from '../mf/ChatLayout'
 import { showToast } from '../mf/Toast'
+import { ChatStatus, useChatStatus } from '@/hooks/mf/chat/useChatStatus'
 
 const syne = Syne({ subsets: ['latin'] })
 
@@ -43,10 +44,48 @@ interface Props extends PropsWithChildren {
 
 function ChatLayout({ chatId }: { chatId: string }) {
   const [loading, setLoading] = useState(false)
-  const { roundList, stopChat, startRoundChat } = useChatLayoutContext()
+  const { roundList, setRoundList, stopChat, startRoundChat } = useChatLayoutContext()
+  const getChatStatus = useChatStatus()
 
   const router = useRouter()
 
+  useEffect(() => {
+    watchStatus()
+  }, [chatId])
+
+  const watchStatus = () => {
+    if (loading) {
+      return
+    }
+    setLoading(true)
+    return getChatStatus(chatId)
+      .then((data: ChatStatus) => {
+        if (data) {
+          if (data.status === 'chatting') {
+            window.setTimeout(() => {
+              watchStatus()
+            }, 2000)
+          } else {
+            setLoading(false)
+          }
+          const lastAnswer = data.answers[data.answers.length - 1]
+          if (lastAnswer) {
+            setRoundList((prevList) => {
+              const lastIndex = prevList.length - 1 // 获取最后一条消息的索引
+              const updatedList = [...prevList]
+              if (lastIndex >= 0 && updatedList[lastIndex]) {
+                const lastItem = updatedList[lastIndex]
+                lastItem.content = lastAnswer.content
+              }
+              return updatedList
+            })
+          }
+        }
+      })
+      .catch(() => {
+        setLoading(false)
+      })
+  }
   const handleSend = async (question: string) => {
     if (!question || loading) {
       return
@@ -208,7 +247,10 @@ export default function WorkspaceLayout({ children, pagePath, topBarClassname }:
           <ToggleIcon className="h-4 w-4" />
         </span>
         <div
-          className={clsx('min-w-[850px] b-1 flex h-[3.75rem] w-full shrink-0 justify-between', topBarClassname)}>
+          className={clsx(
+            'b-1 flex h-[3.75rem] w-full min-w-[850px] shrink-0 justify-between',
+            topBarClassname
+          )}>
           <div className="flex w-full">
             <div
               className={clsx(
@@ -222,7 +264,7 @@ export default function WorkspaceLayout({ children, pagePath, topBarClassname }:
             {topBarContent}
           </div>
         </div>
-        <div className="flex flex-grow overflow-hidden min-w-[850px]">{modifiedChildren}</div>
+        <div className="flex min-w-[850px] flex-grow overflow-hidden">{modifiedChildren}</div>
       </main>
     </div>
   )
