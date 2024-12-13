@@ -1,5 +1,5 @@
 import { Request, Response } from 'express'
-import { handleError, sendResponse, success } from '../../utils/response.js'
+import { fail, handleError, sendResponse, success } from '../../utils/response.js'
 import { fetchWithTimeout } from '../chat/utils/fetch.js'
 import { CONFIG } from './constants.js'
 
@@ -17,8 +17,8 @@ export class SchemaController {
               dataSource: 'string',
               rowNum: 150000,
               colNum: 400,
-              des: '这是一段关于数据表的描述，超过1行就不展示了这是一段关于数据表的描述，超过1行就不展示了'
-            }
+              des: '这是一段关于数据表的描述，超过1行就不展示了这是一段关于数据表的描述，超过1行就不展示了',
+            },
           ],
         })
       )
@@ -31,6 +31,7 @@ export class SchemaController {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'mf-nodejs-user-id': req.session.user.id,
           },
           body: JSON.stringify({
             page: reqJson.pageNum,
@@ -40,8 +41,17 @@ export class SchemaController {
         },
         5000
       )
-      const result = await jobsRes.json()
-      sendResponse(res, success({ result }))
+      const result: any = await jobsRes.json()
+      if (result && result.code === 0) {
+        sendResponse(
+          res,
+          success({
+            list: result.data.rows
+          })
+        )
+      } else {
+        sendResponse(res, fail(result ? result.code : -1, result ? result.msg : ''))
+      }
     } catch (e) {
       sendResponse(res, handleError(500, '获取数据目录失败'))
     }
@@ -58,23 +68,23 @@ export class SchemaController {
               name: 'id',
               type: 'bigint',
               comment: '主键ID',
-              isPrimary: true
+              isPrimary: true,
             },
             {
               id: 2,
               name: 'meter_no',
               type: 'varchar(50)',
               comment: '电表编号',
-              isPrimary: false
+              isPrimary: false,
             },
             {
               id: 3,
               name: 'created_at',
               type: 'timestamp',
               comment: '创建时间',
-              isPrimary: false
-            }
-          ]
+              isPrimary: false,
+            },
+          ],
         })
       )
     }
@@ -91,15 +101,25 @@ export class SchemaController {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'mf-nodejs-user-id': req.session.user.id,
           },
           body: JSON.stringify({
-            tableId
+            id: tableId,
           }),
         },
         5000
       )
-      const result = await columnsRes.json()
-      sendResponse(res, success(result))
+      const result: any = await columnsRes.json()
+      if (result && result.code === 0) {
+        sendResponse(
+          res,
+          success({
+            list: result.data.fields
+          })
+        )
+      } else {
+        sendResponse(res, fail(result ? result.code : -1, result ? result.msg : ''))
+      }
     } catch (e) {
       sendResponse(res, handleError(500, '获取表字段信息失败'))
     }

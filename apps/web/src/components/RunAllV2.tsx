@@ -31,11 +31,13 @@ export default function RunAllV2(props: Props) {
   const [error, setError] = useState(false)
   const chatId = getQueryParam('chatId')
   const createRunAll = useRunAll()
+
   const handleDialogClose = () => {
     setDialogOpen(false)
     setError(false)
     setName('')
   }
+
   const run = useCallback(() => {
     state.value.setAttribute('status', 'run-requested')
   }, [state])
@@ -46,24 +48,27 @@ export default function RunAllV2(props: Props) {
 
   const onClick = useCallback(() => {
     setDialogOpen(true)
-  }, [state, run, abort])
+  }, [])
 
   const submit = useCallback(() => {
+    if (!name) {
+      setError(true)
+      return
+    }
     createRunAll(chatId, name).then(() => {
-      close()
       handleDialogClose()
     })
-  }, [name])
+  }, [name, chatId, createRunAll])
 
-  const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     if (error) {
       setError(false)
     }
     setName(event.target.value)
-  }
+  }, [error])
+
   const { total, remaining, status: docRunStatus } = getRunAllAttributes(state.value)
   const current = total - remaining
-
   const loading = isRunAllLoading(state.value)
 
   return (
@@ -110,18 +115,18 @@ export default function RunAllV2(props: Props) {
           <AlertDialogTitle>创建全量运行记录</AlertDialogTitle>
           <AlertDialogDescription>
             <Input
-              value={name} // 绑定输入框的值
-              onChange={handleChange} // 监听输入变化
+              value={name}
+              onChange={handleChange}
               className={error ? 'border-red-500' : ''}
-              placeholder="请输入全量记录的名称"></Input>
-            {error ? <div className={styles.errorHint}>全量记录的名称不能为空</div> : <></>}
+              placeholder="请输入全量记录的名称"
+            />
+            {error && <div className={styles.errorHint}>全量记录的名称不能为空</div>}
           </AlertDialogDescription>
           <AlertDialogFooter>
             <AlertDialogCancel
               onClick={(e) => {
                 e.stopPropagation()
                 e.preventDefault()
-                close()
                 handleDialogClose()
               }}>
               取消
@@ -130,10 +135,6 @@ export default function RunAllV2(props: Props) {
               onClick={(e) => {
                 e.stopPropagation()
                 e.preventDefault()
-                if (!name) {
-                  setError(true)
-                  return
-                }
                 submit()
               }}>
               确定
