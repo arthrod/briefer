@@ -784,9 +784,8 @@ export class ChatService {
     );
 
     // 转换聊天记录为消息格式
-    const messages = sortedRecords.flatMap((record) => {
-      const messages = [];
-
+    const messages = [];
+    for (const record of sortedRecords) {
       // 只有当 question 有内容时才添加 user 消息
       if (record.question) {
         messages.push({
@@ -797,8 +796,26 @@ export class ChatService {
         });
       }
 
-      // 只有当 answer 有内容时才添加 assistant 消息
-      const answerContent = record.answer.toString();
+      // 处理 answer 和任务
+      const answerContent = record.answer?.toString() || '';
+      const tasks = await prisma().chatRecordTask.findMany({
+        where: { chatRecordId: record.id },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          status: true,
+          parentId: true,
+          blockId: true,
+          variable: true,
+          createdTime: true
+        },
+        orderBy: {
+          createdTime: 'asc'
+        }
+      });
+
+      // 如果有 answer 内容，添加基本的 assistant 消息
       if (answerContent) {
         messages.push({
           id: record.id,
@@ -819,8 +836,63 @@ export class ChatService {
         });
       }
 
-      return messages;
-    });
+      // 如果有任务，添加任务消息
+      if (tasks.length > 0) {
+        // Group tasks by parentId
+        const taskMap = new Map();
+        const rootTasks: any[] = [];
+        const moduleMap = new Map();
+
+        // Organize tasks into their respective groups
+        tasks.forEach(task => {
+          if (!task.parentId) {
+            // Root level tasks (jobs)
+            rootTasks.push({
+              title: task.name,
+              summary: task.description,
+              status: task.status,
+              modules: []
+            });
+            taskMap.set(task.id, rootTasks[rootTasks.length - 1]);
+          } else if (taskMap.has(task.parentId)) {
+            // Module level tasks
+            const moduleTask = {
+              title: task.name,
+              summary: task.description,
+              status: task.status,
+              blockId: task.blockId,
+              tasks: []
+            };
+            taskMap.get(task.parentId).modules.push(moduleTask);
+            moduleMap.set(task.id, moduleTask);
+          } else if (moduleMap.has(task.parentId)) {
+            // Sub-tasks
+            const subTask = {
+              title: task.name,
+              summary: task.description,
+              status: task.status,
+              blockId: task.blockId,
+              variable: task.variable
+            };
+            moduleMap.get(task.parentId).tasks.push(subTask);
+          }
+        });
+
+        if (rootTasks.length > 0) {
+          messages.push({
+            id: record.id,
+            role: 'assistant',
+            content: JSON.stringify({
+              type: 'step',
+              content: {
+                jobs: rootTasks
+              }
+            }),
+            status: 'success'
+          });
+        }
+      }
+    }
 
     const responseData: ChatDetailResponse = {
       type: chat.type === 1 ? 'rag' : 'report',
@@ -1011,7 +1083,7 @@ export class ChatService {
           });
         }
       }
-      
+
       // Fetch ChatRecordTask entries for this record
       const tasks = await prisma().chatRecordTask.findMany({
         where: { chatRecordId: record.id },
