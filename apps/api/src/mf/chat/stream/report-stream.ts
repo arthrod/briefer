@@ -42,6 +42,7 @@ interface BlockRequest {
     content?: string
     options?: Array<{ label: string; value: any }>
     tables?: string[]
+    task_id?: string
 }
 
 // 创建block的工厂函数
@@ -102,6 +103,9 @@ function createBlockFromRequest(blockRequest: BlockRequest): YBlock {
     }
 }
 
+// 存储 taskId 和 blockId 的映射关系
+const taskBlockMap = new Map<string, string>();
+
 // 写入 SSE 日志的辅助函数
 async function appendToSSELog(chatId: string, roundId: string, content: string): Promise<void> {
     try {
@@ -153,6 +157,7 @@ async function appendToSSELog(chatId: string, roundId: string, content: string):
 // 处理文档块
 async function handleDocumentBlock(
     blockData: any,
+    task_id: string,
     updateTarget: ReportUpdateTarget
 ): Promise<void> {
     try {
@@ -167,11 +172,12 @@ async function handleDocumentBlock(
             ...(blockData.tables && { tables: blockData.tables })
         }
 
+        let blockId: string;
         // 在单个事务中执行所有YJS操作
         updateTarget.yLayout.doc?.transact(() => {
             try {
                 // 添加block到文档
-                const blockId = addBlockGroup(
+                blockId = addBlockGroup(
                     updateTarget.yLayout,
                     updateTarget.yBlocks,
                     block,
@@ -180,6 +186,20 @@ async function handleDocumentBlock(
 
                 // 使用创建的yBlock
                 updateTarget.yBlocks.set(blockId, yBlock)
+
+                // 如果存在 taskId，保存映射关系
+                if (task_id) {
+                    taskBlockMap.set(task_id, blockId);
+                    logger().info({
+                        msg: 'Mapped task to block',
+                        data: {
+                            taskId: task_id,
+                            blockId,
+                            chatId: updateTarget.chatId,
+                            roundId: updateTarget.roundId
+                        }
+                    });
+                }
 
                 // 确保block被正确添加到layout中
                 const blockGroup = updateTarget.yLayout.get(updateTarget.yLayout.length - 1)
@@ -276,7 +296,7 @@ async function handleJsonContent(
             }
         } else if (parsedJson.type === 'document') {
             // 处理文档块
-            await handleDocumentBlock(parsedJson.block, updateTarget)
+            await handleDocumentBlock(parsedJson.block, parsedJson.task_id, updateTarget)
         } else if (parsedJson.type === 'task') {
             logger().info({
                 msg: 'Processing task message',
@@ -356,9 +376,24 @@ async function handleJsonContent(
                         parentId: parentTaskId, // 使用查询到的父任务ID
                         subTaskCount: parseInt(parsedJson.params.sub_task_count) || 0,
                         status: parsedJson.params.status || ChatRecordTaskStatus.PENDING,
-                        variable: parsedJson.params.variable
+                        variable: parsedJson.params.variable,
+                        blockId: taskBlockMap.get(parsedJson.params.id) // 设置关联的 blockId
                     }
                 })
+
+                // 从映射中删除已使用的关系
+                taskBlockMap.delete(parsedJson.params.id);
+
+                logger().info({
+                    msg: 'Created chat record task with block',
+                    data: {
+                        taskId: chatRecordTask.id,
+                        agentTaskId: chatRecordTask.agentTaskId,
+                        blockId: chatRecordTask.blockId,
+                        chatId: updateTarget.chatId,
+                        roundId: updateTarget.roundId
+                    }
+                });
 
                 // 仅对第一个task消息通过SSE发送
                 res.write(`data: ${JSON.stringify({
