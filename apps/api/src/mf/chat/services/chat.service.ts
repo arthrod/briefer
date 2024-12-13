@@ -1048,7 +1048,10 @@ export class ChatService {
     const status = chat.records[0]?.status === ChatRecordStatus.PROCESSING ? 'chatting' : 'idle'
     const roundId = status === 'chatting' ? chat.records[0]?.id : ''
 
-    const history: { type: string; content: any }[] = []
+    let history: { type: string; content: any } = {
+      type: '',
+      content: undefined
+    }
     const records = await prisma().chatRecord.findMany({
       where: {
         chatId: chatId,
@@ -1131,12 +1134,12 @@ export class ChatService {
 
         // Add task records to history
         if (rootTasks.length > 0) {
-          history.push({
+          history = {
             type: 'step',
             content: {
               jobs: rootTasks
             }
-          });
+          };
         }
       }
     }
