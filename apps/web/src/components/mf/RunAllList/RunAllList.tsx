@@ -19,6 +19,8 @@ import ApproveIcon from '../../../icons/approve-icon.svg'
 import DownloadIocn from '../../../icons/download-icon.svg'
 import { NoData } from '../NoData'
 import styles from './index.module.scss'
+import { Input } from '../Input'
+import { getRunAll } from '@briefer/editor'
 export interface IProps {
   workspaceId: string
   documnetId: string
@@ -180,7 +182,7 @@ export default function RunAllList(props: IProps) {
       return
     }
     setIsLoadingMore(true)
-    getRunAllList(currentPage + 1, 100, chatId)
+    getRunAllList(currentPage + 1, 100, chatId, search)
       .then((res) => {
         if (res.list.length > 0) {
           setList((prevList) => [...prevList, ...res.list])
@@ -308,7 +310,37 @@ export default function RunAllList(props: IProps) {
         )
     }
   }
-
+  const handleSearch = useCallback(
+    async (searchTerm: string) => {
+      if (loading) {
+        return
+      }
+      setCurrentPage(1)
+      setLoading(true)
+      setIsLoadingMore(false)
+      setStatusIds(new Set())
+      setList([])
+      window.clearTimeout(eventTimeoutId.current)
+      getRunAllList(1, 100, chatId, searchTerm)
+        .then((res) => {
+          setList(res.list)
+          setHasMore(res.list.length > 0)
+          addRunning(res.list)
+        })
+        .finally(() => {
+          setLoading(false)
+        })
+    },
+    [loading]
+  )
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter') {
+        handleSearch(search)
+      }
+    },
+    [search, handleSearch]
+  )
   return (
     <Transition
       as="div"
@@ -334,6 +366,16 @@ export default function RunAllList(props: IProps) {
               props.onHide()
             }}
             className={clsx('w-[16px], h-[16px]', styles.icon)}></XMarkIcon>
+        </div>
+        <div className={styles.searchLayout}>
+          <Input
+            placeholder="搜索全量运行记录"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value)
+            }}
+            onKeyDown={handleKeyDown}
+          />
         </div>
         {list.length ? (
           <ScrollBar

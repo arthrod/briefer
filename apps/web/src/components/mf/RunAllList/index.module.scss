@@ -8,11 +8,19 @@
     flex-direction: column;
     font-family: PingFang SC;
     overflow: hidden;
+
     .bottomLayout {
         display: flex;
         justify-content: center;
         margin-top: 16px;
     }
+
+    .searchLayout {
+        margin-top: 12px;
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+
     .runAllTitleLayout {
         flex: 0 0 auto;
         height: 60px;
@@ -48,10 +56,13 @@
         height: 100%;
         padding: 16px;
         flex: 1;
-        overflow: auto; /* 启用滚动条 */
+        overflow: auto;
+
+        /* 启用滚动条 */
         .cellMargin {
             margin-top: 12px;
         }
+
         .cell {
             border-radius: 12px;
             opacity: 1;
@@ -95,6 +106,7 @@
                 flex-direction: row;
                 font-size: 12px;
                 align-items: center;
+
                 .error {
                     color: #FF3B52;
                 }
@@ -105,24 +117,28 @@
 
                 .status {
                     flex: 1;
+
                     .runningLayout {
                         display: flex;
                         flex-direction: row;
                         color: #8792A4;
                         align-items: center;
-                    
+
                         .loading {
                             width: 16px;
                             height: 16px;
                         }
+
                         .loadingWrapper {
                             width: 16px;
                             height: 16px;
                         }
+
                         div {
                             margin-left: 4px;
                         }
                     }
+
                     .successLayout {
                         display: flex;
                         flex-direction: row;
@@ -133,6 +149,7 @@
                             margin-left: 4px;
                         }
                     }
+
                     .errorLayout {
                         display: flex;
                         flex-direction: row;
@@ -155,13 +172,16 @@
                         background: #E6EDFE;
                         border: 1px solid rgba(0, 0, 0, 0.06);
                         border-radius: 3px;
+
                         div {
                             margin-left: 4px;
                         }
                     }
+
                     .successLayout:hover {
                         cursor: pointer;
                     }
+
                     .rejectLayout {
                         align-items: center;
                         padding: 2px 6px;
@@ -171,10 +191,12 @@
                         background: #FAFAFA;
                         border: 1px solid #EEEEEE;
                         border-radius: 3px;
+
                         div {
                             margin-left: 4px;
                         }
                     }
+
                     .inReviewLayout {
                         align-items: center;
                         padding: 2px 6px;
@@ -184,13 +206,16 @@
                         background: #FAFAFA;
                         border: 1px solid #EEEEEE;
                         border-radius: 3px;
+
                         div {
                             margin-left: 4px;
                         }
+
                         .loading {
                             width: 16px;
                             height: 16px;
                         }
+
                         .loadingWrapper {
                             width: 16px;
                             height: 16px;
