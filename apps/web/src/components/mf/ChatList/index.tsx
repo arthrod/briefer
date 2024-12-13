@@ -287,7 +287,7 @@ const ChatListBox = ({ chatId, workspaceId }: ChatListProps) => {
             <AlertDialogDescription>确定删除该对话么？</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setDialogOpen(false)}>取消</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 if (delChatId.current) {
