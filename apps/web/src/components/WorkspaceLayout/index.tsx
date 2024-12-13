@@ -33,6 +33,8 @@ import styles from './index.module.scss'
 import { useChatLayoutContext } from '../mf/ChatLayout'
 import { showToast } from '../mf/Toast'
 import { ChatStatus, useChatStatus } from '@/hooks/mf/chat/useChatStatus'
+import { Sheet, SheetClose, SheetContent, SheetTrigger } from '../ui/sheet'
+import ChatList from '../mf/ChatList'
 
 const syne = Syne({ subsets: ['latin'] })
 
@@ -42,7 +44,7 @@ interface Props extends PropsWithChildren {
   hideOnboarding?: boolean
 }
 
-function ChatLayout({ chatId }: { chatId: string }) {
+function ChatLayout({ chatId, workspaceId }: { chatId: string; workspaceId: string }) {
   const [loading, setLoading] = useState(false)
   const { roundList, setRoundList, stopChat, startRoundChat } = useChatLayoutContext()
   const getChatStatus = useChatStatus()
@@ -112,20 +114,19 @@ function ChatLayout({ chatId }: { chatId: string }) {
   return (
     <div className={clsx(styles.chatLayout)}>
       <div className={styles.top}>
-        <img
-          className="cursor-pointer"
-          src="/icons/menu.svg"
-          onClick={() => {
-            router.push('/home')
-          }}
-          width={20}
-          height={20}
-          alt=""
-        />
+        <Sheet>
+          <SheetTrigger>
+            <img className="cursor-pointer" src="/icons/menu.svg" width={20} height={20} alt="" />
+          </SheetTrigger>
+          <SheetContent className="w-[240px]" side="left" hideCloseButton>
+            <ChatList workspaceId={workspaceId} chatId={chatId} />
+          </SheetContent>
+        </Sheet>
         AI助手
       </div>
       <div className={styles.middle}>
         <ChatDetail
+          type="report"
           roundList={roundList}
           loading={loading}
           onRegenerate={function (message: MessageContent): void {
@@ -230,7 +231,7 @@ export default function WorkspaceLayout({ children, pagePath, topBarClassname }:
             ? `flex h-full min-w-[33%] max-w-[33%] flex-col overflow-hidden lg:min-w-[25%] lg:max-w-[25%]`
             : `hidden md:max-w-[0] lg:max-w-[0]`
         }>
-        <ChatLayout chatId={chatId} />
+        <ChatLayout workspaceId={workspaceId} chatId={chatId} />
       </div>
 
       <main

@@ -79,7 +79,11 @@ function RagDetailPage() {
   return (
     <div className={styles.rag_layout}>
       <div ref={scrollRef} className={styles.detail_layout}>
-        <ChatDetail loading={generating} roundList={roundList} onRegenerate={() => {}}></ChatDetail>
+        <ChatDetail
+          type="rag"
+          loading={generating}
+          roundList={roundList}
+          onRegenerate={() => {}}></ChatDetail>
       </div>
 
       <div className={styles.input_layout}>

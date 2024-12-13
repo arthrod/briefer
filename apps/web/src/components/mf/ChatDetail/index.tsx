@@ -1,70 +1,20 @@
 import { useCallback, useEffect, useState, useRef } from 'react'
 import styles from './index.module.scss'
 import clsx from 'clsx'
-import { MessageContent } from '@/hooks/mf/chat/useChatDetail'
+import { ChatType, MessageContent } from '@/hooks/mf/chat/useChatDetail'
 import { useSession } from '@/hooks/useAuth'
 import ScrollBar from '@/components/ScrollBar'
 import Pointer from '../Pointer'
 import Markdown from '../markdown'
 import ReportStep, { ContentJsonType, StepJsonType } from './ReportStep'
 export interface ChatDetailProps {
+  type: ChatType
   loading?: boolean
   roundList: MessageContent[]
   onRegenerate: (message: MessageContent) => void
 }
 
-const data: StepJsonType = {
-  type: 'step',
-  content: {
-    jobs: [
-      {
-        title: '报告模版解析',
-        description: '解析出30个文档模块',
-        status: 'success',
-        modules: [],
-      },
-      {
-        title: '文档模块撰写',
-        description: '撰写完毕，共40个数据分析任务',
-        status: 'running',
-        modules: [
-          {
-            title: '模块1 (共3个任务)',
-            description: '模块1描述',
-            status: 'waiting',
-            blockId: 'blockId',
-            tasks: [
-              {
-                title:
-                  '数据查询代码生成成功数据查询代码生成成功数据查询代码生成成功数据查询代码生成成功数据查询代码生成成功',
-                description: '',
-                variable: 'mei1',
-                status: 'success',
-                blockId: 'blockId',
-              },
-              {
-                title: '数据查询代码生成成功数据查询代码生成成功数据查询代码生成成功',
-                description: '',
-                variable: 'mei2',
-                status: 'waiting',
-                blockId: 'blockId',
-              },
-            ],
-          },
-          {
-            title: '模块2: 数据查询代码生成成功',
-            description: 'asdasd',
-            status: 'waiting',
-            blockId: 'blockId',
-            tasks: [],
-          },
-        ],
-      },
-    ],
-  },
-}
-
-const ChatDetail = ({ roundList, loading = false, onRegenerate }: ChatDetailProps) => {
+const ChatDetail = ({ type, roundList, loading = false, onRegenerate }: ChatDetailProps) => {
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const session = useSession()
@@ -118,8 +68,12 @@ const ChatDetail = ({ roundList, loading = false, onRegenerate }: ChatDetailProp
           </div>
         )
       } else if (message.role === 'assistant') {
-        // const contentJson = data
-        const contentJson = JSON.parse(message.content) as ContentJsonType
+        let contentJson: ContentJsonType = { type: 'text', content: '' }
+        if (type === 'rag') {
+          contentJson.content = message.content
+        } else if (type === 'report') {
+          contentJson = JSON.parse(message.content) as ContentJsonType
+        }
 
         return (
           <div className={clsx(styles.chatItem, styles.robot)} key={index}>
