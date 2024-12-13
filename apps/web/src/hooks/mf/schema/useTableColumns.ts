@@ -4,10 +4,9 @@ import { getData } from '../useResponse'
 
 export type ColumnItem = {
   id: number
-  name: string
-  type: string
-  comment: string
-  isPrimary: boolean
+  defineName: string
+  fieldType: string
+  des: String
 }
 
 export type ColumnList = {
@@ -23,10 +22,10 @@ export const useTableColumns = () => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        tableId
+        tableId,
       }),
     })
     return getData<ColumnList>(res)
   }, [])
   return getTableColumns
-} 
+}

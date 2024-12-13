@@ -1,27 +1,25 @@
-import ScrollBar from '@/components/ScrollBar'
-import Spin from '@/components/Spin'
-import { TableItem, useSchemaList } from '@/hooks/mf/schema/useSchemaList'
-import { Transition } from '@headlessui/react'
-import { XMarkIcon } from '@heroicons/react/24/outline'
-import clsx from 'clsx'
-import { useCallback, useEffect, useRef, useState } from 'react'
-import TableIcon from '../../../icons/table-icon.svg'
-import { NoData } from '../NoData'
-import styles from './index.module.scss'
-import RowIcon from '../../../icons/row-icon.svg'
-import ColumnIcon from '../../../icons/column-icon.svg'
 import {
   AlertDialog,
   AlertDialogAction,
-  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/Dialog'
-import { Input } from '../Input'
+import ScrollBar from '@/components/ScrollBar'
+import Spin from '@/components/Spin'
+import { TableItem, useSchemaList } from '@/hooks/mf/schema/useSchemaList'
 import { ColumnItem, useTableColumns } from '@/hooks/mf/schema/useTableColumns'
+import { Transition } from '@headlessui/react'
+import { XMarkIcon } from '@heroicons/react/24/outline'
+import clsx from 'clsx'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import ColumnIcon from '../../../icons/column-icon.svg'
+import RowIcon from '../../../icons/row-icon.svg'
+import TableIcon from '../../../icons/table-icon.svg'
+import { Input } from '../Input'
+import { NoData } from '../NoData'
+import styles from './index.module.scss'
 
 export interface IProps {
   workspaceId: string
@@ -30,9 +28,17 @@ export interface IProps {
   onHide: () => void
 }
 
+function debounce<T extends (...args: any[]) => void>(func: T, wait: number): T {
+  let timeout: ReturnType<typeof setTimeout> | null
+  return function (...args: Parameters<T>) {
+    if (timeout) clearTimeout(timeout)
+    timeout = setTimeout(() => {
+      func(...args)
+    }, wait)
+  } as T
+}
+
 export default function SchemaList(props: IProps) {
-  const observer = useRef<IntersectionObserver | null>(null)
-  const listEndRef = useRef<HTMLDivElement | null>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   const [search, setSearch] = useState('')
@@ -58,7 +64,7 @@ export default function SchemaList(props: IProps) {
       try {
         const res = await getSchemaList(1, 100, searchTerm)
         setList(res.list)
-        setHasMore(res.list.length === 100)
+        setHasMore(res.list.length > 0)
       } catch (error) {
         console.error('Failed to fetch schema list:', error)
       } finally {
@@ -67,13 +73,19 @@ export default function SchemaList(props: IProps) {
     },
     [loading]
   )
-
   useEffect(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.removeEventListener('scroll', handleScroll)
+    }
+    setCurrentPage(1)
+    setLoading(true)
+    setSearch('')
+    setIsLoadingMore(false)
     if (props.visible) {
-      getSchemaList(1, 100)
+      getSchemaList(currentPage, 100)
         .then((res) => {
           setList(res.list)
-          setHasMore(res.list.length === 100)
+          setHasMore(res.list.length > 0)
         })
         .finally(() => {
           setLoading(false)
@@ -95,12 +107,13 @@ export default function SchemaList(props: IProps) {
       return
     }
     setIsLoadingMore(true)
-    getSchemaList(currentPage + 1, 100, search)
+    const nextPage = currentPage + 1
+    getSchemaList(nextPage, 100, search)
       .then((res) => {
         if (res.list.length > 0) {
           setList((prevList) => [...prevList, ...res.list])
-          setCurrentPage((prevPage) => prevPage + 1)
-          setHasMore(res.list.length === 100)
+          setCurrentPage(nextPage)
+          setHasMore(res.list.length > 0)
         } else {
           setHasMore(false)
         }
@@ -108,28 +121,7 @@ export default function SchemaList(props: IProps) {
       .finally(() => {
         setIsLoadingMore(false)
       })
-  }, [hasMore, loading, currentPage, search])
-
-  useEffect(() => {
-    observer.current = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasMore) {
-          loadMoreData()
-        }
-      },
-      { root: null, rootMargin: '0px', threshold: 1.0 }
-    )
-
-    if (listEndRef.current) {
-      observer.current.observe(listEndRef.current)
-    }
-
-    return () => {
-      if (observer.current && listEndRef.current) {
-        observer.current.unobserve(listEndRef.current)
-      }
-    }
-  }, [listEndRef.current, loadMoreData, hasMore])
+  }, [hasMore, isLoadingMore, loading, currentPage, search])
 
   const formatNum = (num: number) => {
     const thresholds = [
@@ -171,15 +163,36 @@ export default function SchemaList(props: IProps) {
   }
 
   useEffect(() => {
-    if (!loading && props.visible && scrollContainerRef.current) {
+    if (!loading && props.visible && scrollContainerRef.current && !isLoadingMore && hasMore) {
       const container = scrollContainerRef.current
-      if (container.scrollHeight <= container.clientHeight && !isLoadingMore && list.length > 0) {
-        setHasMore(true)
+      if (container.scrollHeight <= container.clientHeight) {
         loadMoreData()
       }
     }
-  }, [loading, props.visible, list.length])
+  }, [list])
 
+  const handleScroll = useCallback(
+    debounce((e: Event) => {
+      const div = e.target as HTMLDivElement
+      const { scrollTop, scrollHeight, clientHeight } = div
+
+      if (Math.abs(scrollHeight - scrollTop - clientHeight) <= 1) {
+        loadMoreData()
+      }
+    }, 50),
+    [hasMore, loading, currentPage, search]
+  )
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      const container = scrollContainerRef.current
+      const debouncedScroll = debounce(handleScroll, 300)
+      container.addEventListener('scroll', debouncedScroll)
+
+      return () => {
+        container.removeEventListener('scroll', debouncedScroll)
+      }
+    }
+  }, [handleScroll])
   return (
     <Transition
       as="div"
@@ -208,7 +221,10 @@ export default function SchemaList(props: IProps) {
             />
           </div>
           {list.length ? (
-            <ScrollBar className={styles.listWrapper} ref={scrollContainerRef}>
+            <ScrollBar
+              className={styles.listWrapper}
+              ref={scrollContainerRef}
+              onScroll={handleScroll}>
               {list.map((item, index) => (
                 <div
                   key={`table-${index}`}
@@ -237,12 +253,14 @@ export default function SchemaList(props: IProps) {
                   </div>
                 </div>
               ))}
-              <div ref={listEndRef} className={styles.bottomLayout}>
+              <div className={styles.bottomLayout}>
                 {hasMore && isLoadingMore && !loading ? (
                   <div key="loading" className="loading">
                     <Spin color="#2F69FE" />
                   </div>
-                ) : null}
+                ) : (
+                  <></>
+                )}
               </div>
             </ScrollBar>
           ) : (
@@ -285,18 +303,14 @@ export default function SchemaList(props: IProps) {
                             <th scope="col" className="px-4 py-2 text-left">
                               描述
                             </th>
-                            <th scope="col" className="px-4 py-2 text-left">
-                              主键
-                            </th>
                           </tr>
                         </thead>
                         <tbody className="text-gray-500">
                           {columns.map((column) => (
                             <tr key={`column-${column.id}`} className="border-b">
-                              <td className="px-4 py-2">{column.name}</td>
-                              <td className="px-4 py-2">{column.type}</td>
-                              <td className="px-4 py-2">{column.comment}</td>
-                              <td className="px-4 py-2">{column.isPrimary ? '是' : '否'}</td>
+                              <td className="px-4 py-2">{column.defineName}</td>
+                              <td className="px-4 py-2">{column.fieldType}</td>
+                              <td className="px-4 py-2">{column.des}</td>
                             </tr>
                           ))}
                         </tbody>

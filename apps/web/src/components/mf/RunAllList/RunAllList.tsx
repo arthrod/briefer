@@ -1,23 +1,24 @@
 import ScrollBar from '@/components/ScrollBar'
 import Spin from '@/components/Spin'
+import { useApprove } from '@/hooks/mf/runall/useApprove'
+import { StatusItem, StatusList, useQueryStatus } from '@/hooks/mf/runall/useQueryStatus'
 import {
   ApproveStatus,
   RunAllItem,
   RunAllStatus,
   useRunAllList,
 } from '@/hooks/mf/runall/useRunAllList'
+import { getQueryParam } from '@/hooks/useQueryArgs'
+import { NEXT_PUBLIC_MF_API_URL } from '@/utils/env'
 import { Transition } from '@headlessui/react'
 import { ExclamationCircleIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import clsx from 'clsx'
 import { CheckCircle2Icon, XCircleIcon } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import ApproveIcon from '../../../icons/approve-icon.svg'
 import DownloadIocn from '../../../icons/download-icon.svg'
 import { NoData } from '../NoData'
 import styles from './index.module.scss'
-import { StatusItem, StatusList, useQueryStatus } from '@/hooks/mf/runall/useQueryStatus'
-import { NEXT_PUBLIC_MF_API_URL } from '@/utils/env'
-import { useApprove } from '@/hooks/mf/runall/useApprove'
 export interface IProps {
   workspaceId: string
   documnetId: string
@@ -25,105 +26,162 @@ export interface IProps {
   onHide: () => void
 }
 
-export default function RunAllList(props: IProps) {
-  const observer = useRef<IntersectionObserver | null>(null)
-  const listEndRef = useRef<HTMLDivElement | null>(null)
+function debounce<T extends (...args: any[]) => void>(func: T, wait: number): T {
+  let timeout: ReturnType<typeof setTimeout> | null
+  return function (...args: Parameters<T>) {
+    if (timeout) clearTimeout(timeout)
+    timeout = setTimeout(() => {
+      func(...args)
+    }, wait)
+  } as T
+}
 
+export default function RunAllList(props: IProps) {
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
   const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
   const [isLoadingMore, setIsLoadingMore] = useState(false) // 用于控制分页加载动画
   const [currentPage, setCurrentPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
-  const [statusIds, setStatusIds] = useState<number[]>([])
+  const [statusIds, setStatusIds] = useState<Set<number>>(new Set())
   const eventTimeoutId = useRef(-1)
   const [list, setList] = useState<RunAllItem[]>([])
-  const updateListItem = useCallback(
-    (item: StatusItem) => {
-      setList((prevItems) =>
-        prevItems.map((origin) =>
-          origin.id === item.id
-            ? {
-                ...origin,
-                runStatus: item.runStatus,
-                approveStatus: item.approveStatus,
-                endTime: item.endTime || origin.endTime, // 如果 item.endTime 存在，则更新，否则保留原值
-                duration: item.duration,
-                reason: item.failReson || origin.reason, // 如果 failReson 存在，则更新，否则保留原值
-              }
-            : origin
-        )
-      )
-    },
-    [list]
-  )
-  const updateStatusItem = useCallback(
-    (res: StatusList) => {
-      const continueIds: number[] = []
-      for (const key in res.list) {
-        const item = res.list[key]
-        if (
-          item.runStatus === RunAllStatus.Running ||
-          item.runStatus === RunAllStatus.CodePushing ||
-          (item.runStatus === RunAllStatus.RunSuccess &&
-            item.approveStatus === ApproveStatus.InReview)
-        ) {
-          continueIds.push(item.id)
-        }
-        updateListItem(item)
-      }
-      setStatusIds(continueIds)
-    },
-    [statusIds, list]
-  )
+  const handleScroll = debounce((e: Event) => {
+    const div = e.target as HTMLDivElement
+    const { scrollTop, scrollHeight, clientHeight } = div
+
+    if (Math.abs(scrollHeight - scrollTop - clientHeight) <= 1) {
+      loadMoreData()
+    }
+  }, 50)
   useEffect(() => {
+    if (scrollContainerRef.current) {
+      const container = scrollContainerRef.current
+      const debouncedScroll = debounce(handleScroll, 300)
+      container.addEventListener('scroll', debouncedScroll)
+
+      return () => {
+        container.removeEventListener('scroll', debouncedScroll)
+      }
+    }
+  }, [handleScroll])
+  useEffect(() => {
+    if (!loading && props.visible && scrollContainerRef.current && !isLoadingMore && hasMore) {
+      const container = scrollContainerRef.current
+      if (container.scrollHeight <= container.clientHeight) {
+        loadMoreData()
+      }
+    }
+  }, [list])
+  const updateListItem = (item: StatusItem) => {
+    setList((prevItems) =>
+      prevItems.map((origin) =>
+        origin.id === item.id
+          ? {
+              ...origin,
+              runStatus: item.runStatus,
+              approveStatus: item.approveStatus,
+              endTime: item.endTime || origin.endTime, // 如果 item.endTime 存在，则更新，否则保留原值
+              duration: item.duration,
+              reason: item.failReson || origin.reason, // 如果 failReson 存在，则更新，否则保留原值
+            }
+          : origin
+      )
+    )
+  }
+  const updateStatusItem = (res: StatusList) => {
+    const removeIds: number[] = []
+    for (const key in res.list) {
+      const item = res.list[key]
+      updateListItem(item)
+      if (
+        item.runStatus !== RunAllStatus.Running &&
+        item.runStatus !== RunAllStatus.CodePushing &&
+        !(
+          item.runStatus === RunAllStatus.RunSuccess &&
+          item.approveStatus === ApproveStatus.InReview
+        )
+      ) {
+        removeIds.push(item.id)
+      }
+      setStatusIds((prevStatusIds) => {
+        // 从 prevStatusIds 中移除 removeIds
+        const updatedStatusIds = new Set(
+          Array.from(prevStatusIds).filter((id) => !removeIds.includes(id))
+        )
+        return updatedStatusIds
+      })
+    }
+  }
+
+  useEffect(() => {
+    console.log(statusIds)
+  }, [statusIds])
+
+  const checkStatus = () => {
     if (!props.visible) {
       window.clearTimeout(eventTimeoutId.current)
       return
     }
-    if (statusIds && statusIds.length > 0) {
-      window.clearTimeout(eventTimeoutId.current)
-      eventTimeoutId.current = window.setTimeout(() => {
-        getStatusList(statusIds)
-          .then((res) => {
-            updateStatusItem(res)
-          })
-          .finally(() => {
-            window.clearTimeout(eventTimeoutId.current)
-            eventTimeoutId.current = window.setTimeout(() => {
-              checkRunning([])
-            }, 3000)
-          })
-      }, 3000)
-    } else {
-      window.clearTimeout(eventTimeoutId.current)
+    window.clearTimeout(eventTimeoutId.current)
+    eventTimeoutId.current = window.setTimeout(updateStatus, 5000)
+  }
+  const updateStatus = () => {
+    if (!statusIds || statusIds.size == 0) {
+      checkStatus()
+      return
     }
-  }, [statusIds])
-  const checkRunning = useCallback(
-    (list: RunAllItem[]) => {
-      const ids: number[] = []
-      for (const key in list) {
-        const item = list[key]
-        if (
-          item.runStatus === RunAllStatus.Running ||
-          item.runStatus === RunAllStatus.CodePushing ||
-          (item.runStatus === RunAllStatus.RunSuccess &&
-            item.approveStatus === ApproveStatus.InReview)
-        ) {
-          ids.push(item.id)
-        }
+    getStatusList(Array.from(statusIds))
+      .then((res) => {
+        updateStatusItem(res)
+      })
+      .finally(() => {
+        checkStatus()
+      })
+  }
+  const checkRunning = (list: RunAllItem[]) => {
+    const ids: number[] = []
+
+    for (const key in list) {
+      const item = list[key]
+      if (
+        item.runStatus === RunAllStatus.Running ||
+        item.runStatus === RunAllStatus.CodePushing ||
+        (item.runStatus === RunAllStatus.RunSuccess &&
+          item.approveStatus === ApproveStatus.InReview)
+      ) {
+        ids.push(item.id)
       }
-      setStatusIds((prevList) => [...prevList, ...ids])
-    },
-    [statusIds]
-  )
+    }
+    if (ids.length > 0) {
+      setStatusIds((prevSet) => {
+        const newSet = new Set(prevSet) // 创建一个新的 Set，保留之前的值
+        ids.forEach((id) => newSet.add(id)) // 将新 id 插入到 Set 中
+        return newSet // 返回更新后的 Set
+      })
+    }
+  }
   const getRunAllList = useRunAllList()
   const getStatusList = useQueryStatus()
   const requestApprove = useApprove()
+  const chatId = getQueryParam('chatId')
   useEffect(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.removeEventListener('scroll', handleScroll)
+    }
+    window.clearTimeout(eventTimeoutId.current)
+    setCurrentPage(1)
+    setLoading(true)
+    setSearch('')
+    setIsLoadingMore(false)
+    setStatusIds(new Set())
+    setList([])
     if (props.visible) {
-      setStatusIds([])
-      getRunAllList(1, 100, props.documnetId)
+      checkStatus()
+      getRunAllList(1, 100, chatId)
         .then((res) => {
           setList(res.list)
+          setHasMore(res.list.length > 0)
           checkRunning(res.list)
         })
         .finally(() => {
@@ -131,17 +189,18 @@ export default function RunAllList(props: IProps) {
         })
     }
   }, [props.visible])
-  const loadMoreData = useCallback(() => {
+  const loadMoreData = () => {
     if (loading || isLoadingMore || !hasMore) {
       return
     }
     setIsLoadingMore(true)
-    getRunAllList(currentPage + 1, 100, props.documnetId)
+    getRunAllList(currentPage + 1, 100, chatId)
       .then((res) => {
         if (res.list.length > 0) {
           setList((prevList) => [...prevList, ...res.list])
           setCurrentPage((prevPage) => prevPage + 1)
           checkRunning(res.list)
+          setHasMore(res.list.length > 0)
         } else {
           setHasMore(false)
         }
@@ -149,27 +208,7 @@ export default function RunAllList(props: IProps) {
       .finally(() => {
         setIsLoadingMore(false)
       })
-  }, [hasMore, loading, currentPage, props.documnetId])
-  useEffect(() => {
-    observer.current = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasMore) {
-          loadMoreData()
-        }
-      },
-      { root: null, rootMargin: '0px', threshold: 1.0 }
-    )
-
-    if (listEndRef.current) {
-      observer.current.observe(listEndRef.current)
-    }
-
-    return () => {
-      if (observer.current && listEndRef.current) {
-        observer.current.unobserve(listEndRef.current)
-      }
-    }
-  }, [listEndRef.current, loadMoreData, hasMore])
+  }
   const getRunStatus = (item: RunAllItem) => {
     switch (item.runStatus) {
       case RunAllStatus.Running:
@@ -282,6 +321,9 @@ export default function RunAllList(props: IProps) {
         )
     }
   }
+  useEffect(() => {
+    console.log(statusIds)
+  }, [statusIds])
   return (
     <Transition
       as="div"
@@ -309,7 +351,10 @@ export default function RunAllList(props: IProps) {
             className={clsx('w-[16px], h-[16px]', styles.icon)}></XMarkIcon>
         </div>
         {list.length ? (
-          <ScrollBar className={styles.listWrapper}>
+          <ScrollBar
+            className={styles.listWrapper}
+            ref={scrollContainerRef}
+            onScroll={handleScroll}>
             {list.map((item, index) => (
               <div className={clsx(styles.cell, index >= 1 ? styles.cellMargin : '')} key={index}>
                 <div className={styles.title}>{item.name}</div>
@@ -326,7 +371,7 @@ export default function RunAllList(props: IProps) {
               </div>
             ))}
             {
-              <div ref={listEndRef} className={styles.bottomLayout}>
+              <div className={styles.bottomLayout}>
                 {hasMore && isLoadingMore && !loading ? (
                   <div className="loading">
                     <Spin color="#2F69FE" />
