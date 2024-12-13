@@ -1068,22 +1068,6 @@ export class ChatService {
 
     // Process records sequentially
     for (const record of records) {
-      if (record.speakerType === 'user') {
-        history.push({
-          type: 'text',
-          content: record.question
-        });
-      } else {
-        // Handle both assistant responses and report responses
-        const answerContent = record.answer.toString();
-        if (answerContent) {
-          history.push({
-            type: 'text',
-            content: answerContent
-          });
-        }
-      }
-
       // Fetch ChatRecordTask entries for this record
       const tasks = await prisma().chatRecordTask.findMany({
         where: { chatRecordId: record.id },
