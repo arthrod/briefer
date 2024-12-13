@@ -342,6 +342,13 @@ async function handleJsonContent(
 
             let chatRecordTask;
             if (parsedJson.phase === 'CREATE') {
+                // 检查当前轮次是否已经有任务
+                const existingTasks = await prisma().chatRecordTask.findFirst({
+                    where: {
+                        chatRecordId: chatRecord.id
+                    }
+                });
+
                 // 如果有父任务ID，先查找对应的ChatRecordTask记录
                 let parentTaskId: string | null = null;
                 if (parsedJson.params.parent_id) {
@@ -395,22 +402,20 @@ async function handleJsonContent(
                     }
                 });
 
-                // 仅对第一个task消息通过SSE发送
-                res.write(`data: ${JSON.stringify({
-                    type: 'task',
-                    phase: 'CREATE',
-                    params: {
-                        id: chatRecordTask.id,
-                        agent_task_id: chatRecordTask.agentTaskId,
-                        name: chatRecordTask.name,
-                        description: chatRecordTask.description,
-                        parent_id: chatRecordTask.parentId,
-                        sub_task_count: chatRecordTask.subTaskCount,
-                        status: chatRecordTask.status,
-                        variable: chatRecordTask.variable
-                    }
-                })}\n\n`)
-
+                // 仅在没有已存在任务时发送消息
+                if (!existingTasks) {
+                    res.write(`data: ${JSON.stringify({
+                        type: 'step',
+                        content: {
+                            jobs: [{
+                                title: chatRecordTask.name,
+                                summary: chatRecordTask.description || '',
+                                status: chatRecordTask.status.toLowerCase(),
+                                modules: []
+                            }]
+                        }
+                    })}\n\n`);
+                }
             } else if (parsedJson.phase === 'UPDATE') {
                 // 验证 status 是否是 ChatRecordTaskStatus 枚举的值
                 if (!Object.values(ChatRecordTaskStatus).includes(parsedJson.params.status)) {
@@ -544,7 +549,9 @@ async function handleStreamError(
             where: {
                 chatId: updateTarget.chatId,
                 roundId: updateTarget.roundId,
-                speakerType: 'user'
+            },
+            orderBy: {
+                createdTime: 'desc'
             }
         });
 
