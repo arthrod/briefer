@@ -62,7 +62,7 @@ interface ChatLayoutContextType {
   refreshChatList: () => void
   roundList: MessageContent[]
   setRoundList: Dispatch<SetStateAction<MessageContent[]>>
-  loadDetail: (chatId: string) => Promise<void>
+  refreshRoundList: (chatId: string) => Promise<void>
   startRoundChat: (
     chatId: string,
     msg: string,
@@ -76,14 +76,14 @@ interface ChatLayoutContextType {
 }
 
 export const ChatContext = createContext<ChatLayoutContextType | null>(null)
-
+const sseLoadingMap = new Map<string, boolean>() // 用于AI生成
 export function ChatProvider(props: { children: ReactNode }) {
   const [chatList, setChatList] = useState<HistoryChat[]>([])
   const [roundList, setRoundList] = useState<MessageContent[]>([])
-  const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
+  // const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
+  const chatSessions = useRef<ChatSession[]>([])
 
   const [loading, setLoading] = useState(false) // 用于接口发送
-  const [generating, setGenerating] = useState(false) // 用于AI生成
 
   const curChatSession = useRef<ChatSession | null>(null)
 
@@ -112,19 +112,22 @@ export function ChatProvider(props: { children: ReactNode }) {
     })
   }
 
-  const loadDetail = (chatId: string) => {
+  const refreshRoundList = (chatId: string) => {
     if (loading) {
       return Promise.reject()
     }
-    if (curChatSession.current?.chatId === chatId) {
-      return Promise.resolve()
-    }
+    // if (curChatSession.current?.chatId === chatId) {
+    //   return Promise.resolve()
+    // }
     setLoading(true)
     return getChatDetailApi(chatId)
       .then((data) => {
         if (data) {
-          const { messages } = data
-          setRoundList([defaultMsg, ...(messages || [])])
+          const { messages = [] } = data
+          const lastItem = messages[messages.length - 1]
+          if (lastItem.role === 'assistant') {
+            setRoundList([defaultMsg, ...(messages || [])])
+          }
         }
       })
       .finally(() => {
@@ -150,9 +153,7 @@ export function ChatProvider(props: { children: ReactNode }) {
       return [...preList, userMsg, assistantMsg]
     })
 
-    setTimeout(() => {
-      sendChat(chatId, roundId, msgId, doneCallback)
-    }, 300)
+    sendChat(chatId, roundId, msgId, doneCallback)
   }
 
   const sendChat = async (
@@ -161,10 +162,10 @@ export function ChatProvider(props: { children: ReactNode }) {
     msgId: string,
     doneCallback?: (isError: boolean) => void
   ) => {
-    if (generating) {
+    if (sseLoadingMap.get(chatId)) {
       return
     }
-    setGenerating(true)
+    sseLoadingMap.set(chatId, true)
 
     const _chatSession = chat(chatId, roundId)
     curChatSession.current = _chatSession
@@ -172,9 +173,8 @@ export function ChatProvider(props: { children: ReactNode }) {
     _chatSession.listener.onopen = () => {}
 
     _chatSession.listener.onerror = () => {
-      setGenerating(false)
       updateMsg(msgId, '服务错误', true)
-      sessionReset()
+      sessionReset(chatId)
     }
 
     _chatSession.listener.onmessage = (event) => {
@@ -190,9 +190,9 @@ export function ChatProvider(props: { children: ReactNode }) {
         return
       }
       if (data === '[DONE]') {
-        setGenerating(false)
+        chatSessions.current = chatSessions.current.filter((item) => item.roundId !== roundId)
         doneCallback?.(false)
-        sessionReset()
+        sessionReset(chatId)
         return null
       }
 
@@ -228,12 +228,12 @@ export function ChatProvider(props: { children: ReactNode }) {
     }
   }
 
-  const sessionReset = () => {
+  const sessionReset = (chatId: string) => {
     if (curChatSession && curChatSession.current) {
       curChatSession.current?.listener.close()
       curChatSession.current?.eventSource.close()
       curChatSession.current = null
-      setGenerating(false)
+      sseLoadingMap.delete(chatId)
     }
   }
 
@@ -247,9 +247,9 @@ export function ChatProvider(props: { children: ReactNode }) {
   }
 
   const getRound = useCallback((roundId: string) => {
-    for (let i = 0; i < chatSessions.length; i++) {
-      if (chatSessions[i].roundId === roundId) {
-        return chatSessions[i]
+    for (let i = 0; i < chatSessions.current.length; i++) {
+      if (chatSessions.current[i].roundId === roundId) {
+        return chatSessions.current[i]
       }
     }
   }, [])
@@ -274,7 +274,7 @@ export function ChatProvider(props: { children: ReactNode }) {
       eventSource: eventSource,
     }
 
-    setChatSessions((sessions) => [...sessions, chatSession])
+    chatSessions.current.push(chatSession)
 
     eventSource.onopen = () => {
       if (listener.onopen) {
@@ -306,11 +306,10 @@ export function ChatProvider(props: { children: ReactNode }) {
 
   const stopChat = useCallback(async (): Promise<void> => {
     if (curChatSession.current) {
-      const { roundId } = curChatSession.current
+      const { chatId, roundId } = curChatSession.current
       return chatStopApi(roundId)
         .then(() => {
-          setGenerating(false)
-          sessionReset()
+          sessionReset(chatId)
         })
         .catch(() => {
           showToast('停止失败，请重试', 'error')
@@ -322,18 +321,20 @@ export function ChatProvider(props: { children: ReactNode }) {
     <ChatContext.Provider
       value={{
         chatList,
-        loadDetail,
         setChatList,
         addChatList,
         refreshChatList,
         roundList,
         setRoundList,
+        refreshRoundList,
         createChat,
         startRoundChat,
         stopChat,
         getRound,
         chat,
-        generating,
+        generating: !!curChatSession.current
+          ? !!sseLoadingMap.get(curChatSession.current?.chatId)
+          : false,
       }}>
       {props.children}
     </ChatContext.Provider>

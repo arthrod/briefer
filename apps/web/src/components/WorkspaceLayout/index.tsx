@@ -54,12 +54,17 @@ interface Props extends PropsWithChildren {
 
 function ChatDetailLayout({ chatId, workspaceId }: { chatId: string; workspaceId: string }) {
   const [loading, setLoading] = useState(false)
-  const { roundList, setRoundList, stopChat, startRoundChat } = useChatLayoutContext()
+  const { roundList, setRoundList, refreshRoundList, stopChat, startRoundChat } =
+    useChatLayoutContext()
   const timer = useRef(-1)
   const getChatStatus = useChatStatus()
 
   useEffect(() => {
+    setLoading(false)
     watchStatus()
+    if (chatId) {
+      refreshRoundList(chatId)
+    }
     return () => {
       window.clearTimeout(timer.current)
     }
