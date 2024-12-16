@@ -55,12 +55,14 @@ interface Props extends PropsWithChildren {
 function ChatDetailLayout({ chatId, workspaceId }: { chatId: string; workspaceId: string }) {
   const [loading, setLoading] = useState(false)
   const { roundList, setRoundList, stopChat, startRoundChat } = useChatLayoutContext()
+  const timer = useRef(-1)
   const getChatStatus = useChatStatus()
-
-  const router = useRouter()
 
   useEffect(() => {
     watchStatus()
+    return () => {
+      window.clearTimeout(timer.current)
+    }
   }, [chatId])
 
   const watchStatus = () => {
@@ -68,33 +70,33 @@ function ChatDetailLayout({ chatId, workspaceId }: { chatId: string; workspaceId
       return
     }
     setLoading(true)
-    return getChatStatus(chatId)
-      .then((data: ChatStatus) => {
-        if (data) {
-          if (data.status === 'chatting') {
-            window.setTimeout(() => {
+    timer.current = window.setTimeout(() => {
+      getChatStatus(chatId)
+        .then((data: ChatStatus) => {
+          if (data) {
+            if (data.status === 'chatting') {
               watchStatus()
-            }, 2000)
-          } else {
-            setLoading(false)
+            } else {
+              setLoading(false)
+            }
+            const lastAnswer = data.answers[data.answers.length - 1]
+            if (lastAnswer) {
+              setRoundList((prevList) => {
+                const lastIndex = prevList.length - 1 // 获取最后一条消息的索引
+                const updatedList = [...prevList]
+                if (lastIndex >= 0 && updatedList[lastIndex]) {
+                  const lastItem = updatedList[lastIndex]
+                  lastItem.content = lastAnswer.content
+                }
+                return updatedList
+              })
+            }
           }
-          const lastAnswer = data.answers[data.answers.length - 1]
-          if (lastAnswer) {
-            setRoundList((prevList) => {
-              const lastIndex = prevList.length - 1 // 获取最后一条消息的索引
-              const updatedList = [...prevList]
-              if (lastIndex >= 0 && updatedList[lastIndex]) {
-                const lastItem = updatedList[lastIndex]
-                lastItem.content = lastAnswer.content
-              }
-              return updatedList
-            })
-          }
-        }
-      })
-      .catch(() => {
-        setLoading(false)
-      })
+        })
+        .catch(() => {
+          setLoading(false)
+        })
+    }, 2000)
   }
   const handleSend = async (question: string) => {
     if (!question || loading) {
