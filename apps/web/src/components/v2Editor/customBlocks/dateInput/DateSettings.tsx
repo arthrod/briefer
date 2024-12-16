@@ -1,8 +1,4 @@
-import {
-  CalendarIcon,
-  Cog6ToothIcon,
-  InformationCircleIcon,
-} from '@heroicons/react/24/solid'
+import { CalendarIcon, Cog6ToothIcon, InformationCircleIcon } from '@heroicons/react/24/solid'
 import clsx from 'clsx'
 import { CheckIcon } from 'lucide-react'
 import { useCallback, useMemo } from 'react'
@@ -40,10 +36,10 @@ export default function DateSettings(props: Props) {
   }, [props.onChangeDateType])
 
   return (
-    <div className="bg-gray-50 px-3 py-3 border border-gray-200 flex flex-col gap-y-2 rounded-md shadow-sm">
-      <div className="flex items-center justify-between w-full">
-        <span className="text-xs font-semibold py-1 flex gap-x-1 text-gray-400 w-full">
-          <Cog6ToothIcon className="w-4 h-4" />
+    <div className="flex flex-col gap-y-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-3 shadow-sm">
+      <div className="flex w-full items-center justify-between">
+        <span className="flex w-full gap-x-1 py-1 text-xs font-semibold text-gray-400">
+          <Cog6ToothIcon className="h-4 w-4" />
           日期输入设置
         </span>
 
@@ -53,63 +49,54 @@ export default function DateSettings(props: Props) {
             className="flex w-full"
             tooltipClassname="w-64"
             position="top"
-            active
-          >
-            <InformationCircleIcon className="w-4 h-4 text-gray-400" />
+            active>
+            <InformationCircleIcon className="h-4 w-4 text-gray-400" />
           </Tooltip>
         </div>
       </div>
 
-      <span className="isolate inline-flex rounded-md shadow-sm w-full">
+      <span className="isolate inline-flex w-full rounded-md shadow-sm">
         <button
           type="button"
           onClick={onDateDateType}
           className={clsx(
-            'relative inline-flex items-center justify-between rounded-l-md px-3 py-2 text-xs ring-1 ring-inset ring-gray-300 hover:bg-ceramic-50 focus:z-10 w-full',
+            'hover:bg-ceramic-50 relative inline-flex w-full items-center justify-between rounded-l-md px-3 py-2 text-xs ring-1 ring-inset ring-gray-300 focus:z-10',
             props.dateType === 'date'
-              ? 'bg-ceramic-50 text-gray-900 font-medium'
+              ? 'bg-ceramic-50 font-medium text-gray-900'
               : 'bg-white text-gray-500'
           )}
-          disabled={props.dateType === 'date' || props.disabled}
-        >
-          <span className="flex gap-x-2 items-center">
-            <CalendarIcon
-              strokeWidth={props.dateType === 'date' ? 2 : 1}
-              className="w-4 h-4"
-            />
-            Date
+          disabled={props.dateType === 'date' || props.disabled}>
+          <span className="flex items-center gap-x-2">
+            <CalendarIcon strokeWidth={props.dateType === 'date' ? 2 : 1} className="h-4 w-4" />
+            日期
           </span>
           {props.dateType === 'date' && (
-            <CheckIcon strokeWidth={3} className="w-4 h-4 text-ceramic-400" />
+            <CheckIcon strokeWidth={3} className="text-ceramic-400 h-4 w-4" />
           )}
         </button>
         <button
           type="button"
           onClick={onDateTimeDateType}
           className={clsx(
-            'relative -ml-px inline-flex items-center justify-between rounded-r-md px-3 py-2 text-xs ring-1 ring-inset ring-gray-300 hover:bg-ceramic-50 focus:z-10 w-full',
+            'hover:bg-ceramic-50 relative -ml-px inline-flex w-full items-center justify-between rounded-r-md px-3 py-2 text-xs ring-1 ring-inset ring-gray-300 focus:z-10',
             props.dateType === 'datetime'
-              ? 'bg-ceramic-50 text-gray-900 font-medium'
+              ? 'bg-ceramic-50 font-medium text-gray-900'
               : 'bg-white text-gray-500'
           )}
-          disabled={props.dateType === 'datetime' || props.disabled}
-        >
-          <span className="flex gap-x-2 items-center">
-            <ClockIcon
-              strokeWidth={props.dateType === 'datetime' ? 2 : 1}
-              className="w-4 h-4"
-            />
-            Date and time
+          disabled={props.dateType === 'datetime' || props.disabled}>
+          <span className="flex items-center gap-x-2">
+            <ClockIcon strokeWidth={props.dateType === 'datetime' ? 2 : 1} className="h-4 w-4" />
+            带时间的日期
           </span>
           {props.dateType === 'datetime' && (
-            <CheckIcon strokeWidth={3} className="w-4 h-4 text-ceramic-400" />
+            <CheckIcon strokeWidth={3} className="text-ceramic-400 h-4 w-4" />
           )}
         </button>
       </span>
 
       <div className={clsx('flex flex-col gap-y-3 pt-2')}>
         <Dropdown
-          label="Timezone"
+          label="时区"
           options={timezoneOptions}
           placeholder="Select a dataframe"
           value={props.timezone}

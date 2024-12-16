@@ -1,0 +1,20 @@
+.editorFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.5rem;
+  width: 100%;
+  height: 33px;
+  background: #fafafa;
+  border-width: 1px 0px 0px 0px;
+  border-style: solid;
+  border-color: rgba(0, 0, 0, 0.06);
+  font-size: 0.75rem;
+  .left {
+  }
+  .right {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+}

@@ -47,7 +47,7 @@ function EnvBar(props: Props) {
             <div>
               <EnvironmentButton name="Python 3.9" workspaceId={workspaceId} />
             </div>
-            {/* <div>
+            <div>
               <Link
                 href={`/workspaces/${workspaceId}/environments/current/variables`}
                 className="flex cursor-pointer items-center gap-x-2 rounded-sm border border-gray-200 px-3 py-1 text-sm hover:bg-gray-50">
@@ -60,7 +60,7 @@ function EnvBar(props: Props) {
               onClick={props.onOpenFiles}>
               <FolderIcon className="h-4 w-4 text-gray-600" />
               <span className="text-gray-700">Files</span>
-            </button> */}
+            </button>
             <div>{`${lastUpdatedAt}`}</div>
           </>
         )}

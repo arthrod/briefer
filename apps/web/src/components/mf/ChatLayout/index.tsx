@@ -28,7 +28,9 @@ import { useChatStop } from '@/hooks/mf/chat/useChatStop'
 import { ChatStatus } from '@/hooks/mf/chat/useChatStatus'
 import { useChatCreate } from '@/hooks/mf/chat/useCreateChat'
 import ChatListBox from '../ChatList'
+import { StepJsonType } from '../ChatDetail/ReportStep'
 const defaultMsg: MessageContent = { id: '', role: 'system', content: '我是你的AI小助手' }
+const empty: StepJsonType = { type: 'step', content: { jobs: [] } }
 
 interface Props {
   children: React.ReactNode
@@ -148,7 +150,9 @@ export function ChatProvider(props: { children: ReactNode }) {
       return [...preList, userMsg, assistantMsg]
     })
 
-    sendChat(chatId, roundId, msgId, doneCallback)
+    setTimeout(() => {
+      sendChat(chatId, roundId, msgId, doneCallback)
+    }, 300)
   }
 
   const sendChat = async (
@@ -338,6 +342,9 @@ export function ChatProvider(props: { children: ReactNode }) {
 
 export const useChatLayoutContext = () => {
   const context = useContext(ChatContext)
+  useEffect(() => {
+    context?.refreshChatList()
+  }, [])
   if (!context) {
     throw new Error('useChatLayout must be used within ChatLayoutProvider')
   }

@@ -55,7 +55,7 @@ export default function DropdownSettings(props: Props) {
               strokeWidth={attrs.dropdownType === 'static' ? 2 : 1}
               className="w-4 h-4"
             />
-            Static
+            静态
           </span>
           {attrs.dropdownType === 'static' && (
             <CheckIcon strokeWidth={3} className="w-4 h-4 text-ceramic-400" />
@@ -77,7 +77,7 @@ export default function DropdownSettings(props: Props) {
               strokeWidth={attrs.dropdownType === 'dynamic' ? 2 : 1}
               className="w-4 h-4"
             />
-            Dynamic
+            动态
           </span>
           {attrs.dropdownType === 'dynamic' && (
             <CheckIcon strokeWidth={3} className="w-4 h-4 text-ceramic-400" />
@@ -155,7 +155,7 @@ const StaticInput = (props: StaticInputProps) => {
   return (
     <div className="pt-2">
       <span className="block text-xs font-medium leading-6 text-gray-700 py-0.5">
-        Static options
+        静态选项
       </span>
       <div
         className={clsx(

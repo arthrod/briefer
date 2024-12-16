@@ -64,6 +64,7 @@
 
   .suggestions {
     display: flex;
+    gap: 1rem;
     margin-top: 1.5rem;
     width: 720px;
     margin-bottom: 84px;
@@ -87,10 +88,6 @@
 
     .item_active {
       border: 1px solid #2f69fe;
-    }
-
-    .report_margin {
-      margin-left: 16px;
     }
   }
 }

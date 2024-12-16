@@ -42,13 +42,11 @@ interface PythonErrorUIProps {
 }
 export function PythonErrorUI(props: PythonErrorUIProps) {
   return (
-    <div className="text-xs pt-4">
-      <div className="flex border border-red-300 p-2 gap-x-3 text-xs overflow-hidden">
-        <ExclamationTriangleIcon className="text-red-500 h-6 w-6" />
+    <div className="pt-4 text-xs">
+      <div className="flex gap-x-3 overflow-hidden border border-red-300 p-2 text-xs">
+        <ExclamationTriangleIcon className="h-6 w-6 text-red-500" />
         <div>
-          <h4 className="font-semibold mb-2">
-            Your code could not be executed
-          </h4>
+          <h4 className="mb-2 font-semibold">你的代码不能执行</h4>
           <p>We received the following error:</p>
           <pre className="whitespace-pre-wrap">
             {props.ename} - {props.evalue}
@@ -60,26 +58,20 @@ export function PythonErrorUI(props: PythonErrorUIProps) {
           ))}
           {props.onFixWithAI && (
             <Tooltip
-              title="Missing OpenAI API key"
-              message="Admins can add an OpenAI key in settings."
+              // title="敬请期待"
+              message="敬请期待"
               className="inline-block"
               tooltipClassname="w-40 text-center"
               position="top"
-              active={!props.canFixWithAI}
-            >
+              active={!props.canFixWithAI}>
               <button
                 onClick={props.onFixWithAI}
                 className={clsx(
-                  'mt-2 flex items-center border rounded-sm px-2 py-1 gap-x-2 font-syne border-gray-200 hover:bg-gray-50 hover:text-gray-700 disabled:bg-gray-200 disabled:border-0 disabled:cursor-not-allowed'
+                  'font-syne mt-2 flex items-center gap-x-2 rounded-sm border border-gray-200 px-2 py-1 hover:bg-gray-50 hover:text-gray-700 disabled:cursor-not-allowed disabled:border-0 disabled:bg-gray-200'
                 )}
-                disabled={props.isFixWithAILoading || !props.canFixWithAI}
-              >
-                {props.isFixWithAILoading ? (
-                  <Spin />
-                ) : (
-                  <SparklesIcon className="w-3 h-3" />
-                )}
-                Fix with AI
+                disabled={props.isFixWithAILoading || !props.canFixWithAI}>
+                {props.isFixWithAILoading ? <Spin /> : <SparklesIcon className="h-3 w-3" />}
+                AI修复
               </button>
             </Tooltip>
           )}

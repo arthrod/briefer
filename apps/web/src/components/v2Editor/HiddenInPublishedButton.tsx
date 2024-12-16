@@ -25,7 +25,7 @@ function HiddenInPublishedButton(props: Props) {
       )}
       <div className="bg-hunter-950 pointer-events-none absolute -top-1 left-1/2 flex w-max max-w-40 -translate-x-1/2 -translate-y-full flex-col gap-y-1 rounded-md p-2 font-sans text-xs text-white opacity-0 transition-opacity group-hover:opacity-100">
         <span className="inline-flex items-center text-gray-400">
-          {`在发布页面${props.isBlockHiddenInPublished ? '展示' : '隐藏'}这个${props.hasMultipleTabs ? 'tab' : 'block'}`}
+          {`在预览页面${props.isBlockHiddenInPublished ? '展示' : '隐藏'}这个${props.hasMultipleTabs ? 'tab' : 'block'}`}
         </span>
       </div>
     </button>
