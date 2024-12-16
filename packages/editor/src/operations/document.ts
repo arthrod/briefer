@@ -37,13 +37,16 @@ import { makePivotTableBlock } from '../blocks/pivotTable.js'
 export type AddBlockGroupBlock =
   | {
       type:
-        | BlockType.RichText
         | BlockType.Input
         | BlockType.DropdownInput
         | BlockType.DateInput
         | BlockType.FileUpload
         | BlockType.Writeback
         | BlockType.PivotTable
+    }
+  | {
+      type: BlockType.RichText
+      variables?: string[]
     }
   | {
       type: BlockType.Python
@@ -64,7 +67,7 @@ const createBlock = (block: AddBlockGroupBlock, yBlockDefs: Y.Map<YBlock>) => {
 
   switch (block.type) {
     case BlockType.RichText:
-      yBlock = makeRichTextBlock(blockId)
+      yBlock = makeRichTextBlock(blockId, block.variables)
       break
     case BlockType.SQL:
       yBlock = makeSQLBlock(blockId, yBlockDefs, {
