@@ -45,23 +45,27 @@ const MoreBtn = ({ items, onItemClick }: IMoreBtnProps) => {
 
   return (
     <Popover className={styles.moreOpt}>
-      <PopoverButton as="div" onClick={() => setIsOpen(!isOpen)}>
+      <PopoverButton
+        onClick={(e) => {
+          e.stopPropagation()
+          setIsOpen(!isOpen)
+        }}>
         <img src="/icons/more.svg" width={16} />
       </PopoverButton>
       <PopoverPanel
         anchor="bottom"
-        className={clsx('shadow-lg', styles.morePopoverLayout)}
+        className={clsx('pointer-events-auto z-[100] shadow-lg', styles.morePopoverLayout)}
         style={{ marginTop: '8px' }}>
         {({ close }) => (
-          <div className={styles.moreBtnLayout}>
+          <div className={clsx('pointer-events-auto', styles.moreBtnLayout)}>
             {items.map((item, index) => (
               <div
                 className={styles.moreBtn}
                 key={index}
                 onClick={(e) => {
                   e.stopPropagation()
-                  close()
                   onItemClick && onItemClick(item.type)
+                  setTimeout(() => close(), 0)
                 }}>
                 {item.label}
               </div>
@@ -256,7 +260,7 @@ const ChatListBox = ({ chatId, workspaceId }: ChatListProps) => {
     <div className={clsx(styles.chatList, 'text-sm')}>
       <div className={styles.top}>
         <div
-          className={clsx('flex w-full flex-col', styles.logo_icon)}
+          className={clsx('flex w-full cursor-pointer flex-col', styles.logoBox)}
           onClick={() => {
             router.push('/home')
           }}>
@@ -281,7 +285,7 @@ const ChatListBox = ({ chatId, workspaceId }: ChatListProps) => {
         )}
       </ScrollBar>
       <AlertDialog open={isDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent style={{ zIndex: 200 }}>
           <AlertDialogHeader>
             <AlertDialogTitle>删除对话</AlertDialogTitle>
             <AlertDialogDescription>确定删除该对话么？</AlertDialogDescription>

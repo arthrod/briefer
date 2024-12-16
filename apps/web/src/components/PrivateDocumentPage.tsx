@@ -26,6 +26,8 @@ import { ContentSkeleton, TitleSkeleton } from './v2Editor/ContentSkeleton'
 import RunAllList from './mf/RunAllList/RunAllList'
 import styles from './PrivateDocumentPage.module.scss'
 import SchemaList from './mf/SchemaList/SchemaList'
+import { useChatLayoutContext } from './mf/ChatLayout'
+import { getQueryParam } from '@/hooks/useQueryArgs'
 // this is needed because this component only works with the browser
 const V2Editor = dynamic(() => import('@/components/v2Editor'), {
   ssr: false,
@@ -80,7 +82,8 @@ function PrivateDocumentPageInner(
     publishing: boolean
   }
 ) {
-  const documentTitle = useMemo(() => props.document.title || 'Untitled', [props.document.title])
+  const documentTitle = useMemo(() => props.document.title || '新的报告', [props.document.title])
+
   const [selectedSidebar, setSelectedSidebar] = useState<
     | { _tag: 'comments' }
     | { _tag: 'schedules' }
@@ -91,11 +94,18 @@ function PrivateDocumentPageInner(
     | { _tag: 'reusableComponents' }
     | { _tag: 'pageSettings' }
     | { _tag: 'runAll' }
-    | { _tag: 'schema'}
+    | { _tag: 'schema' }
     | null
   >(null)
 
   const [{ data: dataSources }] = useDataSources(props.workspaceId)
+  const { chatList } = useChatLayoutContext()
+  const chatId = getQueryParam('chatId')
+
+  const chatTitle = useMemo(() => {
+    const chat = chatList.find((c) => c.id === chatId)
+    return chat?.title || '新的报告'
+  }, [chatList, chatId])
 
   const onHideSidebar = useCallback(() => {
     setSelectedSidebar(null)
@@ -218,7 +228,8 @@ function PrivateDocumentPageInner(
         <div
           style={{ color: '#272A33', fontWeight: 500 }}
           className="flex w-full items-center gap-x-1.5 overflow-hidden font-sans text-lg">
-          <span className="flex w-full items-center truncate">{documentTitle}</span>
+          <span className="flex w-full items-center truncate">{chatTitle}</span>
+          {/* <span className="flex w-full items-center truncate">{documentTitle}</span> */}
         </div>
 
         <div className="flex h-[36px] w-full items-center justify-end gap-x-4">

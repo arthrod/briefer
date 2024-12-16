@@ -129,12 +129,12 @@ function SQLBlock(props: Props) {
     toggleSQLEditWithAIPromptOpen(props.block)
   }, [props.block, hasOaiKey])
 
-  useEffect(() => {
-    const currentSrc = getSQLSource(props.block)
-    if (!props.dataSources.size && currentSrc.length === 0) {
-      updateYText(getSQLSource(props.block), NO_DS_TEXT)
-    }
-  }, [props.dataSources, props.block])
+  // useEffect(() => {
+  //   const currentSrc = getSQLSource(props.block)
+  //   if (!props.dataSources.size && currentSrc.length === 0) {
+  //     updateYText(getSQLSource(props.block), NO_DS_TEXT)
+  //   }
+  // }, [props.dataSources, props.block])
 
   const {
     dataframeName,
@@ -515,13 +515,13 @@ function SQLBlock(props: Props) {
                       )}>
                       <SparklesIcon className="h-3 w-3" />
 
-                      <span>Edit with AI</span>
+                      <span>通过AI编辑</span>
                       <div
                         className={clsx(
                           'bg-hunter-950 pointer-events-none absolute -top-2 left-1/2 z-20 flex -translate-x-1/2 -translate-y-full flex-col items-center justify-center gap-y-1 rounded-md p-2 font-sans text-xs text-white opacity-0 transition-opacity group-hover:opacity-100',
                           hasOaiKey ? 'w-28' : 'w-40'
                         )}>
-                        <span>{hasOaiKey ? 'Open AI edit form' : 'Missing OpenAI API key'}</span>
+                        <span>{hasOaiKey ? 'Open AI edit form' : '敬请期待'}</span>
                         <span className="inline-flex items-center gap-x-1 text-gray-400">
                           {hasOaiKey ? (
                             <>
@@ -529,9 +529,8 @@ function SQLBlock(props: Props) {
                               <span>+</span>
                               <span>e</span>
                             </>
-                          ) : (
-                            <span>Admins can add an OpenAI key in settings.</span>
-                          )}
+                          ) : // <span>Admins can add an OpenAI key in settings.</span>
+                          null}
                         </span>
                       </div>
                     </button>
@@ -575,25 +574,28 @@ function SQLBlock(props: Props) {
             },
             'group relative flex h-6 min-w-6 items-center justify-center rounded-sm'
           )}>
-          {status !== 'idle' ? (
-            <div>
-              {execStatus === 'enqueued' ? (
-                <ClockIcon className="h-3 w-3 text-gray-500" />
-              ) : (
-                <StopIcon className="h-3 w-3 text-gray-500" />
-              )}
-              <SQLExecTooltip
-                envStatus={envStatus}
-                envLoading={envLoading}
-                execStatus={execStatus}
-                status={status}
-              />
-            </div>
-          ) : props.dataSources.size > 0 || headerSelectValue === 'duckdb' ? (
-            <RunQueryTooltip />
-          ) : (
-            <MissingDataSourceTooltip />
-          )}
+          {
+            status !== 'idle' ? (
+              <div>
+                {execStatus === 'enqueued' ? (
+                  <ClockIcon className="h-3 w-3 text-gray-500" />
+                ) : (
+                  <StopIcon className="h-3 w-3 text-gray-500" />
+                )}
+                <SQLExecTooltip
+                  envStatus={envStatus}
+                  envLoading={envLoading}
+                  execStatus={execStatus}
+                  status={status}
+                />
+              </div>
+            ) : (
+              <RunQueryTooltip />
+            )
+            // : (
+            //   <MissingDataSourceTooltip />
+            // )
+          }
         </button>
         <ToChartButton layout={props.layout} block={props.block} blocks={props.blocks} />
 

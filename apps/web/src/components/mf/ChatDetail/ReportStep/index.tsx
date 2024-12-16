@@ -81,8 +81,8 @@ const ModuleSteps: React.FC<{ modules: Module[] }> = ({ modules }) => {
 
   return (
     <div className={styles.moduleSteps}>
-      {modules.map((module) => (
-        <div className={styles.moduleItem}>
+      {modules.map((module, mIndex) => (
+        <div key={`module` + mIndex} className={styles.moduleItem}>
           <div className={styles.moduleContent}>
             <div className={clsx(styles.moduleIcon, styles[`module-${module.status}`])}>
               {getStepStatusIcon(module.status)}
@@ -91,7 +91,7 @@ const ModuleSteps: React.FC<{ modules: Module[] }> = ({ modules }) => {
               <div className={styles.moduleTitle}>{module.title}</div>
               <div className={clsx(styles.tasks, isCollapsed && styles.isCollapsed)}>
                 {module.tasks.map((task, tIndex) => (
-                  <div className={styles.taskItem}>
+                  <div key={`task` + tIndex} className={styles.taskItem}>
                     <div className={clsx(styles.taskIcon, styles[`task-${task.status}`])}>
                       {getStepStatusIcon(task.status)}
                     </div>

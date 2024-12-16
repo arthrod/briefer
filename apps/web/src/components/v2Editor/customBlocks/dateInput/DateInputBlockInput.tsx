@@ -2,7 +2,7 @@ import ReactDOM from 'react-dom'
 import * as Y from 'yjs'
 import ReactInputMask from 'react-input-mask'
 import useYTextInput from '@/hooks/useYTextInput'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
 import DatePicker from './DatePicker'
 import { DateInputValue, dateInputValueFromString, formatDateInputValue } from '@briefer/editor'
@@ -38,7 +38,9 @@ interface Props {
   isCursorInserting: boolean
 }
 function DateInputBlockInput(props: Props) {
-  const isLoading = props.isSaving || props.isEnqueued
+  const isLoading = useMemo(() => {
+    return props.isSaving || props.isEnqueued
+  }, [props.isSaving, props.isEnqueued])
 
   const { value: newTextValue, onChange: onChangeNewTextValue } = useYTextInput(props.newValue)
   const newValue = dateInputValueFromString(newTextValue, props.value)
