@@ -268,7 +268,7 @@ export default function SchemaList(props: IProps) {
               {loading ? (
                 <Spin color="#2F69FE" wrapperClassName="pl-2" />
               ) : search ? (
-                <NoData text="未找到匹配的表" />
+                <NoData />
               ) : (
                 <NoData />
               )}
