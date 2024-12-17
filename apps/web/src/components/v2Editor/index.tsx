@@ -85,6 +85,7 @@ import PivotTableBlock from './customBlocks/pivotTable'
 import useHotkeys from '@/hooks/useHotkeys'
 import { HotkeysProvider } from 'react-hotkeys-hook'
 import useEditorAwareness, { EditorAwarenessProvider } from '@/hooks/useEditorAwareness'
+import EditorFooter from '../mf/EditorFooter'
 
 export enum ElementType {
   Block = 'BLOCK',
@@ -1333,35 +1334,37 @@ const Editor = (props: Props) => {
 
           <ContentSkeleton visible={props.isSyncing} />
 
-          <HotkeysProvider initiallyActiveScopes={['editor']}>
-            {!props.isSyncing && (
-              <>
-                {domBlocks}
-
-                {domBlocks.length === 0 && (
-                  <div className="w-full">
-                    <PlusButton
-                      alwaysVisible
-                      onAddBlock={addBlockToBottom}
-                      isEditable={props.isEditable}
-                      writebackEnabled={hasWriteback}
-                    />
-                  </div>
-                )}
-              </>
-            )}
-          </HotkeysProvider>
+          {!props.isSyncing && (
+            <>
+              {domBlocks}
+              {domBlocks.length === 0 && (
+                <div className="w-full">
+                  <PlusButton
+                    alwaysVisible
+                    onAddBlock={addBlockToBottom}
+                    isEditable={props.isEditable}
+                    writebackEnabled={hasWriteback}
+                  />
+                </div>
+              )}
+            </>
+          )}
 
           {!props.isPDF && <div className="pb-72" />}
         </div>
       </div>
-      {!props.isPublicViewer && !props.isPDF && (
+      <EditorFooter
+        blockCount={layout.value.length}
+        workspaceId={props.document.workspaceId}
+        lastEditTime={lastUpdatedAt}
+      />
+      {/* {!props.isPublicViewer && !props.isPDF && (
         <EnvBar
           onOpenFiles={props.onOpenFiles}
           publishedAt={props.isApp ? props.document.publishedAt : null}
           lastUpdatedAt={lastUpdatedAt}
         />
-      )}
+      )} */}
       <RemoveBlockDashboardConflictDialog
         yDoc={props.yDoc}
         state={
@@ -1595,8 +1598,10 @@ function TabRef(props: TabRefProps) {
 export default function V2Editor(props: Omit<Props, 'scrollViewRef'>) {
   const scrollViewRef = useRef<HTMLDivElement>(null)
   return (
-    <EditorAwarenessProvider scrollViewRef={scrollViewRef} yDoc={props.yDoc}>
-      <Editor {...props} scrollViewRef={scrollViewRef} />
-    </EditorAwarenessProvider>
+    <HotkeysProvider initiallyActiveScopes={['editor']}>
+      <EditorAwarenessProvider scrollViewRef={scrollViewRef} yDoc={props.yDoc}>
+        <Editor {...props} scrollViewRef={scrollViewRef} />
+      </EditorAwarenessProvider>
+    </HotkeysProvider>
   )
 }

@@ -18,11 +18,11 @@ function RagDetailPage() {
 
   const getChatStatus = useChatStatus()
 
-  const { loadDetail, roundList, startRoundChat, stopChat, generating } = useChatLayoutContext()
+  const { refreshRoundList, roundList, startRoundChat, stopChat, generating } = useChatLayoutContext()
 
   useEffect(() => {
     if (chatId) {
-      loadDetail(chatId)
+      refreshRoundList(chatId)
     } else {
       router.push('/home')
     }
@@ -41,7 +41,7 @@ function RagDetailPage() {
               watchStatus(false)
             }, 3000)
           } else if (!isFirst) {
-            loadDetail(chatId)
+            refreshRoundList(chatId)
           } else {
             setLoading(false)
           }

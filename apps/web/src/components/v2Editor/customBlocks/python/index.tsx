@@ -46,10 +46,10 @@ import HiddenInPublishedButton from '../../HiddenInPublishedButton'
 import useEditorAwareness from '@/hooks/useEditorAwareness'
 import { useWorkspaces } from '@/hooks/useWorkspaces'
 import useProperties from '@/hooks/useProperties'
-import { SaveReusableComponentButton } from '@/components/ReusableComponents'
 import { useReusableComponents } from '@/hooks/useReusableComponents'
 import { CodeEditor } from '../../CodeEditor'
-
+import styles from './index.module.scss'
+import SandBoxIcon from '@/icons/sandbox.svg'
 interface Props {
   document: ApiDocument
   block: Y.XmlElement<PythonBlock>
@@ -369,13 +369,13 @@ function PythonBlock(props: Props) {
                         'group relative flex items-center gap-x-2 rounded-sm border border-gray-200 px-2 py-1 font-sans text-gray-400'
                       )}>
                       <SparklesIcon className="h-3 w-3" />
-                      <span>Edit with AI</span>
+                      <span>通过AI编辑</span>
                       <div
                         className={clsx(
                           'bg-hunter-950 pointer-events-none absolute -top-2 left-1/2 z-20 flex -translate-x-1/2 -translate-y-full flex-col items-center justify-center gap-y-1 rounded-md p-2 font-sans text-xs text-white opacity-0 transition-opacity group-hover:opacity-100',
                           hasOaiKey ? 'w-28' : 'w-40'
                         )}>
-                        <span>{hasOaiKey ? 'Open AI edit form' : 'Missing OpenAI API key'}</span>
+                        <span>{hasOaiKey ? 'Open AI edit form' : '敬请期待'}</span>
                         <span className="inline-flex items-center gap-x-1 text-gray-400">
                           {hasOaiKey ? (
                             <>
@@ -383,9 +383,9 @@ function PythonBlock(props: Props) {
                               <span>+</span>
                               <span>e</span>
                             </>
-                          ) : (
-                            <span>Admins can add an OpenAI key in settings.</span>
-                          )}
+                          ) : null
+                          // <span>Admins can add an OpenAI key in settings.</span>
+                          }
                         </span>
                       </div>
                     </button>
@@ -396,9 +396,13 @@ function PythonBlock(props: Props) {
         </div>
 
         <div
-          className={clsx('border-t border-gray-200 p-3 text-xs', {
+          className={clsx('relative border-t border-gray-200 p-3 text-xs', {
             hidden: results.length === 0,
           })}>
+          <div className={styles.sandbox}>
+            <SandBoxIcon />
+            <span>Sandbox</span>
+          </div>
           <div className="flex items-center gap-x-1 text-gray-300 print:hidden">
             <button className="h-4 w-4 hover:text-gray-400" onClick={toggleResultHidden}>
               {isResultHidden ? <ChevronRightIcon /> : <ChevronDownIcon />}

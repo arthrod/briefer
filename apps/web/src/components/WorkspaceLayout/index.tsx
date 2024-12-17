@@ -33,8 +33,16 @@ import styles from './index.module.scss'
 import { useChatLayoutContext } from '../mf/ChatLayout'
 import { showToast } from '../mf/Toast'
 import { ChatStatus, useChatStatus } from '@/hooks/mf/chat/useChatStatus'
-import { Sheet, SheetClose, SheetContent, SheetTrigger } from '../ui/sheet'
-import ChatList from '../mf/ChatList'
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '../ui/sheet'
+import ChatListBox from '../mf/ChatList'
 
 const syne = Syne({ subsets: ['latin'] })
 
@@ -44,15 +52,22 @@ interface Props extends PropsWithChildren {
   hideOnboarding?: boolean
 }
 
-function ChatLayout({ chatId, workspaceId }: { chatId: string; workspaceId: string }) {
+function ChatDetailLayout({ chatId, workspaceId }: { chatId: string; workspaceId: string }) {
   const [loading, setLoading] = useState(false)
-  const { roundList, setRoundList, stopChat, startRoundChat } = useChatLayoutContext()
+  const { roundList, setRoundList, refreshRoundList, stopChat, startRoundChat } =
+    useChatLayoutContext()
+  const timer = useRef(-1)
   const getChatStatus = useChatStatus()
 
-  const router = useRouter()
-
   useEffect(() => {
+    setLoading(false)
     watchStatus()
+    if (chatId) {
+      refreshRoundList(chatId)
+    }
+    return () => {
+      window.clearTimeout(timer.current)
+    }
   }, [chatId])
 
   const watchStatus = () => {
@@ -60,33 +75,33 @@ function ChatLayout({ chatId, workspaceId }: { chatId: string; workspaceId: stri
       return
     }
     setLoading(true)
-    return getChatStatus(chatId)
-      .then((data: ChatStatus) => {
-        if (data) {
-          if (data.status === 'chatting') {
-            window.setTimeout(() => {
+    timer.current = window.setTimeout(() => {
+      getChatStatus(chatId)
+        .then((data: ChatStatus) => {
+          if (data) {
+            if (data.status === 'chatting') {
               watchStatus()
-            }, 2000)
-          } else {
-            setLoading(false)
+            } else {
+              setLoading(false)
+            }
+            const lastAnswer = data.answers[data.answers.length - 1]
+            if (lastAnswer) {
+              setRoundList((prevList) => {
+                const lastIndex = prevList.length - 1 // 获取最后一条消息的索引
+                const updatedList = [...prevList]
+                if (lastIndex >= 0 && updatedList[lastIndex]) {
+                  const lastItem = updatedList[lastIndex]
+                  lastItem.content = lastAnswer.content
+                }
+                return updatedList
+              })
+            }
           }
-          const lastAnswer = data.answers[data.answers.length - 1]
-          if (lastAnswer) {
-            setRoundList((prevList) => {
-              const lastIndex = prevList.length - 1 // 获取最后一条消息的索引
-              const updatedList = [...prevList]
-              if (lastIndex >= 0 && updatedList[lastIndex]) {
-                const lastItem = updatedList[lastIndex]
-                lastItem.content = lastAnswer.content
-              }
-              return updatedList
-            })
-          }
-        }
-      })
-      .catch(() => {
-        setLoading(false)
-      })
+        })
+        .catch(() => {
+          setLoading(false)
+        })
+    }, 2000)
   }
   const handleSend = async (question: string) => {
     if (!question || loading) {
@@ -119,7 +134,11 @@ function ChatLayout({ chatId, workspaceId }: { chatId: string; workspaceId: stri
             <img className="cursor-pointer" src="/icons/menu.svg" width={20} height={20} alt="" />
           </SheetTrigger>
           <SheetContent className="w-[240px]" side="left" hideCloseButton>
-            <ChatList workspaceId={workspaceId} chatId={chatId} />
+            <SheetHeader>
+              <SheetTitle></SheetTitle>
+              <SheetDescription style={{ display: 'none' }}></SheetDescription>
+            </SheetHeader>
+            <ChatListBox workspaceId={workspaceId} chatId={chatId} />
           </SheetContent>
         </Sheet>
         AI助手
@@ -231,7 +250,7 @@ export default function WorkspaceLayout({ children, pagePath, topBarClassname }:
             ? `flex h-full min-w-[33%] max-w-[33%] flex-col overflow-hidden lg:min-w-[25%] lg:max-w-[25%]`
             : `hidden md:max-w-[0] lg:max-w-[0]`
         }>
-        <ChatLayout workspaceId={workspaceId} chatId={chatId} />
+        <ChatDetailLayout workspaceId={workspaceId} chatId={chatId} />
       </div>
 
       <main

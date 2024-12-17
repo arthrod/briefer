@@ -410,7 +410,7 @@ async function handleJsonContent(
                         content: {
                             jobs: [{
                                 title: chatRecordTask.name,
-                                summary: chatRecordTask.description || '',
+                                description: chatRecordTask.description || '',
                                 status: chatRecordTask.status.toLowerCase(),
                                 modules: []
                             }]

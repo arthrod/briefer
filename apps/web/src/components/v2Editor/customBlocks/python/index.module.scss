@@ -1,0 +1,16 @@
+.sandbox {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  display: flex;
+  gap: 0.25rem;
+  justify-content: center;
+  align-items: center;
+  width: 6.8125rem;
+  height: 2.25rem;
+  color: #8792a4;
+  border-radius: 4px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  z-index: 1;
+}

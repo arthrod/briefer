@@ -441,7 +441,7 @@ function BlockListItem(props: BlockListItemProps) {
     >
       <div className="flex flex-col gap-y-3">
         <span className="text-gray-400 text-xs font-medium">
-          {blockTitle || 'Untitled'}
+          {blockTitle || '新的报告'}
         </span>
         <ScaleChild
           width={768}

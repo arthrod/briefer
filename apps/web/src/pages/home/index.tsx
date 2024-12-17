@@ -16,7 +16,7 @@ import { useWorkspaces } from '@/hooks/useWorkspaces'
 const fullText = '我能帮你做点什么？'
 
 function HomePage() {
-  const [type, setType] = useState<ChatType>('rag')
+  const [chatType, setChatType] = useState<ChatType>('report')
   // 逐字动画逻辑
   const [displayText, setDisplayText] = useState('') // 当前显示的文字
   const [disableCursor, setDisableCursor] = useState(false)
@@ -35,14 +35,14 @@ function HomePage() {
     if (loading) {
       return Promise.reject('')
     }
-    if (type === 'report' && !_fileId) {
+    if (chatType === 'report' && !_fileId) {
       showToast('请上传报告模版', 'warning')
       return Promise.reject('noFile')
     }
     setLoading(true)
     try {
       // 创建对话
-      createChat(type, _fileId).then((data) => {
+      createChat(chatType, _fileId).then((data) => {
         createRound(data.id, msg, data.workspaceId, data.documentId)
       })
     } finally {
@@ -54,7 +54,7 @@ function HomePage() {
     createDocument({ version: 2 })
 
     startRoundChat(chatId, msg).then(() => {
-      if (type === 'rag') {
+      if (chatType === 'rag') {
         if (chatInputRef.current) {
           const rect = chatInputRef.current.getBoundingClientRect()
           const distanceFromBottom = window.innerHeight - rect.bottom
@@ -113,31 +113,31 @@ function HomePage() {
         style={{ transform: `translateY(${translateY}px)`, width: '768px' }}>
         <ChatInput
           className={styles.input}
-          showUpload={type === 'report'}
+          showUpload={chatType === 'report'}
           loading={loading}
           onSend={handleSend}
         />
       </div>
       <div className={styles.suggestions} style={{ transform: `translateY(${translateY}px)` }}>
         <div
-          className={clsx(styles.item, type === 'rag' ? styles.item_active : null)}
-          onClick={() => {
-            setType('rag')
-          }}>
-          <RagIcon />
-          根据需求查找数据
-        </div>
-        <div
           className={clsx(
             styles.report_margin,
             styles.item,
-            type === 'report' ? styles.item_active : null
+            chatType === 'report' ? styles.item_active : null
           )}
           onClick={() => {
-            setType('report')
+            setChatType('report')
           }}>
           <ReportIcon />
           撰写数据分析报告
+        </div>
+        <div
+          className={clsx(styles.item, chatType === 'rag' ? styles.item_active : null)}
+          onClick={() => {
+            setChatType('rag')
+          }}>
+          <RagIcon />
+          根据需求查找数据
         </div>
       </div>
     </div>

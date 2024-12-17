@@ -103,31 +103,31 @@
   }
 }
 .morePopoverLayout {
-    border-radius: 8px;
-    background: #ffffff;
-    font-size: 14px;
-  }
-  
-  .moreBtnLayout {
-    padding: 4px;
-    text-align: center;
-  
-    .moreBtn {
-      border-radius: 4px;
-      padding: 8px 12px;
-      cursor: pointer;
-  
-      &:hover {
-        color: #2f69fe;
-        background: #edf2fc;
-      }
+  border-radius: 8px;
+  background: #ffffff;
+  font-size: 14px;
+}
+
+.moreBtnLayout {
+  pointer-events: auto;
+  padding: 4px;
+  text-align: center;
+
+  .moreBtn {
+    border-radius: 4px;
+    padding: 8px 12px;
+    cursor: pointer;
+
+    &:hover {
+      color: #2f69fe;
+      background: #edf2fc;
     }
   }
-  
-  .popoverContent {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    z-index: 999;
-  }
-  
+}
+
+.popoverContent {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 999;
+}

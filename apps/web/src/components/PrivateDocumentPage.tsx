@@ -16,7 +16,7 @@ import EllipsisDropdown from './EllipsisDropdown'
 import RunAllV2 from './RunAllV2'
 
 import PreviewIcon from '@/icons/preview.svg'
-import { NEXT_PUBLIC_PUBLIC_URL } from '@/utils/env'
+import { NEXT_PUBLIC_MF_API_URL, NEXT_PUBLIC_PUBLIC_URL } from '@/utils/env'
 import clsx from 'clsx'
 import SchemaExplorer from './schemaExplorer'
 import ShortcutsModal from './ShortcutsModal'
@@ -26,6 +26,8 @@ import { ContentSkeleton, TitleSkeleton } from './v2Editor/ContentSkeleton'
 import RunAllList, { RunAllListRef } from './mf/RunAllList/RunAllList'
 import styles from './PrivateDocumentPage.module.scss'
 import SchemaList from './mf/SchemaList/SchemaList'
+import { useChatLayoutContext } from './mf/ChatLayout'
+import { getQueryParam } from '@/hooks/useQueryArgs'
 // this is needed because this component only works with the browser
 const V2Editor = dynamic(() => import('@/components/v2Editor'), {
   ssr: false,
@@ -80,7 +82,7 @@ function PrivateDocumentPageInner(
     publishing: boolean
   }
 ) {
-  const documentTitle = useMemo(() => props.document.title || 'Untitled', [props.document.title])
+  const documentTitle = useMemo(() => props.document.title || '新的报告', [props.document.title])
   const runAllListRef = useRef<RunAllListRef>(null)
   const [selectedSidebar, setSelectedSidebar] = useState<
     | { _tag: 'comments' }
@@ -93,10 +95,18 @@ function PrivateDocumentPageInner(
     | { _tag: 'pageSettings' }
     | { _tag: 'runAll' }
     | { _tag: 'schema' }
+    | { _tag: 'schema' }
     | null
   >(null)
 
   const [{ data: dataSources }] = useDataSources(props.workspaceId)
+  const { chatList } = useChatLayoutContext()
+  const chatId = getQueryParam('chatId')
+
+  const chatTitle = useMemo(() => {
+    const chat = chatList.find((c) => c.id === chatId)
+    return chat?.title || '新的报告'
+  }, [chatList, chatId])
 
   const onHideSidebar = useCallback(() => {
     setSelectedSidebar(null)
@@ -213,13 +223,18 @@ function PrivateDocumentPageInner(
     )
   }, [props.publishing, props.publish])
 
+  const previewPDF = () => {
+    window.open(`${NEXT_PUBLIC_MF_API_URL()}/documents/${props.document.id}/preview`, '_blank')
+  }
+
   const topBarContent = useMemo(() => {
     return (
       <div className={styles.documentTitle}>
         <div
           style={{ color: '#272A33', fontWeight: 500 }}
           className="flex w-full items-center gap-x-1.5 overflow-hidden font-sans text-lg">
-          <span className="flex w-full items-center truncate">{documentTitle}</span>
+          <span className="flex w-full items-center truncate">{chatTitle}</span>
+          {/* <span className="flex w-full items-center truncate">{documentTitle}</span> */}
         </div>
 
         <div className="flex h-[36px] w-full items-center justify-end gap-x-4">
@@ -241,7 +256,7 @@ function PrivateDocumentPageInner(
               className={clsx(
                 'flex h-[36px] items-center gap-x-1.5 rounded-sm bg-white px-3 py-1 text-sm text-gray-500 ring-1 ring-gray-200 hover:bg-gray-100'
               )}
-              onClick={() => {}}
+              onClick={() => previewPDF()}
               disabled={props.publishing}>
               <PreviewIcon />
               <span>预览</span>

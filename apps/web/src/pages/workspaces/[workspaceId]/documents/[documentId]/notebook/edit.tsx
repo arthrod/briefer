@@ -27,12 +27,12 @@ export default function EditNotebookPage(props: WorkspaceLayoutChildrenProps) {
   const documentId = useStringQuery('documentId')
   const chatId = getQueryParam('chatId')
 
-  const { loadDetail } = useChatLayoutContext()
+  const { refreshRoundList } = useChatLayoutContext()
 
   const router = useRouter()
 
   useEffect(() => {
-    loadDetail(chatId)
+    refreshRoundList(chatId)
   }, [])
 
   useEffect(() => {

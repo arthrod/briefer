@@ -849,7 +849,7 @@ export class ChatService {
             // Root level tasks (jobs)
             rootTasks.push({
               title: task.name,
-              summary: task.description,
+              description: task.description,
               status: task.status,
               modules: []
             });
@@ -858,7 +858,7 @@ export class ChatService {
             // Module level tasks
             const moduleTask = {
               title: task.name,
-              summary: task.description,
+              description: task.description,
               status: task.status,
               blockId: task.blockId,
               tasks: []
@@ -869,7 +869,7 @@ export class ChatService {
             // Sub-tasks
             const subTask = {
               title: task.name,
-              summary: task.description,
+              description: task.description,
               status: task.status,
               blockId: task.blockId,
               variable: task.variable
@@ -1102,7 +1102,7 @@ export class ChatService {
             // Root level tasks (jobs)
             rootTasks.push({
               title: task.name,
-              summary: task.description,
+              description: task.description,
               status: task.status,
               modules: []
             });
@@ -1111,7 +1111,7 @@ export class ChatService {
             // Module level tasks
             const moduleTask = {
               title: task.name,
-              summary: task.description,
+              description: task.description,
               status: task.status,
               blockId: task.blockId,
               tasks: []
@@ -1122,7 +1122,7 @@ export class ChatService {
             // Sub-tasks
             const subTask = {
               title: task.name,
-              summary: task.description,
+              description: task.description,
               status: task.status,
               blockId: task.blockId,
               variable: task.variable
