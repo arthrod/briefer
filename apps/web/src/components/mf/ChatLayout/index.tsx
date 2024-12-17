@@ -23,7 +23,7 @@ import { showToast } from '../Toast'
 import ArrowRight from '@/icons/arrow-right-line.svg'
 import { useChatRoundCreate } from '@/hooks/mf/chat/useChatSessionCreate'
 import { v4 as uuidv4 } from 'uuid'
-import { ChatType, MessageContent, useChatDetail } from '@/hooks/mf/chat/useChatDetail'
+import { ChatType, FileInfo, MessageContent, useChatDetail } from '@/hooks/mf/chat/useChatDetail'
 import { useChatStop } from '@/hooks/mf/chat/useChatStop'
 import { ChatStatus } from '@/hooks/mf/chat/useChatStatus'
 import { useChatCreate } from '@/hooks/mf/chat/useCreateChat'
@@ -56,6 +56,7 @@ export type ChatRound = {
 }
 
 interface ChatLayoutContextType {
+  fileInfo: FileInfo | null
   chatList: HistoryChat[]
   setChatList: Dispatch<SetStateAction<HistoryChat[]>>
   addChatList: (chat: HistoryChat) => void
@@ -78,6 +79,7 @@ interface ChatLayoutContextType {
 export const ChatContext = createContext<ChatLayoutContextType | null>(null)
 const sseLoadingMap = new Map<string, boolean>() // 用于AI生成
 export function ChatProvider(props: { children: ReactNode }) {
+  const [fileInfo, setFileInfo] = useState<FileInfo | null>(null)
   const [chatList, setChatList] = useState<HistoryChat[]>([])
   const [roundList, setRoundList] = useState<MessageContent[]>([])
   // const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
@@ -123,10 +125,13 @@ export function ChatProvider(props: { children: ReactNode }) {
     return getChatDetailApi(chatId)
       .then((data) => {
         if (data) {
-          const { messages = [] } = data
+          const { file, messages = [] } = data
           const lastItem = messages[messages.length - 1]
           if (lastItem.role === 'assistant') {
             setRoundList([defaultMsg, ...(messages || [])])
+          }
+          if (file) {
+            setFileInfo(file)
           }
         }
       })
@@ -320,6 +325,7 @@ export function ChatProvider(props: { children: ReactNode }) {
   return (
     <ChatContext.Provider
       value={{
+        fileInfo,
         chatList,
         setChatList,
         addChatList,

@@ -16,6 +16,7 @@ import EllipsisDropdown from './EllipsisDropdown'
 import RunAllV2 from './RunAllV2'
 
 import PreviewIcon from '@/icons/preview.svg'
+import PublishIcon from '@/icons/publish.svg'
 import { NEXT_PUBLIC_MF_API_URL, NEXT_PUBLIC_PUBLIC_URL } from '@/utils/env'
 import clsx from 'clsx'
 import SchemaExplorer from './schemaExplorer'
@@ -239,9 +240,14 @@ function PrivateDocumentPageInner(
 
         <div className="flex h-[36px] w-full items-center justify-end gap-x-4">
           {!isViewer && (
-            <RunAllV2 disabled={false} yDoc={yDoc} primary={props.isApp} createSuccess={() => {
-              runAllListRef.current?.refresh()
-            }} />
+            <RunAllV2
+              disabled={false}
+              yDoc={yDoc}
+              primary={props.isApp}
+              createSuccess={() => {
+                runAllListRef.current?.refresh()
+              }}
+            />
           )}
           {/* {!isViewer && <RunAllButton/>} */}
           {props.isApp ? (
@@ -262,6 +268,14 @@ function PrivateDocumentPageInner(
               <span>预览</span>
             </button>
           )}
+          <button
+            className={clsx(
+              'flex h-[36px] items-center gap-x-1.5 rounded-sm bg-white px-3 py-1 text-sm text-gray-500 ring-1 ring-gray-200 hover:bg-gray-100'
+            )}
+            onClick={() => {}}>
+            <PublishIcon />
+            <span>发布</span>
+          </button>
 
           <EllipsisDropdown
             onToggleSchedules={onToggleSchedules}
@@ -289,7 +303,7 @@ function PrivateDocumentPageInner(
         </div>
       </div>
     )
-  }, [documentTitle, yDoc])
+  }, [documentTitle, yDoc, chatList])
 
   useEffect(() => {
     props.updateTopBar && props.updateTopBar(topBarContent)

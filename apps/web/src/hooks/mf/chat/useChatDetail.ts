@@ -26,10 +26,16 @@ export type MessageContent = {
   isError?: boolean
   roundId?: string
 }
+export interface FileInfo {
+  id: string
+  name: string
+  type: string
+}
 
 export type RagDetailData = {
   type: ChatType
   messages: MessageContent[]
+  file?: FileInfo
 }
 
 export type ChatDetail = {

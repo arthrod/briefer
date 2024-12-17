@@ -25,15 +25,8 @@ export default function EditNotebookPage(props: WorkspaceLayoutChildrenProps) {
   const session = useSession()
   const workspaceId = useStringQuery('workspaceId')
   const documentId = useStringQuery('documentId')
-  const chatId = getQueryParam('chatId')
-
-  const { refreshRoundList } = useChatLayoutContext()
 
   const router = useRouter()
-
-  useEffect(() => {
-    refreshRoundList(chatId)
-  }, [])
 
   useEffect(() => {
     const role = session.data?.roles[workspaceId]

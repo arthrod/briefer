@@ -43,6 +43,7 @@ import {
   SheetTrigger,
 } from '../ui/sheet'
 import ChatListBox from '../mf/ChatList'
+import FileIcon from '@/icons/file.svg'
 
 const syne = Syne({ subsets: ['latin'] })
 
@@ -54,7 +55,7 @@ interface Props extends PropsWithChildren {
 
 function ChatDetailLayout({ chatId, workspaceId }: { chatId: string; workspaceId: string }) {
   const [loading, setLoading] = useState(false)
-  const { roundList, setRoundList, refreshRoundList, stopChat, startRoundChat } =
+  const { fileInfo, roundList, setRoundList, refreshRoundList, stopChat, startRoundChat } =
     useChatLayoutContext()
   const timer = useRef(-1)
   const getChatStatus = useChatStatus()
@@ -153,6 +154,12 @@ function ChatDetailLayout({ chatId, workspaceId }: { chatId: string; workspaceId
           }}></ChatDetail>
       </div>
       <div className={styles.bottom}>
+        {fileInfo ? (
+          <div className={clsx(styles.fileBox, 'text-sm')}>
+            <FileIcon />
+            <span className={styles.fileName}>{fileInfo.name}</span>
+          </div>
+        ) : null}
         <div className={styles.chatArea}>
           <ChatInput loading={loading} showUpload={false} onSend={handleSend} onStop={handleStop} />
         </div>
