@@ -96,6 +96,13 @@ function createBlockFromRequest(blockRequest: BlockRequest): YBlock {
 
         case 'SQL':
             const sqlBlock = makeSQLBlock(id, blocks, { source: blockRequest.content })
+            if (blockRequest.variable) {
+                sqlBlock.setAttribute('dataframeName', {
+                    value: blockRequest.variable,
+                    newValue: blockRequest.variable,
+                    status: 'idle'
+                })
+            }
             return sqlBlock
 
         default:
@@ -272,6 +279,8 @@ async function handleJsonContent(
 ): Promise<void> {
     try {
         const parsedJson = JSON.parse(jsonStr)
+
+        // appendToSSELog(updateTarget.chatId, updateTarget.roundId, jsonStr)
 
         if (parsedJson.type === 'normal') {
             // 处理普通消息
