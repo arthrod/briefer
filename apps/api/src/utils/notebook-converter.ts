@@ -28,8 +28,12 @@ export class NotebookConverter {
                 fs.mkdirSync(outputDir, { recursive: true });
             }
 
-            // Convert notebook to PDF using nbconvert
-            const { stderr } = await execAsync(`jupyter nbconvert --to pdf "${inputPath}" --output "${outputPath}"`);
+            // Convert notebook to PDF using nbconvert with options for cleaner output
+            const { stdout, stderr } = await execAsync(`jupyter nbconvert --to pdf "${inputPath}" --output "${outputPath}"`);
+
+            // Log conversion output for debugging
+            if (stdout) console.log('Conversion output:', stdout);
+            if (stderr) console.log('Conversion stderr:', stderr);
 
             if (stderr && !stderr.includes('Writing')) {
                 throw new Error(`Conversion error: ${stderr}`);
