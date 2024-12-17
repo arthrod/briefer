@@ -16,7 +16,7 @@ import EllipsisDropdown from './EllipsisDropdown'
 import RunAllV2 from './RunAllV2'
 
 import PreviewIcon from '@/icons/preview.svg'
-import { NEXT_PUBLIC_PUBLIC_URL } from '@/utils/env'
+import { NEXT_PUBLIC_MF_API_URL, NEXT_PUBLIC_PUBLIC_URL } from '@/utils/env'
 import clsx from 'clsx'
 import SchemaExplorer from './schemaExplorer'
 import ShortcutsModal from './ShortcutsModal'
@@ -222,6 +222,10 @@ function PrivateDocumentPageInner(
     )
   }, [props.publishing, props.publish])
 
+  const previewPDF = () => {
+    window.open(`${NEXT_PUBLIC_MF_API_URL()}/documents/${props.document.id}/preview`, '_blank')
+  }
+
   const topBarContent = useMemo(() => {
     return (
       <div className={styles.documentTitle}>
@@ -247,7 +251,7 @@ function PrivateDocumentPageInner(
               className={clsx(
                 'flex h-[36px] items-center gap-x-1.5 rounded-sm bg-white px-3 py-1 text-sm text-gray-500 ring-1 ring-gray-200 hover:bg-gray-100'
               )}
-              onClick={() => {}}
+              onClick={() => previewPDF()}
               disabled={props.publishing}>
               <PreviewIcon />
               <span>预览</span>

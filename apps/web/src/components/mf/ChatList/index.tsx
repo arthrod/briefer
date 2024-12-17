@@ -256,6 +256,7 @@ const ChatListBox = ({ chatId, workspaceId }: ChatListProps) => {
       </div>
     )
   }
+
   return (
     <div className={clsx(styles.chatList, 'text-sm')}>
       <div className={styles.top}>

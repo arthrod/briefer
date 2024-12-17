@@ -73,7 +73,6 @@ const ChatDetail = ({ type, roundList, loading = false, onRegenerate }: ChatDeta
           contentJson.content = message.content
         } else if (type === 'report') {
           if (message.content) {
-            console.log(message.content)
             contentJson = JSON.parse(message.content) as ContentJsonType
           } else {
             return
