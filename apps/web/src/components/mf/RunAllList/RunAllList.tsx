@@ -14,7 +14,7 @@ import { Transition } from '@headlessui/react'
 import { ExclamationCircleIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import clsx from 'clsx'
 import { CheckCircle2Icon, XCircleIcon } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import ApproveIcon from '../../../icons/approve-icon.svg'
 import DownloadIocn from '../../../icons/download-icon.svg'
 import { NoData } from '../NoData'
@@ -37,8 +37,10 @@ function debounce<T extends (...args: any[]) => void>(func: T, wait: number): T 
     }, wait)
   } as T
 }
-
-export default function RunAllList(props: IProps) {
+export interface RunAllListRef {
+  refresh: () => void
+}
+const RunAllList = forwardRef<RunAllListRef, IProps>(function RunAllList(props, ref) {
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -48,6 +50,12 @@ export default function RunAllList(props: IProps) {
   const [statusIds, setStatusIds] = useState<Set<number>>(new Set())
   const eventTimeoutId = useRef(-1)
   const [list, setList] = useState<RunAllItem[]>([])
+  useImperativeHandle(ref, () => ({
+    refresh: () => {
+      resetData();
+      internalRefresh()
+    },
+  }))
   const handleScroll = debounce((e: Event) => {
     const div = e.target as HTMLDivElement
     const { scrollTop, scrollHeight, clientHeight } = div
@@ -158,25 +166,34 @@ export default function RunAllList(props: IProps) {
   const requestApprove = useApprove()
   const chatId = getQueryParam('chatId')
   useEffect(() => {
+    if (props.visible) {
+      internalRefresh()
+    } else {
+      resetData()
+    }
+  }, [props.visible])
+  const resetData = (clearSearch: boolean = true) => {
     window.clearTimeout(eventTimeoutId.current)
     setCurrentPage(1)
     setLoading(true)
-    setSearch('')
+    if(clearSearch) {
+      setSearch('')
+    }
     setIsLoadingMore(false)
     setStatusIds(new Set())
     setList([])
-    if (props.visible) {
-      getRunAllList(1, 100, chatId)
-        .then((res) => {
-          setList(res.list)
-          setHasMore(res.list.length > 0)
-          addRunning(res.list)
-        })
-        .finally(() => {
-          setLoading(false)
-        })
-    }
-  }, [props.visible])
+  }
+  const internalRefresh = () => {
+    getRunAllList(1, 100, chatId, search)
+      .then((res) => {
+        setList(res.list)
+        setHasMore(res.list.length > 0)
+        addRunning(res.list)
+      })
+      .finally(() => {
+        setLoading(false)
+      })
+  }
   const loadMoreData = () => {
     if (loading || isLoadingMore || !hasMore) {
       return
@@ -315,12 +332,7 @@ export default function RunAllList(props: IProps) {
       if (loading) {
         return
       }
-      setCurrentPage(1)
-      setLoading(true)
-      setIsLoadingMore(false)
-      setStatusIds(new Set())
-      setList([])
-      window.clearTimeout(eventTimeoutId.current)
+      resetData(false);
       getRunAllList(1, 100, chatId, searchTerm)
         .then((res) => {
           setList(res.list)
@@ -417,4 +429,6 @@ export default function RunAllList(props: IProps) {
       </div>
     </Transition>
   )
-}
+})
+
+export default RunAllList

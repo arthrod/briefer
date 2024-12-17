@@ -4,7 +4,7 @@ import { useYDocState } from '@/hooks/useYDoc'
 import { YRunAll, getRunAll, getRunAllAttributes, isRunAllLoading } from '@briefer/editor'
 import { PlayIcon, StopIcon } from '@heroicons/react/20/solid'
 import clsx from 'clsx'
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useState } from 'react'
 import * as Y from 'yjs'
 import {
   AlertDialog,
@@ -22,6 +22,7 @@ interface Props {
   disabled: boolean
   yDoc: Y.Doc
   primary: boolean
+  createSuccess?: () => void
 }
 
 export default function RunAllV2(props: Props) {
@@ -57,15 +58,19 @@ export default function RunAllV2(props: Props) {
     }
     createRunAll(chatId, name).then(() => {
       handleDialogClose()
+      props.createSuccess?.()
     })
   }, [name, chatId, createRunAll])
 
-  const handleChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    if (error) {
-      setError(false)
-    }
-    setName(event.target.value)
-  }, [error])
+  const handleChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      if (error) {
+        setError(false)
+      }
+      setName(event.target.value)
+    },
+    [error]
+  )
 
   const { total, remaining, status: docRunStatus } = getRunAllAttributes(state.value)
   const current = total - remaining

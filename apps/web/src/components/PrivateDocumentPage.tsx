@@ -10,7 +10,7 @@ import type { ApiDocument, ApiUser, UserWorkspaceRole } from '@briefer/database'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
 import { isNil } from 'ramda'
-import { ReactElement, useCallback, useEffect, useMemo, useState } from 'react'
+import { ReactElement, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Comments from './Comments'
 import EllipsisDropdown from './EllipsisDropdown'
 import RunAllV2 from './RunAllV2'
@@ -23,7 +23,7 @@ import ShortcutsModal from './ShortcutsModal'
 import { widthClasses } from './v2Editor/constants'
 import { ContentSkeleton, TitleSkeleton } from './v2Editor/ContentSkeleton'
 
-import RunAllList from './mf/RunAllList/RunAllList'
+import RunAllList, { RunAllListRef } from './mf/RunAllList/RunAllList'
 import styles from './PrivateDocumentPage.module.scss'
 import SchemaList from './mf/SchemaList/SchemaList'
 import { useChatLayoutContext } from './mf/ChatLayout'
@@ -83,7 +83,7 @@ function PrivateDocumentPageInner(
   }
 ) {
   const documentTitle = useMemo(() => props.document.title || '新的报告', [props.document.title])
-
+  const runAllListRef = useRef<RunAllListRef>(null)
   const [selectedSidebar, setSelectedSidebar] = useState<
     | { _tag: 'comments' }
     | { _tag: 'schedules' }
@@ -94,6 +94,7 @@ function PrivateDocumentPageInner(
     | { _tag: 'reusableComponents' }
     | { _tag: 'pageSettings' }
     | { _tag: 'runAll' }
+    | { _tag: 'schema' }
     | { _tag: 'schema' }
     | null
   >(null)
@@ -237,7 +238,11 @@ function PrivateDocumentPageInner(
         </div>
 
         <div className="flex h-[36px] w-full items-center justify-end gap-x-4">
-          {!isViewer && <RunAllV2 disabled={false} yDoc={yDoc} primary={props.isApp} />}
+          {!isViewer && (
+            <RunAllV2 disabled={false} yDoc={yDoc} primary={props.isApp} createSuccess={() => {
+              runAllListRef.current?.refresh()
+            }} />
+          )}
           {/* {!isViewer && <RunAllButton/>} */}
           {props.isApp ? (
             <Link
@@ -349,6 +354,7 @@ function PrivateDocumentPageInner(
             isPublished={props.document.publishedAt !== null}
           /> */}
           <RunAllList
+            ref={runAllListRef}
             visible={selectedSidebar?._tag === 'runAll'}
             onHide={onHideSidebar}
             documnetId={props.documentId}
