@@ -20,7 +20,8 @@ import {
 } from '@briefer/editor'
 import * as Y from 'yjs'
 import { join, dirname } from 'path'
-import { promises as fs } from 'fs'
+import fs from 'fs'
+import { promises as fsPromises } from 'fs'
 import { OssClient } from '../../../utils/oss.js'
 /**
  * Converts a yjsDocument to a Jupyter Notebook format.
@@ -182,19 +183,20 @@ export async function saveNotebookToOSS(notebook: any, ossPath: string): Promise
     try {
         // 创建目录（如果不存在）
         const dir = dirname(tempPath);
-        await fs.mkdir(dir, { recursive: true });
+        await fsPromises.mkdir(dir, { recursive: true });
 
         // Write notebook to temp file
-        await fs.writeFile(tempPath, JSON.stringify(notebook, null, 2));
+        await fsPromises.writeFile(tempPath, JSON.stringify(notebook, null, 2));
 
         const ossClient = new OssClient()
-        ossClient.uploadFile(ossPath, tempPath)
+        const fileContent = fs.readFileSync(tempPath);
+        ossClient.uploadFile(ossPath, fileContent)
 
         return true;
     } catch {
         return false;
     } finally {
         // Clean up temp file
-        await fs.unlink(tempPath).catch(() => { });
+        await fsPromises.unlink(tempPath).catch(() => { });
     }
 }
