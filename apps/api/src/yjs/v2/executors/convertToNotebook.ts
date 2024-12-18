@@ -98,7 +98,10 @@ export function convertYjsDocumentToNotebook(
           id: cellId,
           cell_type: 'sql',
           source: sqlBlock.source?.toJSON() ?? '',
-          metadata: { variable: sqlBlock.dataframeName },
+          metadata: { 
+            language: 'sql',
+            variable: sqlBlock.dataframeName 
+        },
           execution_count: null,
           outputs: [],
         })

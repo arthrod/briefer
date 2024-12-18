@@ -62,6 +62,13 @@ export class NotebookConverter {
                 nbformat_minor: notebook.nbformat_minor,
                 metadata: notebook.metadata,
                 cells: notebook.cells.map((cell: any) => {
+                    // Convert cell types
+                    if (cell.cell_type === 'rich_text') {
+                        cell.cell_type = 'markdown';
+                    } else if (cell.cell_type === 'sql') {
+                        cell.cell_type = 'code';
+                    }
+
                     // 创建一个新的 cell 对象，只包含标准属性
                     const standardCell: any = {
                         cell_type: cell.cell_type,
