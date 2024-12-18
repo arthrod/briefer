@@ -30,9 +30,7 @@ downloadRouter.post(
             const dir = dirname(ipynbFilePath);
             await fsPromises.mkdir(dir, { recursive: true });
 
-            // Save the file locally as .ipynb
-            fsPromises.writeFile(ipynbFilePath, fileBuffer);
-
+            await fsPromises.writeFile(ipynbFilePath, fileBuffer)
             // Create a zip file
             const zipFileName = path.basename(filePath) + '.zip';
             const zipFilePath = path.join(tempDir, zipFileName);
