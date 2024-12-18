@@ -1,4 +1,4 @@
-import { DataframeName, SQLBlock, YBlock } from '@briefer/editor'
+import { DataframeName, SQLBlock, YBlock, YBlockGroup } from '@briefer/editor'
 import * as Y from 'yjs'
 import { IBlockObserver } from './index.js'
 import { logger } from '../../../../logger.js'
@@ -270,6 +270,7 @@ export class SQLObserver implements ISQLObserver {
     documentId: string,
     dataframes: Y.Map<DataFrame>,
     blocks: Y.Map<YBlock>,
+    layout:Y.Array<YBlockGroup>,
     executionQueue: PQueue,
     events: SQLEvents
   ) {
@@ -279,6 +280,7 @@ export class SQLObserver implements ISQLObserver {
       config().DATASOURCES_ENCRYPTION_KEY,
       dataframes,
       blocks,
+      layout,
       executionQueue,
       events
     )

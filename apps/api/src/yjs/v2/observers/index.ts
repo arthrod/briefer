@@ -77,12 +77,14 @@ export class MainObserver {
   ): MainObserver {
     const dataframes = doc.dataframes
     const blocks = doc.blocks
+    const layout = doc.layout
     const executionQueue = new PQueue({ concurrency: 1 })
 
     const blocksObserver = BlocksObserver.make(
       workspaceId,
       documentId,
       blocks,
+      layout,
       dataframes,
       executionQueue,
       events
@@ -93,17 +95,12 @@ export class MainObserver {
       documentId,
       doc.runAll,
       blocks,
-      doc.layout,
+      layout,
       dataframes,
       executionQueue,
       events
     )
 
-    return new MainObserver(
-      workspaceId,
-      documentId,
-      blocksObserver,
-      runAllObserver
-    )
+    return new MainObserver(workspaceId, documentId, blocksObserver, runAllObserver)
   }
 }

@@ -2,6 +2,7 @@ import debounce from 'lodash.debounce'
 import {
   SQLBlock,
   YBlock,
+  YBlockGroup,
   closeSQLEditWithAIPrompt,
   getBaseAttributes,
   getSQLAttributes,
@@ -15,38 +16,29 @@ import {
   listDataSources,
   getWorkspaceWithSecrets,
 } from '@briefer/database'
-import {
-  listDataFrames,
-  makeSQLQuery,
-  renameDataFrame,
-} from '../../../../python/query/index.js'
+import { listDataFrames, makeSQLQuery, renameDataFrame } from '../../../../python/query/index.js'
 import { updateDataframes } from '../index.js'
 import { logger } from '../../../../logger.js'
 import { DataFrame, RunQueryResult } from '@briefer/types'
 import { sqlEditStreamed } from '../../../../ai-api.js'
 import { config } from '../../../../config/index.js'
 import { EventContext, SQLEvents } from '../../../../events/index.js'
-import {
-  IJupyterManager,
-  getJupyterManager,
-} from '../../../../jupyter/index.js'
+import { IJupyterManager, getJupyterManager } from '../../../../jupyter/index.js'
 import { run_cell_pre } from '../run-cell.js'
 async function editWithAI(
   workspaceId: string,
   datasourceId:
     | {
-      type: 'db'
-      id: string
-    }
+        type: 'db'
+        id: string
+      }
     | { type: 'duckdb' },
   source: string,
   instructions: string,
   event: (modelId: string | null) => void,
   onSuggestions: (suggestions: string) => void
 ) {
-  const workspace = workspaceId
-    ? await getWorkspaceWithSecrets(workspaceId)
-    : null
+  const workspace = workspaceId ? await getWorkspaceWithSecrets(workspaceId) : null
 
   const assistantModelId = workspace?.assistantModel ?? null
 
@@ -103,11 +95,7 @@ type RunninQuery = {
 
 export interface ISQLExecutor {
   isIdle(): boolean
-  runQuery(
-    block: Y.XmlElement<SQLBlock>,
-    tr: Y.Transaction,
-    isSuggestion: boolean
-  ): Promise<void>
+  runQuery(block: Y.XmlElement<SQLBlock>, tr: Y.Transaction, isSuggestion: boolean): Promise<void>
   abortQuery(block: Y.XmlElement<SQLBlock>): Promise<void>
   renameDataFrame(block: Y.XmlElement<SQLBlock>): Promise<void>
   editWithAI(block: Y.XmlElement<SQLBlock>, tr: Y.Transaction): Promise<void>
@@ -121,6 +109,7 @@ export class SQLExecutor implements ISQLExecutor {
   private executionQueue: PQueue
   private dataframes: Y.Map<DataFrame>
   private blocks: Y.Map<YBlock>
+  private layout: Y.Array<YBlockGroup>
   private runningQueries = new Map<Y.XmlElement<SQLBlock>, RunninQuery>()
   private jupyterManager: IJupyterManager
   private effects: SQLEffects
@@ -132,6 +121,7 @@ export class SQLExecutor implements ISQLExecutor {
     dataSourcesEncryptionKey: string,
     dataframes: Y.Map<DataFrame>,
     blocks: Y.Map<YBlock>,
+    layout: Y.Array<YBlockGroup>,
     executionQueue: PQueue,
     jupyterManager: IJupyterManager,
     effects: SQLEffects,
@@ -142,6 +132,7 @@ export class SQLExecutor implements ISQLExecutor {
     this.dataSourcesEncryptionKey = dataSourcesEncryptionKey
     this.dataframes = dataframes
     this.blocks = blocks
+    this.layout = layout
     this.executionQueue = executionQueue
     this.jupyterManager = jupyterManager
     this.effects = effects
@@ -152,18 +143,20 @@ export class SQLExecutor implements ISQLExecutor {
     return this.executionQueue.size === 0 && this.executionQueue.pending === 0
   }
 
-  public async runQuery(
-    block: Y.XmlElement<SQLBlock>,
-    tr: Y.Transaction,
-    isSuggestion: boolean
-  ) {
+  public async runQuery(block: Y.XmlElement<SQLBlock>, tr: Y.Transaction, isSuggestion: boolean) {
     this.events.sqlRun(EventContext.fromYTransaction(tr))
     const abortController = new AbortController()
     const runningQuery: RunninQuery = { abortController }
     this.runningQueries.set(block, runningQuery)
 
     try {
-      const code = await run_cell_pre(this.documentId, this.workspaceId, block)
+      const code = await run_cell_pre(
+        this.documentId,
+        this.workspaceId,
+        block.getAttribute('id') || '',
+        this.blocks,
+        this.layout
+      )
       logger().trace(
         {
           workspaceId: this.workspaceId,
@@ -185,15 +178,17 @@ export class SQLExecutor implements ISQLExecutor {
             'executing query'
           )
 
-          const { dataSourceId, dataframeName, isFileDataSource } =
-            getSQLAttributes(block, this.blocks)
+          const { dataSourceId, dataframeName, isFileDataSource } = getSQLAttributes(
+            block,
+            this.blocks
+          )
           if ((!dataSourceId && !isFileDataSource) || !dataframeName) {
             return
           }
 
-          const datasource = (
-            await this.effects.listDataSources(this.workspaceId)
-          ).find((ds) => ds.data.id === dataSourceId)
+          const datasource = (await this.effects.listDataSources(this.workspaceId)).find(
+            (ds) => ds.data.id === dataSourceId
+          )
           if (signal?.aborted) {
             block.setAttribute('result', {
               type: 'abort-error',
@@ -211,14 +206,9 @@ export class SQLExecutor implements ISQLExecutor {
 
           block.removeAttribute('result')
 
-          const {
-            aiSuggestions,
-            source,
-            id: blockId,
-          } = getSQLAttributes(block, this.blocks)
+          const { aiSuggestions, source, id: blockId } = getSQLAttributes(block, this.blocks)
 
-          const actualSource =
-            (isSuggestion ? aiSuggestions : source)?.toJSON()?.trim() ?? ''
+          const actualSource = (isSuggestion ? aiSuggestions : source)?.toJSON()?.trim() ?? ''
 
           let resultType: RunQueryResult['type'] | 'empty-query' = 'empty-query'
           if (actualSource !== '') {
@@ -407,10 +397,7 @@ export class SQLExecutor implements ISQLExecutor {
         dataframeName.newValue
       )
 
-      const dataframes = await this.effects.listDataFrames(
-        this.workspaceId,
-        this.documentId
-      )
+      const dataframes = await this.effects.listDataFrames(this.workspaceId, this.documentId)
       const { id: blockId } = getBaseAttributes(block)
       const blocks = new Set(Array.from(this.blocks.keys()))
       updateDataframes(this.dataframes, dataframes, blockId, blocks)
@@ -463,12 +450,7 @@ export class SQLExecutor implements ISQLExecutor {
       source?.toJSON() ?? '',
       instructions,
       (modelId) => {
-        this.events.aiUsage(
-          EventContext.fromYTransaction(tr),
-          'sql',
-          'edit',
-          modelId
-        )
+        this.events.aiUsage(EventContext.fromYTransaction(tr), 'sql', 'edit', modelId)
       },
       callback
     )
@@ -480,10 +462,7 @@ export class SQLExecutor implements ISQLExecutor {
 
   public async fixWithAI(block: Y.XmlElement<SQLBlock>, tr: Y.Transaction) {
     // TODO: this should make isIdle return true while it is running
-    const { dataSourceId, isFileDataSource } = getSQLAttributes(
-      block,
-      this.blocks
-    )
+    const { dataSourceId, isFileDataSource } = getSQLAttributes(block, this.blocks)
     if (!dataSourceId && !isFileDataSource) {
       return
     }
@@ -512,12 +491,7 @@ export class SQLExecutor implements ISQLExecutor {
       source,
       instructions,
       (modelId) => {
-        this.events.aiUsage(
-          EventContext.fromYTransaction(tr),
-          'sql',
-          'fix',
-          modelId
-        )
+        this.events.aiUsage(EventContext.fromYTransaction(tr), 'sql', 'fix', modelId)
       },
       callback
     )
@@ -532,6 +506,7 @@ export class SQLExecutor implements ISQLExecutor {
     dataSourcesEncryptionKey: string,
     dataframes: Y.Map<DataFrame>,
     blocks: Y.Map<YBlock>,
+    layout: Y.Array<YBlockGroup>,
     executionQueue: PQueue,
     events: SQLEvents
   ) {
@@ -541,6 +516,7 @@ export class SQLExecutor implements ISQLExecutor {
       dataSourcesEncryptionKey,
       dataframes,
       blocks,
+      layout,
       executionQueue,
       getJupyterManager(),
       {
@@ -553,7 +529,4 @@ export class SQLExecutor implements ISQLExecutor {
       events
     )
   }
-
 }
-
-

@@ -13,24 +13,15 @@ import {
 } from '@briefer/editor'
 import { ISQLExecutor, SQLExecutor } from './blocks/sql.js'
 import { IPythonExecutor, PythonExecutor } from './blocks/python.js'
-import {
-  IVisualizationExecutor,
-  VisualizationExecutor,
-} from './blocks/visualization.js'
+import { IVisualizationExecutor, VisualizationExecutor } from './blocks/visualization.js'
 import { IInputExecutor, InputExecutor } from './blocks/input.js'
 import { DataFrame } from '@briefer/types'
 import { config } from '../../../config/index.js'
-import {
-  DropdownInputExecutor,
-  IDropdownInputExecutor,
-} from './blocks/dropdown-input.js'
+import { DropdownInputExecutor, IDropdownInputExecutor } from './blocks/dropdown-input.js'
 import { NotebookEvents } from '../../../events/index.js'
 import { IWritebackExecutor, WritebackExecutor } from './blocks/writeback.js'
 import { IDateInputExecutor, DateInputExecutor } from './blocks/date-input.js'
-import {
-  IPivotTableExecutor,
-  PivotTableExecutor,
-} from './blocks/pivot-table.js'
+import { IPivotTableExecutor, PivotTableExecutor } from './blocks/pivot-table.js'
 
 export interface IRunAllExecutor {
   isIdle(): boolean
@@ -275,14 +266,12 @@ export class RunAllExecutor implements IRunAllExecutor {
       onSQL: (block) => this.executors.sql.abortQuery(block),
       onVisualization: (block) => this.executors.visualization.abort(block),
       onInput: async (block) => this.executors.input.abortSaveValue(block),
-      onDropdownInput: (block) =>
-        this.executors.dropdownInput.abortSaveValue(block),
+      onDropdownInput: (block) => this.executors.dropdownInput.abortSaveValue(block),
       onWriteback: (block) => this.executors.writeback.abort(block),
       onDateInput: () => Promise.resolve(),
       onFileUpload: () => Promise.resolve(),
       onDashboardHeader: () => Promise.resolve(),
-      onPivotTable: () =>
-        this.executors.pivotTable.abort(this.currentBlock as Y.XmlElement),
+      onPivotTable: () => this.executors.pivotTable.abort(this.currentBlock as Y.XmlElement),
     })
   }
 
@@ -410,8 +399,7 @@ export class RunAllExecutor implements IRunAllExecutor {
       onFileUpload: () => Promise.resolve(),
       onDashboardHeader: () => Promise.resolve(),
       onWriteback: (block) => this.executors.writeback.run(block, tr),
-      onPivotTable: () =>
-        this.executors.pivotTable.run(this.currentBlock as Y.XmlElement, tr),
+      onPivotTable: () => this.executors.pivotTable.run(this.currentBlock as Y.XmlElement, tr),
     })
   }
 
@@ -434,6 +422,7 @@ export class RunAllExecutor implements IRunAllExecutor {
         config().DATASOURCES_ENCRYPTION_KEY,
         dataframes,
         blocks,
+        layout,
         runAllExecutionQueue,
         events
       ),
@@ -442,6 +431,7 @@ export class RunAllExecutor implements IRunAllExecutor {
         documentId,
         dataframes,
         blocks,
+        layout,
         runAllExecutionQueue,
         events
       ),
@@ -452,30 +442,15 @@ export class RunAllExecutor implements IRunAllExecutor {
         runAllExecutionQueue,
         events
       ),
-      input: InputExecutor.make(
-        workspaceId,
-        documentId,
-        blocks,
-        runAllExecutionQueue
-      ),
+      input: InputExecutor.make(workspaceId, documentId, blocks, runAllExecutionQueue),
       dropdownInput: DropdownInputExecutor.make(
         workspaceId,
         documentId,
         blocks,
         runAllExecutionQueue
       ),
-      writeback: WritebackExecutor.make(
-        workspaceId,
-        documentId,
-        runAllExecutionQueue,
-        events
-      ),
-      dateInput: new DateInputExecutor(
-        workspaceId,
-        documentId,
-        blocks,
-        runAllExecutionQueue
-      ),
+      writeback: WritebackExecutor.make(workspaceId, documentId, runAllExecutionQueue, events),
+      dateInput: new DateInputExecutor(workspaceId, documentId, blocks, runAllExecutionQueue),
       pivotTable: PivotTableExecutor.make(
         workspaceId,
         documentId,

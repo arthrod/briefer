@@ -19,7 +19,7 @@ export default function mfRouter(socketServer: IOServer) {
   router.use('/run-all', runAllRouter())
   router.use('/resource', resourceRouter)
   router.use('/schema', schemaRouter())
-  router.use('/documents', documentsRouter)
+  router.use('/documents', documentsRouter(socketServer))
   router.use('/download', downloadRouter)
   
   

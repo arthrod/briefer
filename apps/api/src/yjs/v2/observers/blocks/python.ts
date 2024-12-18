@@ -1,11 +1,8 @@
-import { PythonBlock, YBlock } from '@briefer/editor'
+import { PythonBlock, YBlock, YBlockGroup } from '@briefer/editor'
 import * as Y from 'yjs'
 import { IBlockObserver } from './index.js'
 import { logger } from '../../../../logger.js'
-import {
-  IPythonExecutor,
-  PythonExecutor,
-} from '../../executors/blocks/python.js'
+import { IPythonExecutor, PythonExecutor } from '../../executors/blocks/python.js'
 import { DataFrame } from '@briefer/types'
 import PQueue from 'p-queue'
 import { PythonEvents } from '../../../../events/index.js'
@@ -17,11 +14,7 @@ export class PythonObserver implements IPythonObserver {
   private documentId: string
   private executor: IPythonExecutor
 
-  constructor(
-    workspaceId: string,
-    documentId: string,
-    executor: IPythonExecutor
-  ) {
+  constructor(workspaceId: string, documentId: string, executor: IPythonExecutor) {
     this.workspaceId = workspaceId
     this.documentId = documentId
     this.executor = executor
@@ -95,10 +88,7 @@ export class PythonObserver implements IPythonObserver {
     )
   }
 
-  private async handleBlockStatusChange(
-    block: Y.XmlElement<PythonBlock>,
-    tr: Y.Transaction
-  ) {
+  private async handleBlockStatusChange(block: Y.XmlElement<PythonBlock>, tr: Y.Transaction) {
     const blockId = block.getAttribute('id')
     const status = block.getAttribute('status')
 
@@ -182,6 +172,7 @@ export class PythonObserver implements IPythonObserver {
     documentId: string,
     dataframes: Y.Map<DataFrame>,
     blocks: Y.Map<YBlock>,
+    layout: Y.Array<YBlockGroup>,
     executionQueue: PQueue,
     events: PythonEvents
   ) {
@@ -190,6 +181,7 @@ export class PythonObserver implements IPythonObserver {
       documentId,
       dataframes,
       blocks,
+      layout,
       executionQueue,
       events
     )

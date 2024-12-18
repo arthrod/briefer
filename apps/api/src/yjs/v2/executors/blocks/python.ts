@@ -2,6 +2,7 @@ import debounce from 'lodash.debounce'
 import {
   PythonBlock,
   YBlock,
+  YBlockGroup,
   closePythonEditWithAIPrompt,
   getPythonAttributes,
   getPythonBlockEditWithAIPrompt,
@@ -35,9 +36,7 @@ async function editWithAI(
   event: (modelId: string | null) => void,
   onSource: (source: string) => void
 ) {
-  const workspace = workspaceId
-    ? await getWorkspaceWithSecrets(workspaceId)
-    : null
+  const workspace = workspaceId ? await getWorkspaceWithSecrets(workspaceId) : null
 
   event(workspace?.assistantModel ?? null)
 
@@ -63,11 +62,7 @@ type RunninCode = {
 }
 
 export interface IPythonExecutor {
-  run(
-    block: Y.XmlElement<PythonBlock>,
-    tr: Y.Transaction,
-    isSuggestion: boolean
-  ): Promise<void>
+  run(block: Y.XmlElement<PythonBlock>, tr: Y.Transaction, isSuggestion: boolean): Promise<void>
   abort(block: Y.XmlElement<PythonBlock>, tr: Y.Transaction): Promise<void>
   isIdle(): boolean
   editWithAI(block: Y.XmlElement<PythonBlock>, tr: Y.Transaction): Promise<void>
@@ -81,6 +76,7 @@ export class PythonExecutor implements IPythonExecutor {
   private runningCode = new Map<Y.XmlElement<PythonBlock>, RunninCode>()
   private dataframes: Y.Map<DataFrame>
   private blocks: Y.Map<YBlock>
+  private layout: Y.Array<YBlockGroup>
   private effects: PythonEffects
   private events: PythonEvents
 
@@ -89,6 +85,7 @@ export class PythonExecutor implements IPythonExecutor {
     documentId: string,
     dataframes: Y.Map<DataFrame>,
     blocks: Y.Map<YBlock>,
+    layout: Y.Array<YBlockGroup>,
     executionQueue: PQueue,
     effects: PythonEffects,
     events: PythonEvents
@@ -97,6 +94,7 @@ export class PythonExecutor implements IPythonExecutor {
     this.documentId = documentId
     this.dataframes = dataframes
     this.blocks = blocks
+    this.layout = layout
     this.executionQueue = executionQueue
     this.effects = effects
     this.events = events
@@ -106,11 +104,7 @@ export class PythonExecutor implements IPythonExecutor {
     return this.executionQueue.size === 0 && this.executionQueue.pending === 0
   }
 
-  public async run(
-    block: Y.XmlElement<PythonBlock>,
-    tr: Y.Transaction,
-    isSuggestion: boolean
-  ) {
+  public async run(block: Y.XmlElement<PythonBlock>, tr: Y.Transaction, isSuggestion: boolean) {
     this.events.pythonRun(EventContext.fromYTransaction(tr))
 
     const abortController = new AbortController()
@@ -119,8 +113,13 @@ export class PythonExecutor implements IPythonExecutor {
     block.setAttribute('result', [])
 
     try {
-      const code = await run_cell_pre(this.documentId, this.workspaceId, block)
-
+      const code = await run_cell_pre(
+        this.documentId,
+        this.workspaceId,
+        block.getAttribute('id') || '',
+        this.blocks,
+        this.layout
+      )
 
       logger().trace(
         {
@@ -143,13 +142,9 @@ export class PythonExecutor implements IPythonExecutor {
             'executing python block'
           )
 
-          const {
-            aiSuggestions,
-            source,
-            id: blockId,
-          } = getPythonAttributes(block)
+          const { aiSuggestions, source, id: blockId } = getPythonAttributes(block)
 
-          const actualSource =code.toString()
+          const actualSource = code.toString()
 
           const { promise, abort } = await this.effects.executePython(
             this.workspaceId,
@@ -170,10 +165,7 @@ export class PythonExecutor implements IPythonExecutor {
           await this.updateDataFrames(blockId)
 
           block.setAttribute('status', 'idle')
-          block.setAttribute(
-            'lastQuery',
-            block.getAttribute('source')!.toJSON()
-          )
+          block.setAttribute('lastQuery', block.getAttribute('source')!.toJSON())
           block.setAttribute('lastQueryTime', new Date().toISOString())
           logger().trace(
             {
@@ -238,12 +230,7 @@ export class PythonExecutor implements IPythonExecutor {
       instructions,
       Array.from(this.dataframes.values()),
       (modelId) => {
-        this.events.aiUsage(
-          EventContext.fromYTransaction(tr),
-          'python',
-          'edit',
-          modelId
-        )
+        this.events.aiUsage(EventContext.fromYTransaction(tr), 'python', 'edit', modelId)
       },
       debounce((suggestions) => {
         updatePythonAISuggestions(block, suggestions)
@@ -260,12 +247,10 @@ export class PythonExecutor implements IPythonExecutor {
       return
     }
 
-    const instructions = `Fix the Python code, this is the error: ${JSON.stringify(
-      {
-        ...error,
-        traceback: error.traceback.slice(0, 2),
-      }
-    )}`
+    const instructions = `Fix the Python code, this is the error: ${JSON.stringify({
+      ...error,
+      traceback: error.traceback.slice(0, 2),
+    })}`
     const source = getPythonSource(block).toJSON()
 
     await this.effects.editWithAI(
@@ -274,12 +259,7 @@ export class PythonExecutor implements IPythonExecutor {
       instructions,
       Array.from(this.dataframes.values()),
       (modelId) => {
-        this.events.aiUsage(
-          EventContext.fromYTransaction(tr),
-          'python',
-          'fix',
-          modelId
-        )
+        this.events.aiUsage(EventContext.fromYTransaction(tr), 'python', 'fix', modelId)
       },
       debounce((suggestions) => {
         updatePythonAISuggestions(block, suggestions)
@@ -288,10 +268,7 @@ export class PythonExecutor implements IPythonExecutor {
   }
 
   private async updateDataFrames(blockId: string) {
-    const newDataframes = await this.effects.listDataFrames(
-      this.workspaceId,
-      this.documentId
-    )
+    const newDataframes = await this.effects.listDataFrames(this.workspaceId, this.documentId)
 
     const blocks = new Set(Array.from(this.blocks.keys()))
 
@@ -303,6 +280,8 @@ export class PythonExecutor implements IPythonExecutor {
     documentId: string,
     dataframes: Y.Map<DataFrame>,
     blocks: Y.Map<YBlock>,
+    layout: Y.Array<YBlockGroup>,
+
     executionQueue: PQueue,
     events: PythonEvents
   ) {
@@ -311,6 +290,7 @@ export class PythonExecutor implements IPythonExecutor {
       documentId,
       dataframes,
       blocks,
+      layout,
       executionQueue,
       {
         executePython,
@@ -320,10 +300,4 @@ export class PythonExecutor implements IPythonExecutor {
       events
     )
   }
-
-
-
-
 }
-
-

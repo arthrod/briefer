@@ -1,50 +1,48 @@
-
-import { cutNotebook, convertYjsDocumentToNotebook, saveNotebookToOSS } from './convertToNotebook.js'
+import {
+  cutNotebook,
+  convertYjsDocumentToNotebook,
+  saveNotebookToOSS,
+} from './convertToNotebook.js'
 import { prisma } from '@briefer/database'
 import * as Y from 'yjs'
-import {
-    PythonBlock,
-    Block,
-
-} from '@briefer/editor'
+import { PythonBlock, Block, YBlock, YBlockGroup } from '@briefer/editor'
 import { join } from 'path'
+import { getYDocForUpdate } from '../index.js'
 
+export async function run_cell_pre(
+  documentId: string,
+  workspaceId: string,
+  currentBlockId: string,
+  blocks: Y.Map<YBlock>,
+  layout: Y.Array<YBlockGroup>
+) {
+  const notebook = convertYjsDocumentToNotebook(blocks, layout)
+  if (!currentBlockId) {
+    throw new Error('block id is null!')
+  }
+  const run_notebook = cutNotebook(notebook, currentBlockId)
 
-export async function run_cell_pre(documentId: string, workspaceId: string, block: Y.XmlElement<Block>) {
-    const yjsDoc = await prisma().yjsDocument.findUnique({
-        where: { documentId: documentId },
-    })
-    if (!yjsDoc) {
-        throw new Error("未查询到指定文档!");
-    }
-    const notebook = convertYjsDocumentToNotebook(yjsDoc.state)
-    const currentBlockId = block.getAttribute('id')
-    if (!currentBlockId) {
-        throw new Error("block id is null!");
-    }
-    const run_notebook = cutNotebook(notebook, currentBlockId)
-
-    const relation = await prisma().chatDocumentRelation.findFirst({
-        where: { documentId: documentId },
-    })
-    if (!relation) {
-        throw new Error("未找到指定关联对话");
-    }
-    const chatId = relation.chatId
-    const ossPath = join('chat/', chatId, '/', currentBlockId)
-    const notebookUrl = await saveNotebookToOSS(run_notebook, ossPath)
-    const userWorkspace = await prisma().userWorkspace.findFirst({
-        where: { workspaceId: workspaceId }
-    })
-    if (!userWorkspace) {
-        throw new Error("未找到指定用户");
-    }
-    const code = run_cell_request_code(chatId, currentBlockId, userWorkspace.userId)
-    return code
+  const relation = await prisma().chatDocumentRelation.findFirst({
+    where: { documentId: documentId },
+  })
+  if (!relation) {
+    throw new Error('未找到指定关联对话')
+  }
+  const chatId = relation.chatId
+  const ossPath = join('chat/', chatId, '/', currentBlockId)
+  const notebookUrl = await saveNotebookToOSS(run_notebook, ossPath)
+  const userWorkspace = await prisma().userWorkspace.findFirst({
+    where: { workspaceId: workspaceId },
+  })
+  if (!userWorkspace) {
+    throw new Error('未找到指定用户')
+  }
+  const code = run_cell_request_code(chatId, currentBlockId, userWorkspace.userId)
+  return code
 }
 
-export  function run_cell_request_code(chatId: string, cellId: string, userId: string) {
-    const code= `
+export function run_cell_request_code(chatId: string, cellId: string, userId: string) {
+  const code = `
 import time
 import requests
 import redis
@@ -151,5 +149,5 @@ else:
     get_job_status(job_id)
 
     `
-    return code
+  return code
 }
