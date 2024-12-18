@@ -7,6 +7,7 @@ import * as fs from 'fs/promises';
 import { prisma } from '@briefer/database'
 import { logger } from '../../logger.js'
 import { fileURLToPath } from 'url';
+import { convertYjsDocumentToNotebook } from '../../yjs/v2/executors/convertToNotebook.js';
 
 // 获取当前文件的目录路径
 const __filename = fileURLToPath(import.meta.url);
@@ -41,7 +42,7 @@ router.get('/:documentId/preview', authMiddleware, async (req, res) => {
             where: {
                 id: documentId,
                 workspace: {
-                    ownerId: '21a83ff9-2e2d-4d0f-84f9-a4539d5fe1ab'
+                    ownerId: userId
                 }
             }
         });
@@ -51,12 +52,19 @@ router.get('/:documentId/preview', authMiddleware, async (req, res) => {
             return res.status(404).json({ error: 'Document not found or access denied' });
         }
 
+        const yjsDoc = await prisma().yjsDocument.findUnique({
+            where: { documentId: documentId },
+        })
+        if (!yjsDoc) {
+            throw new Error("未查询到指定文档!");
+        }
+        const notebook = convertYjsDocumentToNotebook(yjsDoc.state)
+
         // 转换文档
         const converter = new NotebookConverter();
-        await converter.convertFile(inputPath, outputPath);
 
         // 读取生成的PDF文件
-        const pdfBuffer = await fs.readFile(outputPath);
+        const pdfBuffer = await converter.convert(notebook);
 
         // 清理临时文件
         await Promise.all([

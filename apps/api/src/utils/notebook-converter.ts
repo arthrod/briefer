@@ -45,19 +45,45 @@ export class NotebookConverter {
     }
 
     /**
-     * Convert a Jupyter notebook from a buffer to PDF
-     * @param notebookBuffer Buffer containing the .ipynb file content
+     * Convert a Jupyter notebook object to PDF
+     * @param notebook The notebook object to convert
      * @returns Buffer containing the PDF file content
      * @throws Error if conversion fails
      */
-    public async convertBuffer(notebookBuffer: Buffer): Promise<Buffer> {
+    public async convert(notebook: any): Promise<Buffer> {
         const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'notebook-conversion-'));
         const tempInputPath = path.join(tempDir, 'temp.ipynb');
         const tempOutputPath = path.join(tempDir, 'temp.pdf');
 
         try {
-            // Write the buffer to a temporary file
-            await writeFileAsync(tempInputPath, notebookBuffer);
+            // Process notebook cells to ensure proper format
+            const processedNotebook = {
+                nbformat: notebook.nbformat,
+                nbformat_minor: notebook.nbformat_minor,
+                metadata: notebook.metadata,
+                cells: notebook.cells.map((cell: any) => {
+                    // 创建一个新的 cell 对象，只包含标准属性
+                    const standardCell: any = {
+                        cell_type: cell.cell_type,
+                        source: Array.isArray(cell.source) ? cell.source : [cell.source],
+                        metadata: {
+                            ...cell.metadata,
+                            trusted: true
+                        }
+                    };
+
+                    // 对于代码单元格，添加必要的属性
+                    if (cell.cell_type === 'code') {
+                        standardCell.execution_count = null;
+                        standardCell.outputs = [];
+                    }
+
+                    return standardCell;
+                })
+            };
+
+            // Write the notebook object to a temporary file
+            await writeFileAsync(tempInputPath, JSON.stringify(processedNotebook, null, 2));
 
             // Convert the temporary file
             await this.convertFile(tempInputPath, tempOutputPath);
@@ -68,7 +94,7 @@ export class NotebookConverter {
             return pdfBuffer;
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
-            throw new Error(`Failed to convert notebook buffer: ${errorMessage}`);
+            throw new Error(`Failed to convert notebook: ${errorMessage}`);
         } finally {
             // Clean up temporary files
             try {
