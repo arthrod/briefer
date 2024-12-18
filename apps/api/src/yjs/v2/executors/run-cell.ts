@@ -90,7 +90,7 @@ def create_job():
             raise Exception(result['msg'])
     except requests.exceptions.RequestException as e:
         print("HTTP 请求失败:", e)
-        raise Exception(result['msg'])
+        raise Exception('创建失败')
 
 def push_success(job_id: str):
     request_data = {
