@@ -7,12 +7,12 @@ import { OssClient } from '../../utils/oss.js'
 import archiver from 'archiver';
 
 
-const downloadRouter = Router()
+const codeRouter = Router()
 
 const ossClient = new OssClient()
 
-downloadRouter.post(
-    '/code',
+codeRouter.post(
+    '/download',
     async (req: Request, res: Response, next: NextFunction) => {
         const filePath = req.body.path;
 
@@ -23,44 +23,51 @@ downloadRouter.post(
         try {
             // Download file from OSS
             const fileBuffer = await ossClient.downloadFile(filePath);
-
-            const ipynbFileName = path.basename(filePath) + '.ipynb';
-            const tempDir = path.join(process.env['ROOT_DIR'] ?? '/opt/mindflow/', '/temp/')
-            const ipynbFilePath = path.join(tempDir, ipynbFileName);
-            const dir = dirname(ipynbFilePath);
+            
+            // Extract the full directory structure from the file path
+            const fullName = path.basename(filePath);
+            const dirPath = path.dirname(filePath);
+            
+            const tempDir = path.join(process.env['ROOT_DIR'] ?? '/opt/mindflow/', '/temp/');
+            const ipynbFilePath = path.join(tempDir, dirPath, fullName + '.ipynb');
+            const dir = path.dirname(ipynbFilePath);
+            
+            // Create necessary directories
             await fsPromises.mkdir(dir, { recursive: true });
-
-            await fsPromises.writeFile(ipynbFilePath, fileBuffer)
+            
+            // Write the downloaded file to the specified path
+            await fsPromises.writeFile(ipynbFilePath, fileBuffer);
+    
             // Create a zip file
-            const zipFileName = path.basename(filePath) + '.zip';
+            const zipFileName = path.basename(dirPath) + '.zip';
             const zipFilePath = path.join(tempDir, zipFileName);
-
             const output = fs.createWriteStream(zipFilePath);
             const archive = archiver('zip', { zlib: { level: 9 } });
-
+            
             archive.pipe(output);
-            archive.file(ipynbFilePath, { name: ipynbFileName });
+            
+            // Append the file to the archive with its full directory structure
+            archive.file(ipynbFilePath, { name: path.join(dirPath, fullName + '.ipynb') });
+            
             await archive.finalize();
-
+    
             // Send the zip file as a response
             res.setHeader('Content-Type', 'application/zip');
             res.setHeader('Content-Disposition', `attachment; filename=${zipFileName}`);
-
             const zipStream = fs.createReadStream(zipFilePath);
             zipStream.pipe(res);
-
+    
             zipStream.on('end', () => {
                 // Cleanup temporary files
                 fs.unlinkSync(ipynbFilePath);
                 fs.unlinkSync(zipFilePath);
             });
-
         } catch (error) {
             console.error('Error downloading or processing file:', error);
             res.status(500).send('Error processing the file');
         }
-    }
-);
+    });
+    
 
 
-export default downloadRouter
+export default codeRouter
