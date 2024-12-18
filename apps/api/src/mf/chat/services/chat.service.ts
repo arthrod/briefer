@@ -793,7 +793,7 @@ export class ChatService {
       }
 
       // 处理 answer 和任务
-      const answerContent = record.answer?.toString() || '';
+      const answerContent = record.answer?.toString('utf-8') || '';
       const tasks = await prisma().chatRecordTask.findMany({
         where: { chatRecordId: record.id },
         select: {
@@ -1082,7 +1082,7 @@ export class ChatService {
       if (record.answer) {
         let assistantAnswer = {
           type: 'text',
-          content: record.answer
+          content: record.answer.toString('utf-8')
         };
         answers.push(
           {
@@ -1236,7 +1236,7 @@ export class ChatService {
       }
 
       // 更新对话态为完成
-      const currentAnswer = chatRecord.answer.toString()
+      const currentAnswer = chatRecord.answer.toString('utf-8')
       const updatedAnswer = currentAnswer.includes('[DONE]')
         ? currentAnswer
         : `${currentAnswer}\n[DONE]`
