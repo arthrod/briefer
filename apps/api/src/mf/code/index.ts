@@ -7,12 +7,12 @@ import { OssClient } from '../../utils/oss.js'
 import archiver from 'archiver';
 
 
-const downloadRouter = Router()
+const codeRouter = Router()
 
 const ossClient = new OssClient()
 
-downloadRouter.post(
-    '/code',
+codeRouter.post(
+    '/download',
     async (req: Request, res: Response, next: NextFunction) => {
         const filePath = req.body.path;
 
@@ -63,4 +63,4 @@ downloadRouter.post(
 );
 
 
-export default downloadRouter
+export default codeRouter
