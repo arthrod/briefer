@@ -299,7 +299,7 @@ export async function handleStreamResponse(
     })
 
     // 格式化错误消息
-    const errorMessage = formatErrorMessage(error)
+    const errorMessage = formatErrorMessage('rag', error)
 
     // 组合已接收的消息和错误信息
     const finalMessage = [

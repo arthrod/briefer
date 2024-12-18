@@ -34,7 +34,7 @@ export async function sendSSEError(
     updateTarget?: UpdateTarget,
     chatType: 'rag' | 'report' = 'rag' // 默认为 rag 类型
 ) {
-    const formattedError = formatErrorMessage(error)
+    const formattedError = formatErrorMessage(chatType, error)
 
     // 如果存在更新目标，将错误消息保存到数据库
     if (updateTarget?.type === 'chat_record' && updateTarget.id) {
@@ -62,21 +62,11 @@ export async function sendSSEError(
         }
     }
 
-    // 根据对话类型返回不同格式的错误消息
-    if (chatType === 'report') {
-        // 报告对话返回 JSON 格式
-        const errorResponse = {
-            type: 'text',
-            content: ERROR_MESSAGES.GENERAL
-        }
-        res.write(`data: ${JSON.stringify(errorResponse)}\n\n`)
-    } else {
-        // RAG 对话保持原有格式
-        formattedError.split('\n').forEach((line) => {
-            res.write(`data: ${line}\n`)
-        })
-        res.write('\n') // 表示该消息结束
-    }
-
+    // 分行发送错误消息，确保格式正确
+    formattedError.split('\n').forEach((line) => {
+        res.write(`data: ${line}\n`)
+    })
+    res.write('\n') // 表示该消息结束
     res.write('data: [DONE]\n\n')
+
 }
