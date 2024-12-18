@@ -3,7 +3,6 @@ import { chatService } from '../services/chat.service.js'
 import { createErrorResponse, withErrorHandler } from '../../../utils/validation.js'
 import { ValidationError } from '../types/errors.js'
 import { z } from 'zod'
-import { sendSSEError, setupSSEConnection } from '../stream/rag-stream.js'
 import { IOServer } from '../../../websocket/index.js'
 import {
   createChatSchema,
@@ -15,6 +14,7 @@ import {
   chatCompletionsSchema
 } from '../types/schemas.js'
 import { sendSuccess } from '../../../utils/response.js'
+import { setupSSEConnection, sendSSEError } from '../utils/sse-utils.js'
 
 /**
  * 聊天控制器

@@ -24,7 +24,7 @@ import { ValidationError, APIError, ERROR_CODES } from '../types/errors.js'
 import { ChatRecordStatus, ChatRecordTaskStatus } from '../types/interfaces.js'
 
 // 定义更新目标类型
-export interface ReportUpdateTarget {
+interface ReportUpdateTarget {
     type: 'chat_record'
     chatId: string
     roundId: string
