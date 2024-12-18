@@ -30,14 +30,14 @@ import {
   IJupyterManager,
   getJupyterManager,
 } from '../../../../jupyter/index.js'
-
+import { run_cell_pre } from '../run-cell.js'
 async function editWithAI(
   workspaceId: string,
   datasourceId:
     | {
-        type: 'db'
-        id: string
-      }
+      type: 'db'
+      id: string
+    }
     | { type: 'duckdb' },
   source: string,
   instructions: string,
@@ -163,6 +163,7 @@ export class SQLExecutor implements ISQLExecutor {
     this.runningQueries.set(block, runningQuery)
 
     try {
+      const code = await run_cell_pre(this.documentId, this.workspaceId, block)
       logger().trace(
         {
           workspaceId: this.workspaceId,
@@ -552,4 +553,7 @@ export class SQLExecutor implements ISQLExecutor {
       events
     )
   }
+
 }
+
+

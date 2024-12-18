@@ -147,6 +147,8 @@ export class RunAllController {
         5000
       )
       const result = await jobsRes.json()
+      //转换成Ipynb
+
       sendResponse(res, success({ result }))
     } catch (e) {
       sendResponse(res, handleError(500, '创建全量运行记录失败'))

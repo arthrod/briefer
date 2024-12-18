@@ -47,6 +47,7 @@ export function getRichTextAttributes(block: Y.XmlElement<RichTextBlock>): RichT
     ...getBaseAttributes(block),
     content: getAttributeOr(block, 'content', new Y.XmlFragment()),
     needTransform: getAttributeOr(block, 'needTransform', true),
+    variables: getAttributeOr(block, 'variables',[]),
   }
 }
 

@@ -25,5 +25,9 @@
     "prettier": "^3.3.3",
     "prettier-plugin-tailwindcss": "^0.6.8",
     "turbo": "^2.3.3"
+  },
+  "dependencies": {
+    "nbformat": "^0.0.2",
+    "yarn": "^1.22.22"
   }
 }

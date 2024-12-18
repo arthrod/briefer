@@ -11,7 +11,13 @@ import {
 } from '@briefer/editor'
 import PQueue from 'p-queue'
 import * as Y from 'yjs'
+import { writeFile } from 'fs/promises'
+import { promises as fs } from 'fs'
+
+import { join, dirname } from 'path'
+import { tmpdir } from 'os'
 import { updateDataframes } from '../index.js'
+
 import { logger } from '../../../../logger.js'
 import { executeCode as executePython } from '../../../../python/index.js'
 import { DataFrame, PythonErrorOutput } from '@briefer/types'
@@ -19,6 +25,7 @@ import { listDataFrames } from '../../../../python/query/index.js'
 import { pythonEditStreamed } from '../../../../ai-api.js'
 import { prisma, getWorkspaceWithSecrets } from '@briefer/database'
 import { EventContext, PythonEvents } from '../../../../events/index.js'
+import { run_cell_pre, run_cell_request_code } from '../run-cell.js'
 
 async function editWithAI(
   workspaceId: string,
@@ -112,6 +119,9 @@ export class PythonExecutor implements IPythonExecutor {
     block.setAttribute('result', [])
 
     try {
+      const code = await run_cell_pre(this.documentId, this.workspaceId, block)
+
+
       logger().trace(
         {
           workspaceId: this.workspaceId,
@@ -139,8 +149,7 @@ export class PythonExecutor implements IPythonExecutor {
             id: blockId,
           } = getPythonAttributes(block)
 
-          const actualSource =
-            (isSuggestion ? aiSuggestions : source)?.toJSON() ?? ''
+          const actualSource =code.toString()
 
           const { promise, abort } = await this.effects.executePython(
             this.workspaceId,
@@ -311,4 +320,10 @@ export class PythonExecutor implements IPythonExecutor {
       events
     )
   }
+
+
+
+
 }
+
+
