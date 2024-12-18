@@ -109,7 +109,7 @@ function EditWithAIForm(props: Props) {
             disabled={props.disabled}
             defaultValue={props.value.toString()}
             className="font-syne h-full w-full border-0 bg-transparent px-0 text-xs placeholder-gray-400 focus:ring-0"
-            placeholder="My code does X. It must do Y instead."
+            placeholder="输入需求，我帮您编写代码"
             onChange={onChange}
             onKeyDown={onKeyDown}
             autoFocus

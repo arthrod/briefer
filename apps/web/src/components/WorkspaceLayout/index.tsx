@@ -55,8 +55,15 @@ interface Props extends PropsWithChildren {
 
 function ChatDetailLayout({ chatId, workspaceId }: { chatId: string; workspaceId: string }) {
   const [loading, setLoading] = useState(false)
-  const { fileInfo, roundList, setRoundList, refreshRoundList, stopChat, startRoundChat } =
-    useChatLayoutContext()
+  const {
+    generating,
+    fileInfo,
+    roundList,
+    setRoundList,
+    refreshRoundList,
+    stopChat,
+    startRoundChat,
+  } = useChatLayoutContext()
   const timer = useRef(-1)
   const getChatStatus = useChatStatus()
 
@@ -148,10 +155,8 @@ function ChatDetailLayout({ chatId, workspaceId }: { chatId: string; workspaceId
         <ChatDetail
           type="report"
           roundList={roundList}
-          loading={loading}
-          onRegenerate={function (message: MessageContent): void {
-            throw new Error('Function not implemented.')
-          }}></ChatDetail>
+          generating={generating}
+          onRegenerate={function (message: MessageContent): void {}}></ChatDetail>
       </div>
       <div className={styles.bottom}>
         {fileInfo ? (
@@ -161,7 +166,13 @@ function ChatDetailLayout({ chatId, workspaceId }: { chatId: string; workspaceId
           </div>
         ) : null}
         <div className={styles.chatArea}>
-          <ChatInput loading={loading} showUpload={false} onSend={handleSend} onStop={handleStop} />
+          <ChatInput
+            chatType="report"
+            loading={loading}
+            showUpload={false}
+            onSend={handleSend}
+            onStop={handleStop}
+          />
         </div>
       </div>
     </div>

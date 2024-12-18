@@ -23,12 +23,13 @@ import { showToast } from '../Toast'
 import ArrowRight from '@/icons/arrow-right-line.svg'
 import { useChatRoundCreate } from '@/hooks/mf/chat/useChatSessionCreate'
 import { v4 as uuidv4 } from 'uuid'
-import { ChatType, FileInfo, MessageContent, useChatDetail } from '@/hooks/mf/chat/useChatDetail'
+import { FileInfo, MessageContent, useChatDetail } from '@/hooks/mf/chat/useChatDetail'
 import { useChatStop } from '@/hooks/mf/chat/useChatStop'
 import { ChatStatus } from '@/hooks/mf/chat/useChatStatus'
 import { useChatCreate } from '@/hooks/mf/chat/useCreateChat'
 import ChatListBox from '../ChatList'
 import { StepJsonType } from '../ChatDetail/ReportStep'
+import { ChatType } from '../../../../chat'
 const defaultMsg: MessageContent = { id: '', role: 'system', content: '我是你的AI小助手' }
 const empty: StepJsonType = { type: 'step', content: { jobs: [] } }
 
@@ -82,7 +83,6 @@ export function ChatProvider(props: { children: ReactNode }) {
   const [fileInfo, setFileInfo] = useState<FileInfo | null>(null)
   const [chatList, setChatList] = useState<HistoryChat[]>([])
   const [roundList, setRoundList] = useState<MessageContent[]>([])
-  // const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
   const chatSessions = useRef<ChatSession[]>([])
 
   const [loading, setLoading] = useState(false) // 用于接口发送

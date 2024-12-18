@@ -1,4 +1,4 @@
-export type ChatType = 'normal' | 'document'
+export type ChatType = 'rag' | 'report'
 
 export interface IBaseChat {
   id: string
@@ -91,9 +91,7 @@ export function isInputBlock(block: IBlock): block is InputBlock {
   return block.type === 'INPUT'
 }
 
-export function isDropdownInputBlock(
-  block: IBlock
-): block is DropdownInputBlock {
+export function isDropdownInputBlock(block: IBlock): block is DropdownInputBlock {
   return block.type === 'DROPDOWN_INPUT'
 }
 
@@ -101,9 +99,7 @@ export function isDateInputBlock(block: IBlock): block is DateInputBlock {
   return block.type === 'DATE_INPUT'
 }
 
-export function isDateTimeInputBlock(
-  block: IBlock
-): block is DateTimeInputBlock {
+export function isDateTimeInputBlock(block: IBlock): block is DateTimeInputBlock {
   return block.type === 'DATE_TIME_INPUT'
 }
 

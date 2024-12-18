@@ -2,8 +2,8 @@ import { useCallback, useMemo } from 'react'
 import { NEXT_PUBLIC_MF_API_URL } from '@/utils/env'
 import { getData } from '../useResponse'
 import { HistoryChat } from './useChatList'
+import { ChatType } from '../../../../chat'
 
-export type ChatType = 'rag' | 'report'
 export type MessageRoleType = 'system' | 'user' | 'assistant'
 export type ReportFileType = 'word' | 'pdf'
 
