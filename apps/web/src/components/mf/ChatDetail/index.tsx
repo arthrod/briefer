@@ -1,20 +1,21 @@
 import { useCallback, useEffect, useState, useRef } from 'react'
 import styles from './index.module.scss'
 import clsx from 'clsx'
-import { ChatType, MessageContent } from '@/hooks/mf/chat/useChatDetail'
+import { MessageContent } from '@/hooks/mf/chat/useChatDetail'
 import { useSession } from '@/hooks/useAuth'
 import ScrollBar from '@/components/ScrollBar'
 import Pointer from '../Pointer'
 import Markdown from '../markdown'
-import ReportStep, { ContentJsonType, StepJsonType } from './ReportStep'
+import ReportStep, { ContentJsonType } from './ReportStep'
+import { ChatType } from '../../../../chat'
 export interface ChatDetailProps {
   type: ChatType
-  loading?: boolean
+  generating?: boolean
   roundList: MessageContent[]
   onRegenerate: (message: MessageContent) => void
 }
 
-const ChatDetail = ({ type, roundList, loading = false, onRegenerate }: ChatDetailProps) => {
+const ChatDetail = ({ type, roundList, generating = false, onRegenerate }: ChatDetailProps) => {
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const session = useSession()
@@ -63,7 +64,7 @@ const ChatDetail = ({ type, roundList, loading = false, onRegenerate }: ChatDeta
             </span>
             <div className={styles.content}>
               <Markdown>{message.content}</Markdown>
-              {!!(loading && index === roundList.length - 1) ? <Pointer /> : null}
+              {!!(generating && index === roundList.length - 1) ? <Pointer /> : null}
             </div>
           </div>
         )
@@ -72,10 +73,10 @@ const ChatDetail = ({ type, roundList, loading = false, onRegenerate }: ChatDeta
         if (type === 'rag') {
           contentJson.content = message.content
         } else if (type === 'report') {
-          if (message.content) {
+          try {
             contentJson = JSON.parse(message.content) as ContentJsonType
-          } else {
-            return
+          } catch (error) {
+            contentJson = { type: 'text', content: message.content }
           }
         }
 
@@ -98,7 +99,7 @@ const ChatDetail = ({ type, roundList, loading = false, onRegenerate }: ChatDeta
             ) : (
               <div className={styles.content}>
                 <Markdown>{message.content}</Markdown>
-                {!!(loading && index === roundList.length - 1) ? <Pointer /> : null}
+                {!!(generating && index === roundList.length - 1) ? <Pointer /> : null}
               </div>
             )}
           </div>
@@ -113,7 +114,7 @@ const ChatDetail = ({ type, roundList, loading = false, onRegenerate }: ChatDeta
         </div>
       )
     },
-    [loading, roundList]
+    [generating, roundList]
   )
 
   return (

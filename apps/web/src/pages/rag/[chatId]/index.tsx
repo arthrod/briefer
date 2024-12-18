@@ -9,7 +9,9 @@ import { useStringQuery } from '@/hooks/useQueryArgs'
 import { showToast } from '@/components/mf/Toast'
 
 function RagDetailPage() {
-  const [loading, setLoading] = useState(false)
+  const [createLoading, setCreateLoading] = useState(false)
+  const [stopLoading, setStopLoading] = useState(false)
+  const [statusLoading, setStatusLoading] = useState(false)
 
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -18,7 +20,8 @@ function RagDetailPage() {
 
   const getChatStatus = useChatStatus()
 
-  const { refreshRoundList, roundList, startRoundChat, stopChat, generating } = useChatLayoutContext()
+  const { refreshRoundList, roundList, startRoundChat, stopChat, generating } =
+    useChatLayoutContext()
 
   useEffect(() => {
     if (chatId) {
@@ -29,10 +32,10 @@ function RagDetailPage() {
   }, [chatId])
 
   const watchStatus = (isFirst: boolean) => {
-    if (loading) {
+    if (statusLoading) {
       return
     }
-    setLoading(true)
+    setStatusLoading(true)
     return getChatStatus(chatId)
       .then((data: ChatStatus) => {
         if (data) {
@@ -43,36 +46,36 @@ function RagDetailPage() {
           } else if (!isFirst) {
             refreshRoundList(chatId)
           } else {
-            setLoading(false)
+            setStatusLoading(false)
           }
         }
       })
       .catch(() => {
-        setLoading(false)
+        setStatusLoading(false)
       })
   }
 
   const addSendMsg = (msg: string) => {
-    if (!msg || loading) {
+    if (!msg || createLoading) {
       return
     }
-    setLoading(true)
+    setCreateLoading(true)
     startRoundChat(chatId, msg)
       .catch((e) => {
         showToast('消息发送失败，请检查网络', 'error')
       })
       .finally(() => {
-        setLoading(false)
+        setCreateLoading(false)
       })
   }
 
   const handleStop = () => {
-    if (loading) {
+    if (stopLoading) {
       return
     }
-    setLoading(true)
+    setStopLoading(true)
     stopChat().finally(() => {
-      setLoading(false)
+      setStopLoading(false)
     })
   }
 
@@ -81,13 +84,14 @@ function RagDetailPage() {
       <div ref={scrollRef} className={styles.detail_layout}>
         <ChatDetail
           type="rag"
-          loading={generating}
+          generating={createLoading || generating}
           roundList={roundList}
           onRegenerate={() => {}}></ChatDetail>
       </div>
 
       <div className={styles.input_layout}>
         <ChatInput
+          chatType="rag"
           loading={generating}
           showUpload={false}
           onSend={async (question) => {

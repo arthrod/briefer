@@ -7,11 +7,11 @@ import RagIcon from '@/icons/rag.svg'
 import ReportIcon from '@/icons/report.svg'
 import ChatLayout, { useChatLayoutContext } from '@/components/mf/ChatLayout'
 import clsx from 'clsx'
-import { ChatType } from '@/hooks/mf/chat/useChatList'
 import { useRouter } from 'next/router'
 import { showToast } from '@/components/mf/Toast'
 import { useDocuments } from '@/hooks/useDocuments'
 import { useWorkspaces } from '@/hooks/useWorkspaces'
+import { ChatType } from '../../../chat'
 
 const fullText = '我能帮你做点什么？'
 
@@ -113,6 +113,7 @@ function HomePage() {
         style={{ transform: `translateY(${translateY}px)`, width: '768px' }}>
         <ChatInput
           className={styles.input}
+          chatType={chatType}
           showUpload={chatType === 'report'}
           loading={loading}
           onSend={handleSend}

@@ -9,16 +9,25 @@ import clsx from 'clsx'
 import { NEXT_PUBLIC_MF_API_URL } from '@/utils/env'
 import { CircleProgress } from '../Progress'
 import { LoadingCircle } from '../LoadingCircle'
+import { ChatType } from '../../../../chat'
 
 interface IProps {
   className?: string
   showUpload: boolean
+  chatType: ChatType
   loading?: boolean
   onSend?: (question: string, fileId?: string) => Promise<void>
   onStop?: () => void
 }
 
-const ChatInput = ({ className, showUpload, loading = false, onSend, onStop }: IProps) => {
+const ChatInput = ({
+  className,
+  showUpload,
+  chatType,
+  loading = false,
+  onSend,
+  onStop,
+}: IProps) => {
   const [question, setQuestion] = useState('')
   const [disabled, setDisabled] = useState(true)
 
@@ -36,6 +45,10 @@ const ChatInput = ({ className, showUpload, loading = false, onSend, onStop }: I
   useEffect(() => {
     setDisabled(!question)
   }, [question])
+
+  useEffect(() => {
+    resetUpload()
+  }, [chatType])
 
   const handleFileChangeEvent = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -142,7 +155,7 @@ const ChatInput = ({ className, showUpload, loading = false, onSend, onStop }: I
     }
   }
 
-  const deleteFile = () => {
+  const resetUpload = () => {
     setFileId('')
     setUploadFileName('')
     setUploadPercent(-2)
@@ -222,7 +235,7 @@ const ChatInput = ({ className, showUpload, loading = false, onSend, onStop }: I
                   <div
                     className={styles.icon}
                     onClick={() => {
-                      deleteFile()
+                      resetUpload()
                     }}>
                     {uploadPercent === -1 ? '上传失败' : ''}
                     <DeleteIcon />
