@@ -8,6 +8,7 @@ import Pointer from '../Pointer'
 import Markdown from '../markdown'
 import ReportStep, { ContentJsonType } from './ReportStep'
 import { ChatType } from '../../../../chat'
+import AssistantIcon from '@/icons/assistant.png'
 export interface ChatDetailProps {
   type: ChatType
   generating?: boolean
@@ -60,7 +61,7 @@ const ChatDetail = ({ type, roundList, generating = false, onRegenerate }: ChatD
         return (
           <div className={clsx(styles.chatItem, styles.robot)} key={index}>
             <span className={styles.robot}>
-              <img width={14} src="/icons/logo.svg" alt="" />
+              <img width={24} src={AssistantIcon.src} alt="" />
             </span>
             <div className={styles.content}>
               <Markdown>{message.content}</Markdown>
@@ -83,7 +84,7 @@ const ChatDetail = ({ type, roundList, generating = false, onRegenerate }: ChatD
         return (
           <div className={clsx(styles.chatItem, styles.robot)} key={index}>
             <span className={styles.robot}>
-              <img width={14} src="/icons/logo.svg" alt="" />
+              <img width={24} src={AssistantIcon.src} alt="" />
             </span>
             {message.isError ? (
               <div className={styles.errorContent}>
@@ -98,7 +99,7 @@ const ChatDetail = ({ type, roundList, generating = false, onRegenerate }: ChatD
               <ReportStep jobs={contentJson.content.jobs}></ReportStep>
             ) : (
               <div className={styles.content}>
-                <Markdown>{message.content}</Markdown>
+                <Markdown>{contentJson.content}</Markdown>
                 {!!(generating && index === roundList.length - 1) ? <Pointer /> : null}
               </div>
             )}
