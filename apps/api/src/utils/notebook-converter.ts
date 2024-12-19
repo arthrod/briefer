@@ -29,7 +29,7 @@ export class NotebookConverter {
             }
 
             // Convert notebook to PDF using nbconvert with options for cleaner output
-            const { stdout, stderr } = await execAsync(`jupyter nbconvert --to pdf "${inputPath}" --output "${outputPath}"`);
+            const { stdout, stderr } = await execAsync(`jupyter nbconvert --to pdf "${inputPath}" --no-input --output "${outputPath}"`);
 
             // Log conversion output for debugging
             if (stdout) console.log('Conversion output:', stdout);
