@@ -14,6 +14,7 @@ import { ChatType } from '../../../../chat'
 interface IProps {
   className?: string
   showUpload: boolean
+  value?: string
   chatType: ChatType
   loading?: boolean
   onSend?: (question: string, fileId?: string) => Promise<void>
@@ -24,6 +25,7 @@ const ChatInput = ({
   className,
   showUpload,
   chatType,
+  value,
   loading = false,
   onSend,
   onStop,
@@ -45,6 +47,12 @@ const ChatInput = ({
   useEffect(() => {
     setDisabled(!question)
   }, [question])
+
+  useEffect(() => {
+    if (value !== null && value !== undefined) {
+      setQuestion(value)
+    }
+  }, [value])
 
   useEffect(() => {
     resetUpload()
@@ -183,6 +191,7 @@ const ChatInput = ({
             ref={questionRef}
             type="text"
             className={clsx(styles.input)}
+            value={question}
             placeholder="向AI助手描述需求"
             onChange={(e) => {
               setQuestion(e.target.value)

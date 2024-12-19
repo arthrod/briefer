@@ -30,6 +30,7 @@ import { useChatCreate } from '@/hooks/mf/chat/useCreateChat'
 import ChatListBox from '../ChatList'
 import { StepJsonType } from '../ChatDetail/ReportStep'
 import { ChatType } from '../../../../chat'
+import UserAvatar from '../UserAvatar'
 const defaultMsg: MessageContent = { id: '', role: 'system', content: '我是你的AI小助手' }
 const empty: StepJsonType = { type: 'step', content: { jobs: [] } }
 
@@ -362,10 +363,8 @@ export default function ChatLayout({ children }: Props) {
   const [routeTitle, setRouteTitle] = useState('')
 
   const [workspaces] = useWorkspaces()
-  const session = useSession()
   const router = useRouter()
 
-  const firstLetter = session.data?.loginName.charAt(0).toUpperCase() // 获取用户名的第一个字母并转为大写
   const chatId = router.query.chatId
 
   useEffect(() => {
@@ -403,13 +402,7 @@ export default function ChatLayout({ children }: Props) {
               </>
             ) : null}
           </div>
-          <div
-            className={styles.userAvatar}
-            onClick={() => {
-              router.push('/user/profile')
-            }}>
-            {firstLetter}
-          </div>
+          <UserAvatar />
         </div>
         {children}
       </div>

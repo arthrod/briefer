@@ -273,7 +273,7 @@ export default function WorkspaceLayout({ children, pagePath, topBarClassname }:
 
       <main
         className={clsx(
-          `flex h-screen w-full flex-col ${syne.className} relative`,
+          `relative flex h-screen w-full flex-col`,
           isSideBarOpen ? `md:max-w-[67%] lg:max-w-[75%]` : `md:max-w-[100%] lg:max-w-[100%]`
         )}>
         <span
