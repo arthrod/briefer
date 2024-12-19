@@ -5,7 +5,7 @@ import { prisma } from '@briefer/database'
 import { logger } from '../../../logger.js'
 import { WSSharedDocV2, getYDocForUpdate, getDocId } from '../../../yjs/v2/index.js'
 import { DocumentPersistor } from '../../../yjs/v2/persistors.js'
-import { YBlock, YBlockGroup } from '@briefer/editor'
+import { dateInputValueFromDate, formatDateInputValue, YBlock, YBlockGroup } from '@briefer/editor'
 import { addBlockGroup, AddBlockGroupBlock } from '@briefer/editor'
 import {
     makeInputBlock,
@@ -43,6 +43,7 @@ interface BlockRequest {
     options?: Array<{ label: string; value: any }>
     tables?: string[]
     task_id?: string
+    default?: string
 }
 
 // 创建block的工厂函数
@@ -75,7 +76,28 @@ function createBlockFromRequest(blockRequest: BlockRequest): YBlock {
             return dropdownBlock
 
         case 'DATE_INPUT':
-            return makeDateInputBlock(id, blocks)
+            const dateInputBlock = makeDateInputBlock(id, blocks)
+            if (blockRequest.variable) {
+                dateInputBlock.setAttribute('variable', blockRequest.variable)
+                dateInputBlock.setAttribute('newVariable', new Y.Text(blockRequest.variable))
+            }
+            if (blockRequest.label) {
+                dateInputBlock.setAttribute('label', new Y.Text(blockRequest.label))
+            }
+            if (blockRequest.default) {
+                // Parse the Chinese date format "2024年9月30日" to a Date object
+                const match = blockRequest.default.match(/(\d{4})年(\d{1,2})月(\d{1,2})日/)
+                if (match) {
+                    // Since we know the regex pattern will always capture these groups if there's a match
+                    const [_, year, month, day] = match as [string, string, string, string]
+                    const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+                    const value = dateInputValueFromDate(date, 'UTC')
+                    const formattedValue = formatDateInputValue(value, 'date')
+                    dateInputBlock.setAttribute('value', value)
+                    dateInputBlock.setAttribute('newValue', new Y.Text(formattedValue))
+                }
+            }
+            return dateInputBlock
 
         case 'RICH_TEXT':
             const richTextBlock = makeRichTextBlock(id, blockRequest.variables)
