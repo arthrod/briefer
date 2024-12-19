@@ -7,8 +7,9 @@ import { prisma } from '@briefer/database'
 import { activeRequests } from '../utils/fetch.js'
 import path from 'path'
 import fs from 'fs/promises'
-import { APIError, ERROR_CODES } from '../types/errors.js'
+import { APIError } from '../types/errors.js'
 import { sendSSEError } from '../utils/sse-utils.js'
+import { ErrorCode } from '../../../constants/errorcode.js'
 
 // 处理流式响应
 export async function handleStreamResponse(
@@ -20,7 +21,7 @@ export async function handleStreamResponse(
   if (!response.body) {
     throw new APIError(
       'Response body is empty',
-      ERROR_CODES.API_ERROR,
+      ErrorCode.API_ERROR,
       500
     )
   }
