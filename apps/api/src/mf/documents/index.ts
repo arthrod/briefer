@@ -28,11 +28,7 @@ const documentRouter = (socketServer: IOServer) => {
 
     // 创建临时文件路径
     const tempDir = os.tmpdir()
-    // 使用固定的测试文件，与 index.ts 同级目录下的 testfile/test.ipynb
-    const inputPath = path.join(__dirname, 'testfile', 'analysis-dianwang.ipynb')
     const outputPath = path.join(tempDir, `test-${documentId}.pdf`)
-
-    logger().info(`Converting notebook from ${inputPath} to ${outputPath}`)
 
     try {
       logger().info(`User ${userId} requesting preview for document ${documentId}`)
@@ -104,8 +100,7 @@ const documentRouter = (socketServer: IOServer) => {
               }
             : error,
         document: {
-          id: documentId,
-          path: inputPath,
+          id: documentId
         },
       })
 
