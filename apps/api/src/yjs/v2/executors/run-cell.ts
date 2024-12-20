@@ -125,6 +125,7 @@ def get_job_status(job_id: str):
                                      json=request_data)  # 发送 POST 请求
             response.raise_for_status()  # 检查 HTTP 状态码是否为 200
             result = response.json()
+            print(result)
             if result['code'] == 0:
                 list = result['data']
                 if len(list) > 0:
@@ -142,8 +143,9 @@ def get_job_status(job_id: str):
 
 
 job_id = create_job()
+print(job_id)
 if job_id is False:
-    print(123)
+    raise Exception('获取job失败')
 else:
     push_success(job_id)
     get_job_status(job_id)
