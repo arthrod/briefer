@@ -10,6 +10,7 @@ import { NEXT_PUBLIC_MF_API_URL } from '@/utils/env'
 import { CircleProgress } from '../Progress'
 import { LoadingCircle } from '../LoadingCircle'
 import { ChatType } from '../../../../chat'
+import { Tooltip } from '@/components/Tooltips'
 
 interface IProps {
   className?: string
@@ -184,7 +185,9 @@ const ChatInput = ({
         <span
           className={clsx(styles.prefix, shake ? styles.shakeAnimate : '')}
           onClick={() => fileInputRef.current?.click()}>
-          <UploadIcon />
+          <Tooltip tooltipClassname="w-20" active={true} position="top" message="添加附件">
+            <UploadIcon />
+          </Tooltip>
         </span>
         <input
           ref={questionRef}

@@ -27,13 +27,12 @@ export const Tooltip = ({
       {active && (
         <div
           className={clsx(
-            'font-sans pointer-events-none absolute opacity-0 transition-opacity group-hover:opacity-100 bg-hunter-950 text-white text-xs p-2 rounded-md flex flex-col items-center justify-center gap-y-1 z-[4000]',
+            'bg-hunter-950 pointer-events-none absolute z-[4000] flex flex-col items-center justify-center gap-y-1 rounded-md p-2 font-sans text-xs text-white opacity-0 transition-opacity group-hover:opacity-100',
             getPosClass(position),
             tooltipClassname
-          )}
-        >
+          )}>
           {title && <span>{title}</span>}
-          <span className="inline-flex items-center justify-center text-gray-400 text-center">
+          <span className="inline-flex items-center justify-center text-center text-gray-400">
             {message}
           </span>
         </div>
@@ -42,9 +41,7 @@ export const Tooltip = ({
   )
 }
 
-const getPosClass = (
-  position: 'top' | 'bottom' | 'left' | 'right' | 'manual'
-): string => {
+const getPosClass = (position: 'top' | 'bottom' | 'left' | 'right' | 'manual'): string => {
   switch (position) {
     case 'top':
       return '-top-1 left-1/2 -translate-x-1/2 -translate-y-full'
@@ -79,17 +76,15 @@ export function PortalTooltip(props: PortalTooltipProps) {
       className={clsx(props.className, 'relative')}
       ref={ref}
       onMouseEnter={() => setActive(true)}
-      onMouseLeave={() => setActive(false)}
-    >
+      onMouseLeave={() => setActive(false)}>
       {props.children}
       {createPortal(
         <div
           className={clsx(
             'absolute z-[2000] -translate-y-full pb-2 subpixel-antialiased transition-opacity',
-            active ? 'opacity-100' : 'opacity-0 invisible'
+            active ? 'opacity-100' : 'invisible opacity-0'
           )}
-          style={dropdownPosition}
-        >
+          style={dropdownPosition}>
           {props.content}
         </div>,
         document.body
