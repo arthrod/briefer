@@ -449,81 +449,14 @@ export class RunAllController {
         })
 
         // 转换 ipynb 文件内容，将 outputs 内容转换到 source
-        function convertNotebookContent(notebookContent: any) {
-          if (!notebookContent.cells) return notebookContent;
-          
-          // 过滤掉 code 和 sql 类型的 cell，只保留其他类型（主要是 rich_text/markdown）
-          notebookContent.cells = notebookContent.cells
-            .filter((cell: any) => cell.cell_type !== 'sql')
-            .map((cell: any) => {
-              // 如果没有 outputs 或者是空数组，直接返回原 cell
-              if (!cell.outputs || cell.outputs.length === 0) return cell;
-
-              // 处理 rich_text 类型
-              if (cell.cell_type === 'rich_text') {
-                const output = cell.outputs[0];
-                // 只有当存在 text/markdown 数据时才进行替换
-                if (output?.data?.['text/markdown']) {
-                  return {
-                    ...cell,
-                    source: [output.data['text/markdown']],
-                    cell_type: 'markdown'
-                  };
-                }
-              }
-
-              // 处理 code 类型
-              if (cell.cell_type === 'code') {
-                const output = cell.outputs[0];
-                // 只有当存在 text 数据时才进行替换
-                if (output?.data?.['text']) {
-                  return {
-                    ...cell,
-                    source: [output.data['text']]
-                  }
-                }
-              }
-              
-              // 如果没有满足替换条件，返回原 cell
-              return cell;
-            });
-
-          return notebookContent;
-        }
-
-        // 递归查找所有ipynb文件
-        function findIpynbFiles(dir: string): string[] {
-          const files: string[] = []
-          const entries = fs.readdirSync(dir, { withFileTypes: true })
-
-          for (const entry of entries) {
-            if (entry.name === '__MACOSX') {
-              console.log('Skipping __MACOSX directory:', path.join(dir, entry.name))
-              continue
-            }
-
-            const fullPath = path.join(dir, entry.name)
-            if (entry.isDirectory()) {
-              files.push(...findIpynbFiles(fullPath))
-            } else if (entry.isFile() && entry.name.endsWith('.ipynb')) {
-              console.log('Found notebook file:', fullPath)
-              files.push(fullPath)
-            }
-          }
-
-          return files
-        }
-
-        // 递归查找所有ipynb文件
-        const converter = new NotebookConverter()
-        const ipynbFiles = findIpynbFiles(extractDir)
+        const ipynbFiles = this.findIpynbFiles(extractDir)
         console.log('Found ipynb files:', ipynbFiles)
 
         for (const inputPath of ipynbFiles) {
           try {
             // 先转换 ipynb 文件内容
             const notebookContent = JSON.parse(fs.readFileSync(inputPath, 'utf8'));
-            const convertedContent = convertNotebookContent(notebookContent);
+            const convertedContent = this.convertNotebookContent(notebookContent);
             fs.writeFileSync(inputPath, JSON.stringify(convertedContent, null, 2));
 
             // 获取原始路径，并基于此创建PDF路径
@@ -540,6 +473,7 @@ export class RunAllController {
               originalPath,
               pdfPath
             })
+            const converter = new NotebookConverter()
             await converter.convertFile(inputPath, outputPath)
             console.log('Conversion completed for:', originalPath)
           } catch (error) {
@@ -664,6 +598,72 @@ export class RunAllController {
       res.status(500).json(fail(ErrorCode.SERVER_ERROR, '下载处理失败'))
     }
   }
+
+  // 转换 ipynb 文件内容，将 outputs 内容转换到 source
+  private convertNotebookContent(notebookContent: any) {
+    if (!notebookContent.cells) return notebookContent;
+    
+    // 过滤掉 sql 类型的 cell
+    notebookContent.cells = notebookContent.cells
+      .filter((cell: any) => cell.cell_type !== 'sql')
+      .map((cell: any) => {
+        // 如果没有 outputs 或者是空数组，直接返回原 cell
+        if (!cell.outputs || cell.outputs.length === 0) return cell;
+
+        if (cell.cell_type === 'rich_text') {
+          const output = cell.outputs[0];
+          // 只有当存在 text/markdown 数据时才进行替换
+          if (output?.data?.['text/markdown']) {
+            return {
+              ...cell,
+              source: [output.data['text/markdown']],
+              cell_type: 'markdown'
+            };
+          }
+        }
+
+        // 处理 code 类型
+        if (cell.cell_type === 'code') {
+          const output = cell.outputs[0];
+          // 只有当存在 text 数据时才进行替换
+          if (output?.data?.['text']) {
+            return {
+              ...cell,
+              source: [output.data['text']]
+            }
+          }
+        }
+        
+        // 如果没有满足替换条件，返回原 cell
+        return cell;
+      });
+
+    return notebookContent;
+  }
+
+  // 递归查找所有ipynb文件
+  private findIpynbFiles(dir: string): string[] {
+    const files: string[] = []
+    const entries = fs.readdirSync(dir, { withFileTypes: true })
+
+    for (const entry of entries) {
+      if (entry.name === '__MACOSX') {
+        console.log('Skipping __MACOSX directory:', path.join(dir, entry.name))
+        continue
+      }
+
+      const fullPath = path.join(dir, entry.name)
+      if (entry.isDirectory()) {
+        files.push(...this.findIpynbFiles(fullPath))
+      } else if (entry.isFile() && entry.name.endsWith('.ipynb')) {
+        console.log('Found notebook file:', fullPath)
+        files.push(fullPath)
+      }
+    }
+
+    return files
+  }
+
   async getYDoc(chatId: string, req: Request): Promise<WSSharedDocV2> {
     const userId = req.session!.user.id
 
