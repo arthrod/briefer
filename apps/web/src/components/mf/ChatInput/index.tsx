@@ -3,7 +3,7 @@ import UploadIcon from '@/icons/upload.svg'
 import SendIcon from '@/icons/send.svg'
 import FileIcon from '@/icons/file.svg'
 import DeleteIcon from '@/icons/delete.svg'
-import { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react'
+import { ChangeEvent, use, useEffect, useMemo, useRef, useState } from 'react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import clsx from 'clsx'
 import { NEXT_PUBLIC_MF_API_URL } from '@/utils/env'
@@ -50,14 +50,14 @@ const ChatInput = ({
   }, [question])
 
   useEffect(() => {
+    resetUpload()
+  }, [chatType])
+
+  useEffect(() => {
     if (value !== null && value !== undefined) {
       setQuestion(value)
     }
   }, [value])
-
-  useEffect(() => {
-    resetUpload()
-  }, [chatType])
 
   const handleFileChangeEvent = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -85,7 +85,6 @@ const ChatInput = ({
 
       xhr.onreadystatechange = () => {
         if (xhr.readyState === XMLHttpRequest.DONE) {
-          console.log('上传完成')
         }
       }
 
@@ -97,7 +96,6 @@ const ChatInput = ({
             fileInputRef.current.value = ''
           }
         } else {
-          console.error('上传失败:', xhr.statusText)
           if (fileInputRef.current) {
             fileInputRef.current.value = ''
             setUploadPercent(-1)
@@ -106,7 +104,6 @@ const ChatInput = ({
       }
 
       xhr.onabort = () => {
-        console.error('上传中断')
         if (fileInputRef.current) {
           fileInputRef.current.value = ''
           setUploadPercent(-1)
@@ -114,7 +111,6 @@ const ChatInput = ({
       }
 
       xhr.onerror = () => {
-        console.error('上传出错')
         if (fileInputRef.current) {
           fileInputRef.current.value = ''
           setUploadPercent(-1)
@@ -183,9 +179,13 @@ const ChatInput = ({
     <div className={clsx(styles.chatInput, className, !showUpload ? styles.hiddenPrefix : null)}>
       <div className={styles.inputWrapper}>
         <span
-          className={clsx(styles.prefix, shake ? styles.shakeAnimate : '')}
+          className={clsx(styles.prefix, shake ? styles.shakeAnimate : null)}
           onClick={() => fileInputRef.current?.click()}>
-          <Tooltip tooltipClassname="w-20" active={true} position="top" message="添加附件">
+          <Tooltip
+            tooltipClassname={clsx('w-20', !isOpen ? styles.forceShow : null)}
+            active={true}
+            position="top"
+            message="添加附件">
             <UploadIcon />
           </Tooltip>
         </span>
