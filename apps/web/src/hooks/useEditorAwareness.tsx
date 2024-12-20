@@ -40,7 +40,6 @@ interface Props {
 }
 export function EditorAwarenessProvider(props: Props) {
   const { disableScope, enableScope } = useHotkeysContext()
-  const hash = window.location.hash
   const [state, setState] = useState<InteractionState>({
     mode: 'normal',
     cursorBlockId: null,
@@ -48,10 +47,27 @@ export function EditorAwarenessProvider(props: Props) {
   })
 
   useEffect(() => {
-    if (hash) {
-      focus(hash.replace('#', ''), { scrollIntoView: true })
+    const handleHashChange = () => {
+      const hash = window.location.hash
+      if (hash && hash !== '#') {
+        focus(hash.replace('#', ''), { scrollIntoView: true })
+        window.setTimeout(() => {
+          window.location.hash = ''
+        }, 50)
+      }
     }
-  }, [hash])
+
+    // 监听 hash 变化
+    window.addEventListener('hashchange', handleHashChange)
+
+    // 初次加载时检查 hash
+    handleHashChange()
+
+    // 清理事件监听器
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange)
+    }
+  }, [])
 
   useEffect(() => {
     if (state.mode === 'normal') {

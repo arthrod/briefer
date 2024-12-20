@@ -314,8 +314,8 @@
   border-spacing: 0;
   border-collapse: collapse;
   display: block;
-  width: max-content;
-  // max-width: 100%;
+  // width: max-content;
+  max-width: 100%;
   overflow: auto;
 }
 
@@ -721,6 +721,7 @@
 
 .markdown-body table th {
   font-weight: var(--base-text-weight-semibold, 600);
+  background-color: #fafafa;
 }
 
 .markdown-body table th,
