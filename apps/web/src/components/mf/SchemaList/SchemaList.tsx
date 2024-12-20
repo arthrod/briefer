@@ -234,18 +234,19 @@ export default function SchemaList(props: IProps) {
                     <div key={`icon-${index}`}>
                       <TableIcon></TableIcon>
                     </div>
-                    <div key={`content-${index}`} className={styles.content}>
-                      {item.tableName}
+                    <div key={`content-${index}`} className={styles.contentLayout}>
+                      <div className={styles.name}>{item.name}</div>
+                      <div className={styles.tableName}>{item.tableName}</div>
                     </div>
                   </div>
                   <div key={`des-${index}`} className={styles.des}>
                     {item.des}
                   </div>
                   <div key={`stats-${index}`} className={styles.rowAndColLayout}>
-                    <div key={`row-${index}`} className={styles.row}>
+                    {/* <div key={`row-${index}`} className={styles.row}>
                       <RowIcon></RowIcon>
                       <div>{formatNum(item.rowNum)}</div>
-                    </div>
+                    </div> */}
                     <div key={`col-${index}`} className={styles.col}>
                       <ColumnIcon></ColumnIcon>
                       <div>{formatNum(item.colNum)}</div>
