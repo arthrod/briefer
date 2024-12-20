@@ -95,6 +95,7 @@ const Title = ({ chatTitle, chatId }: { chatTitle: string; chatId: string }) => 
           refreshChatList().then(() => {
             setIsEdit(false)
             setEditTitle(editTitle)
+            showToast('标题更新成功', 'success')
             inputRef.current?.blur()
           })
         })
@@ -113,13 +114,9 @@ const Title = ({ chatTitle, chatId }: { chatTitle: string; chatId: string }) => 
       return Promise.reject()
     }
     setIsCommit(true)
-    return chatEditApi(id, title)
-      .then(() => {
-        showToast('标题更新成功', 'success')
-      })
-      .finally(() => {
-        setIsCommit(false)
-      })
+    return chatEditApi(id, title).finally(() => {
+      setIsCommit(false)
+    })
   }
   return (
     <div
