@@ -2,9 +2,15 @@ import { Request, Response } from 'express'
 import { CONFIG } from './constants.js'
 import { fetchWithTimeout } from '../chat/utils/fetch.js'
 import { sendResponse, success, fail, handleError } from '../../utils/response.js'
-import { ErrorCode } from '../../constants/errorcode.js'
-import path from 'path'
+import { sessionFromCookies } from '../../auth/token.js'
+import { prisma, YjsDocument } from '@briefer/database'
+import { getYDocForUpdate, WSSharedDocV2 } from '../../yjs/v2/index.js'
+import path, { join } from 'path'
 import fs from 'fs'
+import { IOServer } from '../../websocket/index.js'
+import { DocumentPersistor } from '../../yjs/v2/persistors.js'
+import { convertYjsDocumentToNotebook, saveNotebookToOSS } from '../../yjs/v2/executors/convertToNotebook.js'
+import { ErrorCode } from '../../constants/errorcode.js'
 import { fileURLToPath } from 'url'
 import { NotebookConverter } from '../../utils/notebook-converter.js'
 import AdmZip from 'adm-zip'
@@ -15,7 +21,10 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 export class RunAllController {
-
+  private socketServer: IOServer
+  constructor(socketServer: IOServer) {
+    this.socketServer = socketServer
+  }
   async getRunAllList(req: Request, res: Response) {
     if (CONFIG.IS_MOCK) {
       return sendResponse(
@@ -158,9 +167,17 @@ export class RunAllController {
         },
         5000
       )
-      const result = await jobsRes.json()
-      //转换成Ipynb
+      const result: any = await jobsRes.json()
+      if (result && result.code === 0) {
+        // 在查询到 yDoc 后开启一个线程进行处理
+        const yDoc = await this.getYDoc(reqJson.chatId, req);
 
+        // 在后台启动异步上传任务
+        (async () => {
+          await this.uploadCode(yDoc, reqJson.chatId, req.session.user.id, result.data.jobId);  // 确保 yDoc 是获取到的文档对象
+        })();
+
+      }
       sendResponse(res, success({ result }))
     } catch (e) {
       sendResponse(res, handleError(500, '创建全量运行记录失败'))
@@ -381,7 +398,7 @@ export class RunAllController {
       // 创建临时zip文件
       const testZipPath = path.join(os.tmpdir(), `download-${id}-${Date.now()}.zip`)
       const writeStream = fs.createWriteStream(testZipPath)
-      
+
       // 将响应流写入临时文件
       const streamReader = fileStreamRes.body.getReader()
       try {
@@ -391,7 +408,7 @@ export class RunAllController {
           writeStream.write(Buffer.from(value))
         }
         writeStream.end()
-        
+
         // 等待写入完成
         await new Promise((resolve, reject) => {
           writeStream.on('finish', resolve)
@@ -595,7 +612,82 @@ export class RunAllController {
       res.status(500).json(fail(ErrorCode.SERVER_ERROR, '下载处理失败'))
     }
   }
+  async getYDoc(chatId: string, req: Request): Promise<WSSharedDocV2> {
+    const userId = req.session!.user.id
+    const session = await sessionFromCookies(req.cookies)
+
+    const chatDocumentRelation = await prisma().chatDocumentRelation.findFirst({
+      where: { chatId: chatId }
+    })
+    if (!chatDocumentRelation) {
+      throw new Error('未查询到对话关联报告文档!')
+    }
+    const documentId = chatDocumentRelation.documentId
+    const yjsDoc = await prisma().yjsDocument.findUnique({
+      where: { documentId: documentId },
+    })
+    if (!yjsDoc) {
+      throw new Error('未查询到指定文档!')
+    }
+
+    const { yDoc } = await getYDocForUpdate(
+      [documentId, 'null'].join('-'),
+      this.socketServer,
+      documentId,
+      session?.userWorkspaces[0]?.workspaceId || '',
+      (doc: WSSharedDocV2) => ({
+        yDoc: doc,
+      }),
+      new DocumentPersistor(documentId)
+    )
+    return yDoc
+
+  }
+
+
+
+  async uploadCode(yDoc: WSSharedDocV2, chatId: string, userId: string, jobId: string) {
+
+    const notebook = convertYjsDocumentToNotebook(yDoc.blocks, yDoc.layout)
+    const ossPath = join('chat/', chatId, '/', chatId)
+    const result = await saveNotebookToOSS(notebook, ossPath)
+    if (result) {
+      try {
+        const jobsRes = await fetchWithTimeout(
+          `${CONFIG.MANAGER_URL}${CONFIG.ENDPOINTS.PUSH_SUCCESS}`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'mf-nodejs-user-id': userId,
+            },
+            body: JSON.stringify({
+              jobId: jobId,
+              notebookPath: ossPath,
+            }),
+          },
+          5000
+        )
+      } catch (e) {
+        console.log('创建全量运行记录失败')
+      }
+    }
+
+  }
+
+
+
+  // async download(req: Request, res: Response) {
+  // try {
+  //   // 文件路径（可根据需求动态生成）
+  //   const { id } = req.query
+  //   if (!id) {
+  //     return res.status(400).json({ message: '参数不正确，缺少下载全量记录的id' });
+  //   }
+  //   const idNum = Number(id)
+  //   if (isNaN(idNum)) {
+  //     return res.status(400).json({ message: '参数不正确，缺少下载全量记录的id' });
+  //   }
 
 }
 
-export const runAllController = new RunAllController()

@@ -16,7 +16,7 @@ export default function mfRouter(socketServer: IOServer) {
   router.use('/chat', chatRouter(socketServer))
   router.use('/user', userRouter)
   router.use('/upload', uploadRouter)
-  router.use('/run-all', runAllRouter())
+  router.use('/run-all', runAllRouter(socketServer))
   router.use('/resource', resourceRouter)
   router.use('/schema', schemaRouter())
   router.use('/documents', documentsRouter(socketServer))

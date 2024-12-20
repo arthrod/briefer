@@ -1,10 +1,11 @@
 import { Router } from 'express'
 import createRunAllRouter from './routes.js'
+import { IOServer } from '../../websocket/index.js'
 
-const runAllRouter = () => {
+const runAllRouter = (socketServer: IOServer) => {
   const router = Router()
 
-  router.use('/', createRunAllRouter())
+  router.use('/', createRunAllRouter(socketServer))
 
   return router
 }
