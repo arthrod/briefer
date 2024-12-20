@@ -96,7 +96,7 @@ const ChatDetail = ({ type, roundList, generating = false, onRegenerate }: ChatD
                 </div>
               </div>
             ) : contentJson.type === 'step' ? (
-              <ReportStep jobs={contentJson.content.jobs}></ReportStep>
+              <ReportStep jobs={contentJson.content.jobs} />
             ) : (
               <div className={styles.content}>
                 <Markdown>{contentJson.content}</Markdown>
