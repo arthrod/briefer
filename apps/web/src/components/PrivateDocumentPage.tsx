@@ -29,6 +29,7 @@ import styles from './PrivateDocumentPage.module.scss'
 import SchemaList from './mf/SchemaList/SchemaList'
 import { useChatLayoutContext } from './mf/ChatLayout'
 import { getQueryParam } from '@/hooks/useQueryArgs'
+import UserAvatar from './mf/UserAvatar'
 // this is needed because this component only works with the browser
 const V2Editor = dynamic(() => import('@/components/v2Editor'), {
   ssr: false,
@@ -293,13 +294,7 @@ function PrivateDocumentPageInner(
             isDeleted={isDeleted}
             isFullScreen={isFullScreen}
           />
-          <div
-            className={styles.userAvatar}
-            onClick={() => {
-              router.push('/user/profile')
-            }}>
-            {firstLetter}
-          </div>
+          <UserAvatar />
         </div>
       </div>
     )

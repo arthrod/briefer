@@ -32,31 +32,26 @@
     margin-top: 8px;
     color: #8792a4;
     .moduleItem {
-    }
-    .moduleContent {
-      display: flex;
-      gap: 8px;
-    }
-    .moduleIcon {
-      margin-top: 2px;
-      width: 0.75rem;
-      height: 0.75rem;
-      &.module-running {
-        color: #2f69fe;
+      .moduleContent {
+        display: flex;
+        gap: 8px;
+      }
+
+      .moduleIcon {
+        margin-top: 2px;
+        width: 0.75rem;
+        height: 0.75rem;
+        &.module-running {
+          color: #2f69fe;
+        }
       }
     }
-
-    .moduleTitle {
-    }
-
     .tasks {
       margin-top: 0.25rem;
       border-radius: 12px;
       background: #fafafa;
       overflow: hidden;
-      &.isCollapsed {
-        height: 0;
-      }
+
       .taskItem {
         padding: 0.5rem;
         display: flex;
@@ -75,16 +70,19 @@
         }
       }
     }
-    .collapse {
-      display: flex;
-      align-items: center;
-      color: #2f69fe;
-      cursor: pointer;
-      .collapseIcon {
-        &.rotated {
-          transform: rotate(180deg);
-        }
+  }
+  .collapse {
+    display: flex;
+    align-items: center;
+    color: #2f69fe;
+    cursor: pointer;
+    .collapseIcon {
+      &.rotated {
+        transform: rotate(180deg);
       }
     }
   }
+}
+.isCollapsed {
+  display: none;
 }

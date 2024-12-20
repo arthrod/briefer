@@ -15,6 +15,7 @@ const UserAvatar = () => {
   return (
     <Popover className={styles.userAvatarPopover}>
       <PopoverButton
+        style={{ outline: 'none' }}
         onClick={(e) => {
           e.stopPropagation()
           setIsOpen(!isOpen)
@@ -22,8 +23,11 @@ const UserAvatar = () => {
         <div className={styles.userAvatar}>{firstLetter}</div>
       </PopoverButton>
       <PopoverPanel
-        anchor="bottom"
-        className={clsx('pointer-events-auto z-[100] shadow-lg', styles.userAvatarPopoverLayout)}
+        anchor={{ to: 'bottom' }}
+        className={clsx(
+          'pointer-events-auto z-[100] -translate-x-4 shadow-lg',
+          styles.userAvatarPopoverLayout
+        )}
         style={{ marginTop: '8px' }}>
         {({ close }) => (
           <div className={clsx('pointer-events-auto', styles.btns)}>
