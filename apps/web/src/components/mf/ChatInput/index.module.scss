@@ -1,7 +1,13 @@
 .chatInput {
-  position: relative;
   width: 100%;
-
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  .inputWrapper {
+    position: relative;
+    width: 100%;
+  }
   .prefix {
     position: absolute;
     top: 50%;
@@ -31,6 +37,7 @@
     color: #272a33;
     transition: all 0.3s ease-out;
   }
+
   .sendBtn {
     position: absolute;
     top: 50%;
@@ -65,6 +72,7 @@
       border-radius: 4px;
     }
   }
+
   &.hiddenPrefix {
     .prefix {
       opacity: 0;
@@ -104,6 +112,7 @@
     background-color: #fff;
     overflow: hidden;
     padding: 0;
+    box-shadow: 0px 4px 8px 0px rgba(0, 0, 0, 0.08);
     &.error {
       color: red;
     }
@@ -112,6 +121,8 @@
       align-items: center;
       gap: 0.5rem;
       padding: 0.75rem;
+      width: 100%;
+
       cursor: pointer;
       &:hover {
         background: rgba(47, 105, 254, 0.12);

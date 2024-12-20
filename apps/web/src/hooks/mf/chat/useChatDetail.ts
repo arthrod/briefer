@@ -25,6 +25,7 @@ export type MessageContent = {
   content: string
   isError?: boolean
   roundId?: string
+  file?: boolean
 }
 export interface FileInfo {
   id: string

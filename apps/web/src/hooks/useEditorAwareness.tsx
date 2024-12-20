@@ -1,18 +1,6 @@
 import * as Y from 'yjs'
-import {
-  getBlocks,
-  getLayout,
-  getRelativeBlockId,
-  switchActiveTab,
-} from '@briefer/editor'
-import {
-  useState,
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useCallback,
-} from 'react'
+import { getBlocks, getLayout, getRelativeBlockId, switchActiveTab } from '@briefer/editor'
+import { useState, createContext, useContext, useEffect, useMemo, useCallback } from 'react'
 import { useHotkeysContext } from 'react-hotkeys-hook'
 
 export type InteractionState = {
@@ -20,10 +8,7 @@ export type InteractionState = {
   cursorBlockId: string | null
   scrollIntoView: boolean
 }
-type Move = (
-  dir: 'above' | 'below' | 'left' | 'right',
-  mode: 'normal' | 'insert'
-) => void
+type Move = (dir: 'above' | 'below' | 'left' | 'right', mode: 'normal' | 'insert') => void
 
 export type InteractionAPI = {
   insert: (blockId: string, opts: { scrollIntoView: boolean }) => void
@@ -55,11 +40,18 @@ interface Props {
 }
 export function EditorAwarenessProvider(props: Props) {
   const { disableScope, enableScope } = useHotkeysContext()
+  const hash = window.location.hash
   const [state, setState] = useState<InteractionState>({
     mode: 'normal',
     cursorBlockId: null,
     scrollIntoView: false,
   })
+
+  useEffect(() => {
+    if (hash) {
+      focus(hash.replace('#', ''), { scrollIntoView: true })
+    }
+  }, [hash])
 
   useEffect(() => {
     if (state.mode === 'normal') {
@@ -69,27 +61,21 @@ export function EditorAwarenessProvider(props: Props) {
     }
   }, [state.mode, enableScope, disableScope])
 
-  const insert = useCallback(
-    (blockId: string, opts: { scrollIntoView: boolean }) => {
-      setState({
-        mode: 'insert',
-        cursorBlockId: blockId,
-        scrollIntoView: opts?.scrollIntoView,
-      })
-    },
-    []
-  )
+  const insert = useCallback((blockId: string, opts: { scrollIntoView: boolean }) => {
+    setState({
+      mode: 'insert',
+      cursorBlockId: blockId,
+      scrollIntoView: opts?.scrollIntoView,
+    })
+  }, [])
 
-  const focus = useCallback(
-    (blockId: string, opts: { scrollIntoView: boolean }) => {
-      setState({
-        mode: 'normal',
-        cursorBlockId: blockId,
-        scrollIntoView: opts.scrollIntoView,
-      })
-    },
-    []
-  )
+  const focus = useCallback((blockId: string, opts: { scrollIntoView: boolean }) => {
+    setState({
+      mode: 'normal',
+      cursorBlockId: blockId,
+      scrollIntoView: opts.scrollIntoView,
+    })
+  }, [])
 
   const blur = useCallback(() => {
     setState((prev) => ({ ...prev, mode: 'normal' }))
@@ -107,21 +93,14 @@ export function EditorAwarenessProvider(props: Props) {
         return
       }
 
-      const {
-        blockGroupId: nextCursorBlockGroupId,
-        blockId: nextCursorBlockId,
-      } = result
+      const { blockGroupId: nextCursorBlockGroupId, blockId: nextCursorBlockId } = result
 
       if (nextCursorBlockId === null) {
         return
       }
 
       if (pos === 'left' || pos === 'right') {
-        switchActiveTab(
-          getLayout(props.yDoc),
-          nextCursorBlockGroupId,
-          nextCursorBlockId
-        )
+        switchActiveTab(getLayout(props.yDoc), nextCursorBlockGroupId, nextCursorBlockId)
       }
 
       switch (mode) {
@@ -146,17 +125,12 @@ export function EditorAwarenessProvider(props: Props) {
     [insert, focus, blur, move]
   )
 
-  const contextValue = useMemo(
-    (): UseEditorAwareness => [state, api],
-    [state, api]
-  )
+  const contextValue = useMemo((): UseEditorAwareness => [state, api], [state, api])
 
   useEffect(() => {
     if (state.cursorBlockId && state.scrollIntoView) {
       // find where data-block-id is equal to the cursorBlockId
-      const el = document.querySelector(
-        `[data-block-id="${state.cursorBlockId}"]`
-      )
+      const el = document.querySelector(`[data-block-id="${state.cursorBlockId}"]`)
       if (!el || !props.scrollViewRef.current) {
         return
       }
@@ -173,11 +147,7 @@ export function EditorAwarenessProvider(props: Props) {
         })
       } else {
         // scroll el so that it's center is at the center of the scroll view
-        const top =
-          elRect.top -
-          scrollRect.top -
-          scrollRect.height / 2 +
-          elRect.height / 2
+        const top = elRect.top - scrollRect.top - scrollRect.height / 2 + elRect.height / 2
 
         props.scrollViewRef.current.scrollBy({
           top,
@@ -208,9 +178,7 @@ export function EditorAwarenessProvider(props: Props) {
     }
   }, [props.scrollViewRef, blur])
 
-  return (
-    <Context.Provider value={contextValue}>{props.children}</Context.Provider>
-  )
+  return <Context.Provider value={contextValue}>{props.children}</Context.Provider>
 }
 
 export default function useEditorAwareness(): UseEditorAwareness {

@@ -9,6 +9,8 @@ import Markdown from '../markdown'
 import ReportStep, { ContentJsonType } from './ReportStep'
 import { ChatType } from '../../../../chat'
 import AssistantIcon from '@/icons/assistant.png'
+import FileIcon from '@/icons/file.svg'
+
 export interface ChatDetailProps {
   type: ChatType
   generating?: boolean
@@ -110,7 +112,8 @@ const ChatDetail = ({ type, roundList, generating = false, onRegenerate }: ChatD
         <div className={clsx(styles.chatItem, styles.user)} key={index}>
           <div className={styles.userAvatar}>{firstLetter}</div>
           <div className={styles.content}>
-            <span key={index}>{message.content}</span>
+            {message.file ? <FileIcon /> : null}
+            {message.content}
           </div>
         </div>
       )

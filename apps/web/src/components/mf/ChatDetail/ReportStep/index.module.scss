@@ -32,11 +32,8 @@
     margin-top: 8px;
     color: #8792a4;
     .moduleItem {
-      .moduleContent {
-        display: flex;
-        gap: 8px;
-      }
-
+      display: flex;
+      gap: 8px;
       .moduleIcon {
         margin-top: 2px;
         width: 0.75rem;
@@ -44,6 +41,9 @@
         &.module-running {
           color: #2f69fe;
         }
+      }
+
+      .moduleContent {
       }
     }
     .tasks {

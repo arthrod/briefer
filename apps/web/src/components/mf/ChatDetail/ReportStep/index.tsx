@@ -4,6 +4,7 @@ import styles from './index.module.scss'
 import { LoadingCircle } from '../../LoadingCircle'
 import JobSuccessIcon from '@/icons/job-success.svg'
 import StepSuccessIcon from '@/icons/step-success.svg'
+import StepFailedIcon from '@/icons/step-failed.svg'
 import DoubleArrowIcon from '@/icons/double-arrow.svg'
 import clsx from 'clsx'
 import { StepProps } from 'rc-steps/lib/Step'
@@ -55,7 +56,7 @@ const getJobStatusIcon = (status: Status) => {
     case 'success':
       return <JobSuccessIcon></JobSuccessIcon>
     case 'failed':
-      return <StepSuccessIcon></StepSuccessIcon>
+      return <div>failed</div>
   }
 }
 const getStepStatusIcon = (status: Status) => {
@@ -66,7 +67,7 @@ const getStepStatusIcon = (status: Status) => {
     case 'success':
       return <StepSuccessIcon></StepSuccessIcon>
     case 'failed':
-      return <StepSuccessIcon></StepSuccessIcon>
+      return <StepFailedIcon></StepFailedIcon>
   }
 }
 
@@ -78,28 +79,30 @@ const ModuleSteps: React.FC<{ modules: Module[]; className?: string }> = ({
     <div className={clsx(className, styles.moduleSteps)}>
       {modules.map((module, mIndex) => (
         <div key={`module` + mIndex} className={clsx(styles.moduleItem)}>
+          <div className={clsx(styles.moduleIcon, styles[`module-${module.status}`])}>
+            {getStepStatusIcon(module.status)}
+          </div>
           <div className={styles.moduleContent}>
-            <div className={clsx(styles.moduleIcon, styles[`module-${module.status}`])}>
-              {getStepStatusIcon(module.status)}
-            </div>
-            <div>
-              <div className={styles.moduleTitle}>{module.title}</div>
-              <div className={clsx(styles.tasks)}>
-                {module.tasks.map((task, tIndex) => (
-                  <div key={`task` + tIndex} className={styles.taskItem}>
-                    <div className={clsx(styles.taskIcon, styles[`task-${task.status}`])}>
-                      {getStepStatusIcon(task.status)}
-                    </div>
-                    <div className={styles.taskTitle}>
-                      {`任务${tIndex + 1}: `}
-                      {task.variable ? (
-                        <span style={{ color: '#2F69FE' }}>{`@${task.variable}`}</span>
-                      ) : null}
-                      {task.title}
-                    </div>
+            <a
+              className={styles.moduleTitle}
+              href={`#${module.blockId ? module.blockId : module.tasks[0].blockId}`}>
+              {module.title}
+            </a>
+            <div className={clsx(styles.tasks)}>
+              {module.tasks.map((task, tIndex) => (
+                <div key={`task` + tIndex} className={styles.taskItem}>
+                  <div className={clsx(styles.taskIcon, styles[`task-${task.status}`])}>
+                    {getStepStatusIcon(task.status)}
                   </div>
-                ))}
-              </div>
+                  <a href={`#${task.blockId}`} className={styles.taskTitle}>
+                    {`任务${tIndex + 1}: `}
+                    {task.variable ? (
+                      <span style={{ color: '#2F69FE' }}>{`@${task.variable}`}</span>
+                    ) : null}
+                    {task.title}
+                  </a>
+                </div>
+              ))}
             </div>
           </div>
         </div>
