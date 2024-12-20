@@ -143,7 +143,6 @@ def get_job_status(job_id: str):
 
 
 job_id = create_job()
-print(job_id)
 if job_id is False:
     raise Exception('创建全量运行记录失败')
 else:
