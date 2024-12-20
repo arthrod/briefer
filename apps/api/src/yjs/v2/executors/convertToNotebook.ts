@@ -74,7 +74,7 @@ export function convertYjsDocumentToNotebook(
           id: cellId,
           cell_type: 'code',
           source: source?.toJSON() ?? '',
-          metadata: {},
+          metadata: { id: cellId },
           execution_count: null,
           outputs: [],
         })
@@ -84,11 +84,19 @@ export function convertYjsDocumentToNotebook(
         const { markdown, variables } = getRichTextAttributes(
           currentBlock as Y.XmlElement<RichTextBlock>
         )
+        let cell_type = 'rich_text'
+        let metadata = {}
+        if (Array.isArray(variables) && variables.length === 0) {
+          cell_type = 'markdown'
+          metadata = { id: cellId }
+        } else {
+          metadata = { variables, id: cellId }
+        }
         notebookCells.push({
           id: cellId,
-          cell_type: 'rich_text',
+          cell_type: cell_type,
           source: markdown,
-          metadata: { variables },
+          metadata: metadata,
         })
         break
       }
@@ -100,7 +108,8 @@ export function convertYjsDocumentToNotebook(
           source: sqlBlock.source?.toJSON() ?? '',
           metadata: {
             language: 'sql',
-            variable: sqlBlock.dataframeName
+            variable: sqlBlock.dataframeName,
+            id: cellId
           },
           execution_count: null,
           outputs: [],
@@ -112,7 +121,7 @@ export function convertYjsDocumentToNotebook(
           id: cellId,
           cell_type: 'code',
           source: inputBlock['variable'].value + ' = \'' + inputBlock['value'].value + '\'\n',
-          metadata: {},
+          metadata: { id: cellId },
           execution_count: null,
           outputs: [],
         })
@@ -148,7 +157,7 @@ export function convertYjsDocumentToNotebook(
           id: cellId,
           cell_type: 'code',
           source: dateInputBlock['variable'] + ' = \'' + date_str + '\'\n',
-          metadata: {},
+          metadata: { id: cellId },
           execution_count: null,
           outputs: [],
         })
