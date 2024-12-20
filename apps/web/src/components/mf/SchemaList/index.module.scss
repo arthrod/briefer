@@ -84,17 +84,31 @@
                 display: flex;
                 flex-direction: row;
                 align-items: center;
-
-                /* 超出时显示省略号 */
-                .content {
-                    color: #272A33;
-                    margin-left: 12px;
-                    white-space: nowrap;
-                    /* 禁止换行 */
+                .contentLayout {
+                    display: flex;
+                    flex-direction: column;
                     overflow: hidden;
-                    /* 隐藏超出内容 */
-                    text-overflow: ellipsis;
+                    .name {
+                        color: #272A33;
+                        margin-left: 14px;
+                        white-space: nowrap;
+                        font-weight: 500;
+                        /* 禁止换行 */
+                        overflow: hidden;
+                        /* 隐藏超出内容 */
+                        text-overflow: ellipsis;
+                    }
+                    .tableName {
+                        color: #272A33;
+                        white-space: nowrap;
+                        /* 禁止换行 */
+                        overflow: hidden;
+                        /* 隐藏超出内容 */
+                        text-overflow: ellipsis;
+                        height: 18px;
+                    }
                 }
+                
             }
 
             .des {

@@ -34,8 +34,10 @@
     .moduleItem {
       display: flex;
       gap: 8px;
+      margin-bottom: 2px;
       .moduleIcon {
-        margin-top: 2px;
+        position: relative;
+        top: 2px;
         width: 0.75rem;
         height: 0.75rem;
         &.module-running {

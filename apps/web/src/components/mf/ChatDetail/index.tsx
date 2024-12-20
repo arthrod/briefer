@@ -20,13 +20,33 @@ export interface ChatDetailProps {
 
 const ChatDetail = ({ type, roundList, generating = false, onRegenerate }: ChatDetailProps) => {
   const scrollRef = useRef<HTMLDivElement>(null)
-
+  const userScroll = useRef(false)
   const session = useSession()
-
   const firstLetter = session.data?.loginName.charAt(0).toUpperCase() // 获取用户名的第一个字母并转为大写
 
   useEffect(() => {
-    setTimeout(scrollToBottom, 100)
+    const handleScroll = (e: Event) => {
+      const target = e.target as HTMLDivElement
+      const isScrollToBottom =
+        Math.abs(target.scrollHeight - target.scrollTop - target.clientHeight) < 1
+      userScroll.current = !isScrollToBottom
+    }
+
+    if (scrollRef.current) {
+      scrollRef.current.addEventListener('scroll', handleScroll)
+    }
+    return () => {
+      if (!scrollRef.current) {
+        return
+      }
+      scrollRef.current.addEventListener('scroll', handleScroll)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!userScroll.current) {
+      setTimeout(scrollToBottom, 100)
+    }
   }, [roundList])
 
   const scrollToBottom = useCallback(() => {

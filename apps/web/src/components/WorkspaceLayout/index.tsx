@@ -35,7 +35,6 @@ import { showToast } from '../mf/Toast'
 import { ChatStatus, useChatStatus } from '@/hooks/mf/chat/useChatStatus'
 import {
   Sheet,
-  SheetClose,
   SheetContent,
   SheetDescription,
   SheetHeader,
