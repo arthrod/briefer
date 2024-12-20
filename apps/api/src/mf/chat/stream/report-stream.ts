@@ -611,6 +611,17 @@ async function handleStreamError(
 
         if (record) {
             await prisma().$transaction([
+                // Update any running tasks to failed status
+                prisma().chatRecordTask.updateMany({
+                    where: {
+                        chatRecordId: record.id,
+                        status: ChatRecordTaskStatus.IN_PROGRESS
+                    },
+                    data: {
+                        status: ChatRecordTaskStatus.FAILED
+                    }
+                }),
+                // Update chat record status
                 prisma().chatRecord.update({
                     where: { id: record.id },
                     data: {
