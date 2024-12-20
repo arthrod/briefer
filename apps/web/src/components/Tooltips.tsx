@@ -21,7 +21,7 @@ export const Tooltip = ({
   active?: boolean
 }) => {
   return (
-    <div className={clsx(`group relative z-10`, className)}>
+    <div className={clsx(`group relative`, className)}>
       {children}
 
       {active && (
