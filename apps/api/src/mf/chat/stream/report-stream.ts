@@ -544,6 +544,27 @@ async function handleStreamEnd(
             ]);
         }
 
+        // 在发送 [DONE] 之前进行持久化
+        try {
+            await updateTarget.yDoc.persist(true);
+            logger().info({
+                msg: 'Successfully persisted yDoc state on stream end',
+                data: {
+                    chatId: updateTarget.chatId,
+                    roundId: updateTarget.roundId
+                }
+            });
+        } catch (persistError) {
+            logger().error({
+                msg: 'Failed to persist yDoc state on stream end',
+                data: {
+                    error: persistError instanceof Error ? persistError.message : 'Unknown error',
+                    chatId: updateTarget.chatId,
+                    roundId: updateTarget.roundId
+                }
+            });
+        }
+
         res.write('data: [DONE]\n\n')
     } catch (error) {
         logger().error({
