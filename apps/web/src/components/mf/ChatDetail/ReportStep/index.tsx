@@ -63,7 +63,7 @@ const getStepStatusIcon = (status: Status) => {
   switch (status) {
     case 'waiting':
     case 'running':
-      return <LoadingCircle size="sm"></LoadingCircle>
+      return <LoadingCircle style={{ top: '-2px', left: '-2px' }} size="sm"></LoadingCircle>
     case 'success':
       return <StepSuccessIcon></StepSuccessIcon>
     case 'failed':
