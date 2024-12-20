@@ -94,7 +94,7 @@ const ModuleSteps: React.FC<{ modules: Module[]; className?: string }> = ({
                   <div className={clsx(styles.taskIcon, styles[`task-${task.status}`])}>
                     {getStepStatusIcon(task.status)}
                   </div>
-                  <a href={`#${task.blockId}`} className={styles.taskTitle}>
+                  <a href={task.blockId ? `#${task.blockId}` : ''} className={styles.taskTitle}>
                     {`任务${tIndex + 1}: `}
                     {task.variable ? (
                       <span style={{ color: '#2F69FE' }}>{`@${task.variable}`}</span>
