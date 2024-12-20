@@ -20,6 +20,7 @@ import TableIcon from '../../../icons/table-icon.svg'
 import { Input } from '../Input'
 import { NoData } from '../NoData'
 import styles from './index.module.scss'
+import { Tooltip } from '@/components/Tooltips'
 
 export interface IProps {
   workspaceId: string
@@ -235,13 +236,17 @@ export default function SchemaList(props: IProps) {
                       <TableIcon></TableIcon>
                     </div>
                     <div key={`content-${index}`} className={styles.contentLayout}>
-                      <div className={styles.name}>{item.name}</div>
-                      <div className={styles.tableName}>{item.tableName}</div>
+                      <Tooltip message={item.cnName} active={true} position="top">
+                        <div className={styles.name}>{item.cnName}</div>
+                      </Tooltip>
+                      <Tooltip message={item.tableName} active={true} position="top">
+                        <div className={styles.tableName}>{item.tableName}</div>
+                      </Tooltip>
                     </div>
                   </div>
-                  <div key={`des-${index}`} className={styles.des}>
+                  {/* <div key={`des-${index}`} className={styles.des}>
                     {item.des}
-                  </div>
+                  </div> */}
                   <div key={`stats-${index}`} className={styles.rowAndColLayout}>
                     {/* <div key={`row-${index}`} className={styles.row}>
                       <RowIcon></RowIcon>
@@ -281,7 +286,9 @@ export default function SchemaList(props: IProps) {
               <AlertDialogContent
                 className="max-w-[800px]"
                 aria-describedby="alert-dialog-description">
-                <AlertDialogTitle>{selectedItem.tableName}</AlertDialogTitle>
+                <AlertDialogTitle>
+                  {`${selectedItem.tableName}${selectedItem.cnName ? `(${selectedItem.cnName})` : ''}`}
+                </AlertDialogTitle>
                 <div id="alert-dialog-description" className="space-y-4">
                   <AlertDialogDescription asChild>
                     <div className="text-sm text-gray-500">{selectedItem.des}</div>

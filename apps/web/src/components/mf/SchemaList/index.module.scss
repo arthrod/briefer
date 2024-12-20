@@ -87,7 +87,7 @@
                 .contentLayout {
                     display: flex;
                     flex-direction: column;
-                    overflow: hidden;
+                    width: calc(100% - 46px);
                     .name {
                         color: #272A33;
                         margin-left: 14px;
@@ -97,6 +97,7 @@
                         overflow: hidden;
                         /* 隐藏超出内容 */
                         text-overflow: ellipsis;
+                        max-width: 100%;
                     }
                     .tableName {
                         color: #272A33;
@@ -106,7 +107,7 @@
                         overflow: hidden;
                         /* 隐藏超出内容 */
                         text-overflow: ellipsis;
-                        height: 1px;
+                        max-width: 100%;
                     }
                 }
                 
