@@ -20,8 +20,9 @@ import crypto from 'crypto'
 import fs from 'fs'
 import path from 'path'
 import { IOServer } from '../../../websocket/index.js'
-import { ValidationError, APIError, ERROR_CODES } from '../types/errors.js'
+import { ValidationError, APIError } from '../types/errors.js'
 import { ChatRecordStatus, ChatRecordTaskStatus } from '../types/interfaces.js'
+import { ErrorCode } from '../../../constants/errorcode.js'
 
 // 定义更新目标类型
 interface ReportUpdateTarget {
@@ -661,7 +662,7 @@ abstract class BaseStreamProcessor implements StreamProcessor {
         if (!this.response.body) {
             throw new APIError(
                 'Response body is empty',
-                ERROR_CODES.API_ERROR,
+                ErrorCode.API_ERROR,
                 500
             )
         }
@@ -683,7 +684,7 @@ abstract class BaseStreamProcessor implements StreamProcessor {
         if (!stream) {
             throw new APIError(
                 'Response body is empty',
-                ERROR_CODES.API_ERROR,
+                ErrorCode.API_ERROR,
                 500
             )
         }

@@ -1,5 +1,5 @@
+import { ErrorCode } from '../constants/errorcode.js'
 import { logger } from '../logger.js'
-import { ERROR_CODES } from '../mf/chat/types/errors.js'
 
 // 错误消息常量
 export const ERROR_MESSAGES = {
@@ -75,7 +75,7 @@ export function createErrorResponse(code: number, message: string) {
 // 创建成功响应
 export function createSuccessResponse<T>(data: T, message: string = 'success') {
   return {
-    code: ERROR_CODES.SUCCESS,
+    code: ErrorCode.SUCCESS,
     msg: message,
     data
   }

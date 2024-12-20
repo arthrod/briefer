@@ -1,7 +1,7 @@
 import { Request, Response } from 'express'
 import { prisma, createDocument } from '@briefer/database'
 import { ChatSpeakerType } from '@prisma/client'
-import { AuthorizationError, ValidationError, APIError, ERROR_CODES } from '../types/errors.js'
+import { AuthorizationError, ValidationError, APIError } from '../types/errors.js'
 import { activeRequests, fetchWithTimeout } from '../utils/fetch.js'
 import { Response as FetchResponse } from 'node-fetch'
 import { CONFIG } from '../config/constants.js'
@@ -21,6 +21,7 @@ import { IOServer } from '../../../websocket/index.js'
 import { validateEnvVars } from '../../../utils/validation.js'
 import { handleReportStreamResponse } from '../stream/report-stream.js'
 import { sendSSEError } from '../utils/sse-utils.js'
+import { ErrorCode } from '../../../constants/errorcode.js'
 
 export class ChatService {
   async createChat(userId: string, type: 'rag' | 'report', fileId: string, workspaceId: string) {
@@ -522,7 +523,7 @@ export class ChatService {
         if (!fetchResponse.ok) {
           throw new APIError(
             `AI 报告对话请求失败: ${fetchResponse.status}`,
-            ERROR_CODES.API_ERROR,
+            ErrorCode.API_ERROR,
             500
           )
         }
@@ -570,7 +571,7 @@ export class ChatService {
         if (!relationCheckResponse.ok) {
           throw new APIError(
             `关联性检查请求失败: ${relationCheckResponse.status}`,
-            ERROR_CODES.API_ERROR,
+            ErrorCode.API_ERROR,
             500
           )
         }
@@ -708,7 +709,7 @@ export class ChatService {
         )) as FetchResponse
 
         if (!response.ok) {
-          throw new APIError(`AI 对话请求失败: ${response.status}`, ERROR_CODES.API_ERROR, 500)
+          throw new APIError(`AI 对话请求失败: ${response.status}`, ErrorCode.API_ERROR, 500)
         }
 
         await handleStreamResponse(
@@ -1014,7 +1015,7 @@ export class ChatService {
       )
 
       if (!response.ok) {
-        throw new APIError(`关联性检查请求失败: ${response.status}`, ERROR_CODES.API_ERROR, 500)
+        throw new APIError(`关联性检查请求失败: ${response.status}`, ErrorCode.API_ERROR, 500)
       }
 
       const result = (await response.json()) as RelationCheckResponse

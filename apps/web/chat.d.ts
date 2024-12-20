@@ -1,4 +1,4 @@
-export type ChatType = 'rag' | 'report'
+export type ChatType = 'rag' | 'report' | ''
 
 export interface IBaseChat {
   id: string
