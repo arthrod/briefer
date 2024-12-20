@@ -20,8 +20,9 @@ import crypto from 'crypto'
 import fs from 'fs'
 import path from 'path'
 import { IOServer } from '../../../websocket/index.js'
-import { ValidationError, APIError, ERROR_CODES } from '../types/errors.js'
+import { ValidationError, APIError } from '../types/errors.js'
 import { ChatRecordStatus, ChatRecordTaskStatus } from '../types/interfaces.js'
+import { ErrorCode } from '../../../constants/errorcode.js'
 
 // 定义更新目标类型
 interface ReportUpdateTarget {
@@ -543,6 +544,27 @@ async function handleStreamEnd(
             ]);
         }
 
+        // 在发送 [DONE] 之前进行持久化
+        try {
+            await updateTarget.yDoc.persist(true);
+            logger().info({
+                msg: 'Successfully persisted yDoc state on stream end',
+                data: {
+                    chatId: updateTarget.chatId,
+                    roundId: updateTarget.roundId
+                }
+            });
+        } catch (persistError) {
+            logger().error({
+                msg: 'Failed to persist yDoc state on stream end',
+                data: {
+                    error: persistError instanceof Error ? persistError.message : 'Unknown error',
+                    chatId: updateTarget.chatId,
+                    roundId: updateTarget.roundId
+                }
+            });
+        }
+
         res.write('data: [DONE]\n\n')
     } catch (error) {
         logger().error({
@@ -661,7 +683,7 @@ abstract class BaseStreamProcessor implements StreamProcessor {
         if (!this.response.body) {
             throw new APIError(
                 'Response body is empty',
-                ERROR_CODES.API_ERROR,
+                ErrorCode.API_ERROR,
                 500
             )
         }
@@ -683,7 +705,7 @@ abstract class BaseStreamProcessor implements StreamProcessor {
         if (!stream) {
             throw new APIError(
                 'Response body is empty',
-                ERROR_CODES.API_ERROR,
+                ErrorCode.API_ERROR,
                 500
             )
         }

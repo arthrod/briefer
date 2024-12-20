@@ -2,9 +2,29 @@ import { Request, Response } from 'express'
 import { CONFIG } from './constants.js'
 import { fetchWithTimeout } from '../chat/utils/fetch.js'
 import { sendResponse, success, fail, handleError } from '../../utils/response.js'
-import path from 'path'
+import { sessionFromCookies } from '../../auth/token.js'
+import { prisma, YjsDocument } from '@briefer/database'
+import { getYDocForUpdate, WSSharedDocV2 } from '../../yjs/v2/index.js'
+import path, { join } from 'path'
 import fs from 'fs'
+import { IOServer } from '../../websocket/index.js'
+import { DocumentPersistor } from '../../yjs/v2/persistors.js'
+import { convertYjsDocumentToNotebook, saveNotebookToOSS } from '../../yjs/v2/executors/convertToNotebook.js'
+import { ErrorCode } from '../../constants/errorcode.js'
+import { fileURLToPath } from 'url'
+import { NotebookConverter } from '../../utils/notebook-converter.js'
+import AdmZip from 'adm-zip'
+import os from 'os'
+import { mkdir, mkdtemp } from 'fs/promises'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+
 export class RunAllController {
+  private socketServer: IOServer
+  constructor(socketServer: IOServer) {
+    this.socketServer = socketServer
+  }
   async getRunAllList(req: Request, res: Response) {
     if (CONFIG.IS_MOCK) {
       return sendResponse(
@@ -128,6 +148,7 @@ export class RunAllController {
       sendResponse(res, handleError(500, '获取全量运行列表失败'))
     }
   }
+
   async createRunAll(req: Request, res: Response) {
     const reqJson = req.body
     try {
@@ -146,14 +167,23 @@ export class RunAllController {
         },
         5000
       )
-      const result = await jobsRes.json()
-      //转换成Ipynb
+      const result: any = await jobsRes.json()
+      if (result && result.code === 0) {
+        // 在查询到 yDoc 后开启一个线程进行处理
+        const yDoc = await this.getYDoc(reqJson.chatId, req);
 
+        // 在后台启动异步上传任务
+        (async () => {
+          await this.uploadCode(yDoc, reqJson.chatId, req.session.user.id, result.data.jobId);  // 确保 yDoc 是获取到的文档对象
+        })();
+
+      }
       sendResponse(res, success({ result }))
     } catch (e) {
       sendResponse(res, handleError(500, '创建全量运行记录失败'))
     }
   }
+
   async queryStatus(req: Request, res: Response) {
     if (CONFIG.IS_MOCK) {
       return sendResponse(
@@ -280,6 +310,7 @@ export class RunAllController {
       sendResponse(res, handleError(500, '获取全量运行记录状态失败'))
     }
   }
+
   async approve(req: Request, res: Response) {
     const reqJson = req.body
     try {
@@ -303,17 +334,18 @@ export class RunAllController {
       sendResponse(res, handleError(500, '申请下载失败'))
     }
   }
-  async stop(req: Request, res: Response) {}
+
+  async stop(req: Request, res: Response) { }
 
   async download(req: Request, res: Response) {
     try {
       const { id } = req.query
       if (!id) {
-        return res.status(400).json({ message: '参数不正确，缺少下载全量记录的id' })
+        return res.status(400).json(fail(ErrorCode.PARAM_ERROR, '参数不正确，缺少下载全量记录的id'))
       }
       const idNum = Number(id)
       if (isNaN(idNum)) {
-        return res.status(400).json({ message: '参数不正确，缺少下载全量记录的id' })
+        return res.status(400).json(fail(ErrorCode.PARAM_ERROR, '参数不正确，缺少下载全量记录的id'))
       }
       // 获取文件的 URL
       const fileStreamRes = await fetch(
@@ -327,63 +359,324 @@ export class RunAllController {
         }
       )
 
+      // // 使用本地zip文件
+      // const testZipPath = path.join(__dirname, '../../test-files/test.zip')
+      // if (!fs.existsSync(testZipPath)) {
+      //   return res.status(500).json(fail(ErrorCode.SERVER_ERROR, '测试文件不存在'))
+      // }
+
+      // // 读取zip文件并创建流
+      // const zipFileStream = fs.createReadStream(testZipPath)
+      // const fileStreamRes = {
+      //   ok: true,
+      //   headers: new Map([['content-disposition', `attachment; filename="test-${id}.zip"`]]),
+      //   body: new ReadableStream({
+      //     start(controller) {
+      //       zipFileStream.on('data', (chunk) => {
+      //         controller.enqueue(chunk)
+      //       })
+      //       zipFileStream.on('end', () => {
+      //         controller.close()
+      //       })
+      //       zipFileStream.on('error', (error) => {
+      //         controller.error(error)
+      //       })
+      //     }
+      //   })
+      // }
+
       // 检查文件是否成功获取
       if (!fileStreamRes.ok) {
-        res.status(500)
-        return
+        return res.status(500).json(fail(ErrorCode.SERVER_ERROR, '文件获取失败'))
       }
 
-      // 将文件流传递给响应对象
-      const fileStream = fileStreamRes.body
-      if (!fileStream) {
-        res.status(500)
-        return
+      // 检查响应体是否存在
+      if (!fileStreamRes.body) {
+        return res.status(500).json(fail(ErrorCode.SERVER_ERROR, '文件内容为空'))
       }
-      // 设置响应头告知浏览器文件下载
-      res.setHeader('Content-Disposition', fileStreamRes.headers.get('content-disposition') || '')
-      res.setHeader('Content-Type', 'application/octet-stream')
-      // 创建一个可写流，将文件内容写入响应对象
-      const reader = fileStream.getReader()
-      const stream = new ReadableStream({
-        start(controller) {
-          // 每次读取文件流
-          function push() {
-            reader
-              .read()
-              .then(({ done, value }) => {
-                if (done) {
-                  controller.close() // 完成时关闭流
-                  res.end() // 结束响应
-                  return
-                }
-                controller.enqueue(value) // 将块写入可写流
-                push() // 继续读取
-              })
-              .catch((err) => {
-                console.error('Error reading file stream:', err)
-                res.status(500).json({ message: 'Error streaming the file' })
-              })
+
+      // 创建临时zip文件
+      const testZipPath = path.join(os.tmpdir(), `download-${id}-${Date.now()}.zip`)
+      const writeStream = fs.createWriteStream(testZipPath)
+
+      // 将响应流写入临时文件
+      const streamReader = fileStreamRes.body.getReader()
+      try {
+        while (true) {
+          const { done, value } = await streamReader.read()
+          if (done) break
+          writeStream.write(Buffer.from(value))
+        }
+        writeStream.end()
+
+        // 等待写入完成
+        await new Promise((resolve, reject) => {
+          writeStream.on('finish', resolve)
+          writeStream.on('error', reject)
+        })
+      } catch (error) {
+        console.error('Error saving stream to file:', error)
+        fs.unlinkSync(testZipPath)
+        return res.status(500).json(fail(ErrorCode.SERVER_ERROR, '文件保存失败'))
+      }
+
+      // 创建临时目录用于处理文件
+      const tempDir = await mkdtemp(path.join(os.tmpdir(), 'notebook-conversion-'))
+      const extractDir = path.join(tempDir, 'extracted')
+      const pdfDir = path.join(tempDir, 'pdf')
+
+      try {
+        // 创建必要的目录
+        await mkdir(extractDir, { recursive: true })
+        await mkdir(pdfDir, { recursive: true })
+        console.log('Created directories:', { extractDir, pdfDir })
+
+        // 解压原始zip文件，跳过 __MACOSX，并记录原始路径
+        const zip = new AdmZip(testZipPath)
+        const entries = zip.getEntries()
+        const notebookPaths = new Map<string, string>() // 记录notebook的原始路径
+
+        entries.forEach(entry => {
+          if (!entry.entryName.startsWith('__MACOSX/') && entry.entryName.endsWith('.ipynb')) {
+            // 保存原始路径信息
+            const extractPath = path.join(extractDir, entry.entryName)
+            notebookPaths.set(extractPath, entry.entryName)
+            // 确保目标目录存在
+            fs.mkdirSync(path.dirname(extractPath), { recursive: true })
+            // 解压文件
+            zip.extractEntryTo(entry, path.dirname(extractPath), false, true)
           }
-          push()
-        },
-      })
+        })
 
-      // 通过 Web Streams API 将内容写入响应
-      await stream.pipeTo(
-        new WritableStream({
-          write(chunk) {
-            res.write(chunk)
-          },
-          close() {
-            res.end()
+        // 递归查找所有ipynb文件
+        function findIpynbFiles(dir: string): string[] {
+          const files: string[] = []
+          const entries = fs.readdirSync(dir, { withFileTypes: true })
+
+          for (const entry of entries) {
+            if (entry.name === '__MACOSX') {
+              console.log('Skipping __MACOSX directory:', path.join(dir, entry.name))
+              continue
+            }
+
+            const fullPath = path.join(dir, entry.name)
+            if (entry.isDirectory()) {
+              files.push(...findIpynbFiles(fullPath))
+            } else if (entry.isFile() && entry.name.endsWith('.ipynb')) {
+              console.log('Found notebook file:', fullPath)
+              files.push(fullPath)
+            }
+          }
+
+          return files
+        }
+
+        // 转换所有ipynb文件
+        const converter = new NotebookConverter()
+        const ipynbFiles = findIpynbFiles(extractDir)
+        console.log('Found ipynb files:', ipynbFiles)
+
+        for (const inputPath of ipynbFiles) {
+          // 获取原始路径，并基于此创建PDF路径
+          const originalPath = notebookPaths.get(inputPath) || path.relative(extractDir, inputPath)
+          const pdfPath = originalPath.replace('.ipynb', '.pdf')
+          const outputPath = path.join(pdfDir, pdfPath)
+
+          // 确保输出目录存在
+          await mkdir(path.dirname(outputPath), { recursive: true })
+
+          console.log('Converting file:', {
+            inputPath,
+            outputPath,
+            originalPath,
+            pdfPath
+          })
+          await converter.convertFile(inputPath, outputPath)
+          console.log('Conversion completed for:', originalPath)
+        }
+
+        // 创建新的zip文件包含所有PDF
+        const outputZip = new AdmZip()
+
+        // 递归添加PDF文件，保持目录结构
+        function addPdfFiles(dir: string, baseDir: string) {
+          const entries = fs.readdirSync(dir, { withFileTypes: true })
+          for (const entry of entries) {
+            const fullPath = path.join(dir, entry.name)
+            if (entry.isDirectory()) {
+              addPdfFiles(fullPath, baseDir)
+            } else if (entry.isFile() && entry.name.endsWith('.pdf')) {
+              // 使用相对于基础目录的路径作为zip中的路径
+              const relativePath = path.relative(baseDir, fullPath)
+              console.log('Adding to zip:', {
+                file: fullPath,
+                relativePath,
+                size: fs.statSync(fullPath).size
+              })
+              outputZip.addLocalFile(fullPath, path.dirname(relativePath))
+            }
+          }
+        }
+
+        addPdfFiles(pdfDir, pdfDir)
+
+        // 将zip写入临时文件
+        const tempZipPath = path.join(tempDir, 'output.zip')
+        outputZip.writeZip(tempZipPath)
+        console.log('Created output zip:', tempZipPath, 'Size:', fs.statSync(tempZipPath).size)
+
+        // 创建新的响应对象
+        const convertedZipStream = fs.createReadStream(tempZipPath)
+        const responseBody = new ReadableStream({
+          start(controller) {
+            convertedZipStream.on('data', (chunk) => {
+              controller.enqueue(chunk)
+            })
+            convertedZipStream.on('end', () => {
+              controller.close()
+              // 清理临时文件
+              fs.rm(tempDir, { recursive: true, force: true }, (err) => {
+                if (err) console.error('Error cleaning up temp files:', err)
+              })
+              fs.unlink(testZipPath, (err) => {
+                if (err) console.error('Error cleaning up temp zip file:', err)
+              })
+            })
+            convertedZipStream.on('error', (error) => {
+              controller.error(error)
+              // 清理临时文件
+              fs.rm(tempDir, { recursive: true, force: true }, (err) => {
+                if (err) console.error('Error cleaning up temp files:', err)
+              })
+              fs.unlink(testZipPath, (err) => {
+                if (err) console.error('Error cleaning up temp zip file:', err)
+              })
+            })
+          }
+        })
+
+        // 创建新的响应头
+        const responseHeaders = new Map(fileStreamRes.headers)
+        responseHeaders.set('content-disposition', `attachment; filename="converted-${id}.zip"`)
+
+        // 将文件流传递给响应对象
+        const fileStream = responseBody
+
+        // 将文件流传递给响应对象
+        const reader = fileStream.getReader()
+        const stream = new ReadableStream({
+          start(controller) {
+            // 每次读取文件流
+            function push() {
+              reader
+                .read()
+                .then(({ done, value }) => {
+                  if (done) {
+                    controller.close() // 完成时关闭流
+                    res.end() // 结束响应
+                    return
+                  }
+                  controller.enqueue(value) // 将块写入可写流
+                  push() // 继续读取
+                })
+                .catch((err) => {
+                  console.error('Error reading file stream:', err)
+                  res.status(500).json(fail(ErrorCode.SERVER_ERROR, '文件流读取失败'))
+                })
+            }
+            push()
           },
         })
-      )
+
+        // 通过 Web Streams API 将内容写入响应
+        await stream.pipeTo(
+          new WritableStream({
+            write(chunk) {
+              res.write(chunk)
+            },
+            close() {
+              res.end()
+            },
+          })
+        )
+      } catch (error) {
+        // 清理临时文件
+        fs.rm(tempDir, { recursive: true, force: true }, (err) => {
+          if (err) console.error('Error cleaning up temp files:', err)
+        })
+        throw error
+      }
+
     } catch (error) {
       console.error('Error handling download:', error)
-      res.status(500).json({ message: 'Internal Server Error' })
+      res.status(500).json(fail(ErrorCode.SERVER_ERROR, '下载处理失败'))
     }
   }
+  async getYDoc(chatId: string, req: Request): Promise<WSSharedDocV2> {
+    const userId = req.session!.user.id
+    const session = await sessionFromCookies(req.cookies)
+
+    const chatDocumentRelation = await prisma().chatDocumentRelation.findFirst({
+      where: { chatId: chatId }
+    })
+    if (!chatDocumentRelation) {
+      throw new Error('未查询到对话关联报告文档!')
+    }
+    const documentId = chatDocumentRelation.documentId
+    const yjsDoc = await prisma().yjsDocument.findUnique({
+      where: { documentId: documentId },
+    })
+    if (!yjsDoc) {
+      throw new Error('未查询到指定文档!')
+    }
+
+    const { yDoc } = await getYDocForUpdate(
+      [documentId, 'null'].join('-'),
+      this.socketServer,
+      documentId,
+      session?.userWorkspaces[0]?.workspaceId || '',
+      (doc: WSSharedDocV2) => ({
+        yDoc: doc,
+      }),
+      new DocumentPersistor(documentId)
+    )
+    return yDoc
+
+  }
+
+
+
+  async uploadCode(yDoc: WSSharedDocV2, chatId: string, userId: string, jobId: string) {
+
+    const notebook = convertYjsDocumentToNotebook(yDoc.blocks, yDoc.layout)
+    const ossPath = join('chat/', chatId, '/', chatId)
+    const result = await saveNotebookToOSS(notebook, ossPath)
+    if (result) {
+      try {
+        const jobsRes = await fetchWithTimeout(
+          `${CONFIG.MANAGER_URL}${CONFIG.ENDPOINTS.PUSH_SUCCESS}`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'mf-nodejs-user-id': userId,
+            },
+            body: JSON.stringify({
+              jobId: jobId,
+              notebookPath: ossPath,
+            }),
+          },
+          5000
+        )
+      } catch (e) {
+        console.log('创建全量运行记录失败')
+      }
+    }
+
+  }
+
+
+
   // async download(req: Request, res: Response) {
   // try {
   //   // 文件路径（可根据需求动态生成）
@@ -396,39 +689,5 @@ export class RunAllController {
   //     return res.status(400).json({ message: '参数不正确，缺少下载全量记录的id' });
   //   }
 
-  //   const filePath = path.resolve('/Users/jianchuanli/Downloads/数据交易沙箱18302.mp4') // 替换为实际文件路径
-  //   const fileName = 'example.mp4' // 自定义的下载文件名
-
-  //   // 检查文件是否存在
-  //   if (!fs.existsSync(filePath)) {
-  //     return res.status(404).json({ message: 'File not found' })
-  //   }
-
-  //   // 设置响应头
-  //   res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
-  //   res.setHeader('Content-Type', 'application/octet-stream')
-  //   const stats = fs.statSync(filePath)
-  //   console.log('File size:', stats.size)
-  //   // 创建文件读取流并管道到响应
-  //   const fileStream = fs.createReadStream(filePath)
-  //   fileStream.pipe(res)
-
-  //   // 监听文件流完成事件，确保响应正常结束
-  //   fileStream.on('end', () => {
-  //     console.log('File sent successfully')
-  //     res.status(200)
-  //   })
-
-  //   // 捕获文件流错误
-  //   fileStream.on('error', (error) => {
-  //     console.error('File stream error:', error)
-  //     res.status(500).json({ message: 'Error reading file' })
-  //   })
-  // } catch (error) {
-  //   console.error('Error handling download:', error)
-  //   res.status(500).json({ message: 'Internal Server Error' })
-  // }
-  // }
 }
 
-export const runAllController = new RunAllController()

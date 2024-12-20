@@ -98,10 +98,10 @@ export function convertYjsDocumentToNotebook(
           id: cellId,
           cell_type: 'sql',
           source: sqlBlock.source?.toJSON() ?? '',
-          metadata: { 
+          metadata: {
             language: 'sql',
-            variable: sqlBlock.dataframeName 
-        },
+            variable: sqlBlock.dataframeName
+          },
           execution_count: null,
           outputs: [],
         })
@@ -111,7 +111,7 @@ export function convertYjsDocumentToNotebook(
         notebookCells.push({
           id: cellId,
           cell_type: 'code',
-          source: inputBlock['variable'].value + ' = ' + inputBlock['value'].value + '\n',
+          source: inputBlock['variable'].value + ' = \'' + inputBlock['value'].value + '\'\n',
           metadata: {},
           execution_count: null,
           outputs: [],
@@ -147,7 +147,7 @@ export function convertYjsDocumentToNotebook(
         notebookCells.push({
           id: cellId,
           cell_type: 'code',
-          source: dateInputBlock['variable'] + ' = ' + date_str + '\n',
+          source: dateInputBlock['variable'] + ' = \'' + date_str + '\'\n',
           metadata: {},
           execution_count: null,
           outputs: [],
@@ -169,7 +169,25 @@ export function convertYjsDocumentToNotebook(
   return {
     nbformat: 4,
     nbformat_minor: 4,
-    metadata: {},
+    metadata: {
+      kernelspec: {
+        display_name: "",
+        name: "python3"
+      },
+      language_info: {
+        codemirror_mode: {
+          name: "ipython",
+          version: 3
+        },
+        file_extension: ".py",
+        mimetype: "text/x-python",
+        name: "python",
+        nbconvert_exporter: "python",
+        pygments_lexer: "ipython3",
+        version: "3.7.11"
+      },
+      lastTop: 2428.800048828125
+    },
     cells: notebookCells,
   }
 }
@@ -186,7 +204,25 @@ export function cutNotebook(notebook: any, targetId: string) {
   const cut_notebook = {
     nbformat: 4,
     nbformat_minor: 4,
-    metadata: {},
+    metadata: {
+      kernelspec: {
+        display_name: "",
+        name: "python3"
+      },
+      language_info: {
+        codemirror_mode: {
+          name: "ipython",
+          version: 3
+        },
+        file_extension: ".py",
+        mimetype: "text/x-python",
+        name: "python",
+        nbconvert_exporter: "python",
+        pygments_lexer: "ipython3",
+        version: "3.7.11"
+      },
+      lastTop: 2428.800048828125
+    },
     cells: run_cells,
   }
   return cut_notebook
@@ -213,6 +249,6 @@ export async function saveNotebookToOSS(notebook: any, ossPath: string): Promise
     return false
   } finally {
     // Clean up temp file
-    await fsPromises.unlink(tempPath).catch(() => {})
+    await fsPromises.unlink(tempPath).catch(() => { })
   }
 }

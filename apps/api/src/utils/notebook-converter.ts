@@ -38,8 +38,11 @@ export class NotebookConverter {
             if (stderr && !stderr.includes('Writing')) {
                 throw new Error(`Conversion error: ${stderr}`);
             }
+
+            console.log('Conversion successful, output file exists:', outputPath);
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error('Conversion error:', errorMessage);
             throw new Error(`Failed to convert notebook: ${errorMessage}`);
         }
     }

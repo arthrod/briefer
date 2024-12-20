@@ -1,6 +1,7 @@
 import fetch, { Response as FetchResponse } from 'node-fetch'
 import { CONFIG } from '../config/constants.js'
-import { TimeoutError, APIError, ERROR_CODES } from '../types/errors.js'
+import { TimeoutError, APIError } from '../types/errors.js'
+import { ErrorCode } from '../../../constants/errorcode.js'
 
 // 带超时的fetch请求
 export async function fetchWithTimeout(
@@ -21,7 +22,7 @@ export async function fetchWithTimeout(
     if (!response.ok) {
       throw new APIError(
         `API request failed with status ${response.status}`,
-        ERROR_CODES.API_ERROR,
+        ErrorCode.API_ERROR,
         response.status
       )
     }

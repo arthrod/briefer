@@ -1,6 +1,6 @@
 import { Response } from 'express'
 import { ChatRecordStatus, UpdateTarget } from '../types/interfaces.js'
-import { formatErrorMessage, ERROR_MESSAGES } from '../../../utils/format.js'
+import { formatErrorMessage } from '../../../utils/format.js'
 import { prisma } from '@briefer/database'
 import { logger } from '../../../logger.js'
 
