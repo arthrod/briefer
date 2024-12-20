@@ -100,12 +100,13 @@
                     }
                     .tableName {
                         color: #272A33;
+                        margin-left: 12px;
                         white-space: nowrap;
                         /* 禁止换行 */
                         overflow: hidden;
                         /* 隐藏超出内容 */
                         text-overflow: ellipsis;
-                        height: 18px;
+                        height: 1px;
                     }
                 }
                 
@@ -137,7 +138,6 @@
                 }
 
                 .col {
-                    margin-left: 16px;
                     display: flex;
 
                     div {
