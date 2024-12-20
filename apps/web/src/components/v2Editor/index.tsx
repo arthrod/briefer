@@ -1323,14 +1323,14 @@ const Editor = (props: Props) => {
           id="editor-wrapper"
           ref={editorWrapperRef}
           className={clsx('h-full flex-grow py-2', props.isFullScreen ? 'w-full' : widthClasses)}>
-          <div className={!props.isPDF ? 'pt-12' : ''}>
+          {/* <div className={!props.isPDF ? 'pt-12' : ''}>
             <Title
               content={props.yDoc.getXmlFragment('title')}
               isLoading={props.isSyncing}
               isEditable={props.isEditable && !props.isApp}
               isPDF={props.isPDF}
             />
-          </div>
+          </div> */}
 
           <ContentSkeleton visible={props.isSyncing} />
 

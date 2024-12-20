@@ -20,7 +20,7 @@ import TableIcon from '../../../icons/table-icon.svg'
 import { Input } from '../Input'
 import { NoData } from '../NoData'
 import styles from './index.module.scss'
-import { Tooltip } from '@/components/Tooltips'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 export interface IProps {
   workspaceId: string
@@ -236,12 +236,20 @@ export default function SchemaList(props: IProps) {
                       <TableIcon></TableIcon>
                     </div>
                     <div key={`content-${index}`} className={styles.contentLayout}>
-                      <Tooltip message={item.cnName} active={true} position="top">
-                        <div className={styles.name}>{item.cnName}</div>
-                      </Tooltip>
-                      <Tooltip message={item.tableName} active={true} position="top">
-                        <div className={styles.tableName}>{item.tableName}</div>
-                      </Tooltip>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <div className={styles.name}>{item.cnName}</div>
+                          </TooltipTrigger>
+                          <TooltipContent>{item.cnName}</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <div className={styles.name}>{item.tableName}</div>
+                          </TooltipTrigger>
+                          <TooltipContent>{item.tableName}</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </div>
                   </div>
                   {/* <div key={`des-${index}`} className={styles.des}>
