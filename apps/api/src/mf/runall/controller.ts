@@ -614,7 +614,6 @@ export class RunAllController {
   }
   async getYDoc(chatId: string, req: Request): Promise<WSSharedDocV2> {
     const userId = req.session!.user.id
-    const session = await sessionFromCookies(req.cookies)
 
     const chatDocumentRelation = await prisma().chatDocumentRelation.findFirst({
       where: { chatId: chatId }
@@ -623,18 +622,11 @@ export class RunAllController {
       throw new Error('未查询到对话关联报告文档!')
     }
     const documentId = chatDocumentRelation.documentId
-    const yjsDoc = await prisma().yjsDocument.findUnique({
-      where: { documentId: documentId },
-    })
-    if (!yjsDoc) {
-      throw new Error('未查询到指定文档!')
-    }
-
     const { yDoc } = await getYDocForUpdate(
       [documentId, 'null'].join('-'),
       this.socketServer,
       documentId,
-      session?.userWorkspaces[0]?.workspaceId || '',
+      req.session?.userWorkspaces[0]?.workspaceId || '',
       (doc: WSSharedDocV2) => ({
         yDoc: doc,
       }),

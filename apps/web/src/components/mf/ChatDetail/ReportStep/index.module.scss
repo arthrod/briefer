@@ -57,11 +57,14 @@
         display: flex;
         gap: 8px;
         .taskIcon {
+          position: relative;
+          top: 4px;
+          left: 4px;
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          width: 1rem;
-          height: 1rem;
+          width: 12px;
+          height: 12px;
           &.task-running {
             color: #2f69fe;
           }

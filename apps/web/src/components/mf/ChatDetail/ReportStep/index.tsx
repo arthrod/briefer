@@ -85,7 +85,7 @@ const ModuleSteps: React.FC<{ modules: Module[]; className?: string }> = ({
           <div className={styles.moduleContent}>
             <a
               className={styles.moduleTitle}
-              href={`#${module.blockId ? module.blockId : module.tasks[0].blockId}`}>
+              href={`#${module.blockId ? module.blockId : module.tasks[0]?.blockId}`}>
               {module.title}
             </a>
             <div className={clsx(styles.tasks)}>
