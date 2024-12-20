@@ -16,8 +16,6 @@ import { useWorkspaces } from '@/hooks/useWorkspaces'
 
 import styles from './index.module.scss'
 
-import { useSession } from '@/hooks/useAuth'
-
 import { showToast } from '../Toast'
 
 import ArrowRight from '@/icons/arrow-right-line.svg'
@@ -32,7 +30,6 @@ import { StepJsonType } from '../ChatDetail/ReportStep'
 import { ChatType } from '../../../../chat'
 import UserAvatar from '../UserAvatar'
 const defaultMsg: MessageContent = { id: '', role: 'system', content: '我是你的AI小助手' }
-const empty: StepJsonType = { type: 'step', content: { jobs: [] } }
 
 interface Props {
   children: React.ReactNode
