@@ -180,23 +180,25 @@ const ChatInput = ({
 
   return (
     <div className={clsx(styles.chatInput, className, !showUpload ? styles.hiddenPrefix : null)}>
-      <div className={styles.inputWrapper}>
+      <Popover open={isOpen}>
         <span
           className={clsx(styles.prefix, shake ? styles.shakeAnimate : '')}
           onClick={() => fileInputRef.current?.click()}>
           <UploadIcon />
         </span>
-        <input
-          ref={questionRef}
-          type="text"
-          className={clsx(styles.input)}
-          value={question}
-          placeholder="向AI助手描述需求"
-          onChange={(e) => {
-            setQuestion(e.target.value)
-          }}
-          onKeyDown={handleKeyDown}
-        />
+        <PopoverTrigger asChild>
+          <input
+            ref={questionRef}
+            type="text"
+            className={clsx(styles.input)}
+            value={question}
+            placeholder="向AI助手描述需求"
+            onChange={(e) => {
+              setQuestion(e.target.value)
+            }}
+            onKeyDown={handleKeyDown}
+          />
+        </PopoverTrigger>
         {uploadPercent > 0 && uploadPercent < 100 ? (
           <button className={clsx(styles.sendBtn, styles.loading)}>
             <LoadingCircle />
@@ -225,35 +227,36 @@ const ChatInput = ({
             <SendIcon />
           </button>
         )}
-      </div>
-      <div
-        style={{ display: isOpen ? 'flex' : 'none' }}
-        className={clsx(styles.uploadPopover, uploadPercent === -1 ? styles.error : '')}>
-        <div className={styles.info}>
-          <FileIcon />
-          <div className={styles.fileName}>{uploadFileName}</div>
-          <div className={styles.opts}>
-            {uploadPercent === 0 ? '未开始' : ''}
-            {uploadPercent > 0 && uploadPercent < 100 ? (
-              <CircleProgress percent={uploadPercent} />
-            ) : (
-              ''
-            )}
-            {uploadPercent === -1 || uploadPercent === 100 ? (
-              <div
-                className={styles.icon}
-                onClick={() => {
-                  resetUpload()
-                }}>
-                {uploadPercent === -1 ? '上传失败' : ''}
-                <DeleteIcon />
+
+        <PopoverContent asChild>
+          <div className={clsx(styles.uploadPopover, uploadPercent === -1 ? styles.error : '')}>
+            <div className={styles.info}>
+              <FileIcon />
+              <div className={styles.fileName}>{uploadFileName}</div>
+              <div className={styles.opts}>
+                {uploadPercent === 0 ? '未开始' : ''}
+                {uploadPercent > 0 && uploadPercent < 100 ? (
+                  <CircleProgress percent={uploadPercent} />
+                ) : (
+                  ''
+                )}
+                {uploadPercent === -1 || uploadPercent === 100 ? (
+                  <div
+                    className={styles.icon}
+                    onClick={() => {
+                      resetUpload()
+                    }}>
+                    {uploadPercent === -1 ? '上传失败' : ''}
+                    <DeleteIcon />
+                  </div>
+                ) : (
+                  ''
+                )}
               </div>
-            ) : (
-              ''
-            )}
+            </div>
           </div>
-        </div>
-      </div>
+        </PopoverContent>
+      </Popover>
       <input ref={fileInputRef} type="file" onChange={handleFileChangeEvent} hidden />
     </div>
   )

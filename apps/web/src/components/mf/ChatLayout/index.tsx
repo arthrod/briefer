@@ -16,8 +16,6 @@ import { useWorkspaces } from '@/hooks/useWorkspaces'
 
 import styles from './index.module.scss'
 
-import { useSession } from '@/hooks/useAuth'
-
 import { showToast } from '../Toast'
 
 import ArrowRight from '@/icons/arrow-right-line.svg'
@@ -32,7 +30,6 @@ import { StepJsonType } from '../ChatDetail/ReportStep'
 import { ChatType } from '../../../../chat'
 import UserAvatar from '../UserAvatar'
 const defaultMsg: MessageContent = { id: '', role: 'system', content: '我是你的AI小助手' }
-const empty: StepJsonType = { type: 'step', content: { jobs: [] } }
 
 interface Props {
   children: React.ReactNode
@@ -108,7 +105,7 @@ export function ChatProvider(props: { children: ReactNode }) {
   }
 
   const createChat = (type: ChatType, _fileId?: string) => {
-    setRoundList([defaultMsg])
+    setRoundList([])
     return chatCreateApi(type, _fileId).then((data) => {
       addChatList(data)
       return data
@@ -119,20 +116,20 @@ export function ChatProvider(props: { children: ReactNode }) {
     if (loading) {
       return Promise.reject()
     }
-    // if (curChatSession.current?.chatId === chatId) {
-    //   return Promise.resolve()
-    // }
+
     setLoading(true)
     return getChatDetailApi(chatId)
       .then((data) => {
         if (data) {
           const { file, messages = [] } = data
+          const results = [...(messages || [])]
           const lastItem = messages[messages.length - 1]
-          if (lastItem.role === 'assistant') {
-            setRoundList([defaultMsg, ...(messages || [])])
-          }
           if (file) {
             setFileInfo(file)
+            results.unshift({ id: uuidv4(), role: 'user', content: `${file.name}`, file: true })
+          }
+          if (lastItem.role === 'assistant') {
+            setRoundList([...results])
           }
         }
       })

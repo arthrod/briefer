@@ -1,8 +1,11 @@
 .loading-circle {
+  position: relative;
   display: inline-block;
   animation: rotate 2s linear infinite;
   font-size: inherit;
   &.sm {
+    left: -2px;
+    top: -2px;
     svg {
       transform: scale(0.75);
     }
