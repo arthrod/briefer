@@ -1,8 +1,8 @@
 import { useCallback, useMemo } from 'react'
 import { NEXT_PUBLIC_MF_API_URL } from '@/utils/env'
 import { getData, MFResponse } from '../useResponse'
+import { ChatType } from '../../../../chat'
 
-export type ChatType = 'rag' | 'report'
 export type ChatList = {
   list: HistoryChat[]
 }

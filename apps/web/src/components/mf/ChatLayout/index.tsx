@@ -16,21 +16,20 @@ import { useWorkspaces } from '@/hooks/useWorkspaces'
 
 import styles from './index.module.scss'
 
-import { useSession } from '@/hooks/useAuth'
-
 import { showToast } from '../Toast'
 
 import ArrowRight from '@/icons/arrow-right-line.svg'
 import { useChatRoundCreate } from '@/hooks/mf/chat/useChatSessionCreate'
 import { v4 as uuidv4 } from 'uuid'
-import { ChatType, MessageContent, useChatDetail } from '@/hooks/mf/chat/useChatDetail'
+import { FileInfo, MessageContent, useChatDetail } from '@/hooks/mf/chat/useChatDetail'
 import { useChatStop } from '@/hooks/mf/chat/useChatStop'
 import { ChatStatus } from '@/hooks/mf/chat/useChatStatus'
 import { useChatCreate } from '@/hooks/mf/chat/useCreateChat'
 import ChatListBox from '../ChatList'
 import { StepJsonType } from '../ChatDetail/ReportStep'
+import { ChatType } from '../../../../chat'
+import UserAvatar from '../UserAvatar'
 const defaultMsg: MessageContent = { id: '', role: 'system', content: '我是你的AI小助手' }
-const empty: StepJsonType = { type: 'step', content: { jobs: [] } }
 
 interface Props {
   children: React.ReactNode
@@ -56,6 +55,7 @@ export type ChatRound = {
 }
 
 interface ChatLayoutContextType {
+  fileInfo: FileInfo | null
   chatList: HistoryChat[]
   setChatList: Dispatch<SetStateAction<HistoryChat[]>>
   addChatList: (chat: HistoryChat) => void
@@ -78,9 +78,9 @@ interface ChatLayoutContextType {
 export const ChatContext = createContext<ChatLayoutContextType | null>(null)
 const sseLoadingMap = new Map<string, boolean>() // 用于AI生成
 export function ChatProvider(props: { children: ReactNode }) {
+  const [fileInfo, setFileInfo] = useState<FileInfo | null>(null)
   const [chatList, setChatList] = useState<HistoryChat[]>([])
   const [roundList, setRoundList] = useState<MessageContent[]>([])
-  // const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
   const chatSessions = useRef<ChatSession[]>([])
 
   const [loading, setLoading] = useState(false) // 用于接口发送
@@ -105,7 +105,7 @@ export function ChatProvider(props: { children: ReactNode }) {
   }
 
   const createChat = (type: ChatType, _fileId?: string) => {
-    setRoundList([defaultMsg])
+    setRoundList([])
     return chatCreateApi(type, _fileId).then((data) => {
       addChatList(data)
       return data
@@ -116,17 +116,20 @@ export function ChatProvider(props: { children: ReactNode }) {
     if (loading) {
       return Promise.reject()
     }
-    // if (curChatSession.current?.chatId === chatId) {
-    //   return Promise.resolve()
-    // }
+
     setLoading(true)
     return getChatDetailApi(chatId)
       .then((data) => {
         if (data) {
-          const { messages = [] } = data
+          const { file, messages = [] } = data
+          const results = [...(messages || [])]
           const lastItem = messages[messages.length - 1]
+          if (file) {
+            setFileInfo(file)
+            results.unshift({ id: uuidv4(), role: 'user', content: `${file.name}`, file: true })
+          }
           if (lastItem.role === 'assistant') {
-            setRoundList([defaultMsg, ...(messages || [])])
+            setRoundList([...results])
           }
         }
       })
@@ -320,6 +323,7 @@ export function ChatProvider(props: { children: ReactNode }) {
   return (
     <ChatContext.Provider
       value={{
+        fileInfo,
         chatList,
         setChatList,
         addChatList,
@@ -356,10 +360,8 @@ export default function ChatLayout({ children }: Props) {
   const [routeTitle, setRouteTitle] = useState('')
 
   const [workspaces] = useWorkspaces()
-  const session = useSession()
   const router = useRouter()
 
-  const firstLetter = session.data?.loginName.charAt(0).toUpperCase() // 获取用户名的第一个字母并转为大写
   const chatId = router.query.chatId
 
   useEffect(() => {
@@ -397,13 +399,7 @@ export default function ChatLayout({ children }: Props) {
               </>
             ) : null}
           </div>
-          <div
-            className={styles.userAvatar}
-            onClick={() => {
-              router.push('/user/profile')
-            }}>
-            {firstLetter}
-          </div>
+          <UserAvatar />
         </div>
         {children}
       </div>

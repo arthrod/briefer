@@ -2,6 +2,8 @@ import { prisma } from '@briefer/database'
 import { logger } from '../../../logger.js'
 import fetch from 'node-fetch'
 import { EventEmitter } from 'events'
+import { ChatRecordStatus } from '../types/interfaces.js'
+import { sanitizeInput } from '../../../utils/sanitize.js'
 
 // 设置最大监听器数量，避免内存泄漏警告
 const MAX_LISTENERS = 1000
@@ -10,22 +12,6 @@ const MAX_LISTENERS = 1000
 export const titleUpdateEmitter = new EventEmitter()
 titleUpdateEmitter.setMaxListeners(MAX_LISTENERS)
 
-// 过滤字符串
-const sanitizeInput = (input: string): string => {
-  if (!input) return ''
-  input = input.replace(/<[^>]*>/g, '')
-  input = input.replace(/[<>'"]/g, '')
-  input = input.replace(/[\x00-\x1F\x7F]/g, '')
-  return input.trim()
-}
-
-// 在文件开头添加常量定义
-const CHAT_STATUS = {
-  START: 1,
-  CHATTING: 2,
-  COMPLETED: 3,
-  FAILED: 4,
-} as const
 
 export async function summarizeUntitledChats() {
   try {
@@ -36,10 +22,10 @@ export async function summarizeUntitledChats() {
         isTitleSet: false,
         records: {
           none: {
-            status: CHAT_STATUS.CHATTING,
+            status: ChatRecordStatus.PROCESSING,
           },
           some: {
-            status: CHAT_STATUS.COMPLETED,
+            status: ChatRecordStatus.COMPLETED,
           },
         },
       },
@@ -50,7 +36,7 @@ export async function summarizeUntitledChats() {
           },
           take: 5,
           where: {
-            status: CHAT_STATUS.COMPLETED,
+            status: ChatRecordStatus.COMPLETED,
           },
         },
       },

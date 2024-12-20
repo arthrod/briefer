@@ -1,4 +1,3 @@
-import { z } from 'zod'
 
 export enum ErrorCode {
   SUCCESS = 0,
@@ -7,6 +6,9 @@ export enum ErrorCode {
   FORBIDDEN = 403, 
   NOT_FOUND = 404,
   SERVER_ERROR = 500,
+  DATABASE_ERROR= 501,   // 数据库错误
+  API_ERROR= 502,        // API错误
+  TIMEOUT_ERROR= 504,   // 超时错误
   
   // 业务错误码
   USER_EXISTS = 1001,
@@ -18,23 +20,12 @@ export enum ErrorCode {
   FILE_TOO_LARGE = 1007
 }
 
-export class BusinessError extends Error {
-  constructor(
-    public code: ErrorCode,
-    message: string
-  ) {
-    super(message)
-  }
-}
+export enum ErrorMessage {
+  VALIDATION_ERROR= '请求参数错误',
+  AUTH_ERROR= '认证失败或无权限',
+  FORBIDDEN= '禁止访问',
+  NOT_FOUND= '资源不存在',
+  INTERNAL_SERVER_ERROR= '服务器内部错误',
+  TIMEOUT_ERROR= '请求超时',
+};
 
-export class ValidationError extends BusinessError {
-  constructor(message: string) {
-    super(ErrorCode.PARAM_ERROR, message)
-  }
-}
-
-export class AuthError extends BusinessError {
-  constructor(message: string) {
-    super(ErrorCode.UNAUTHORIZED, message) 
-  }
-}

@@ -19,7 +19,31 @@
     height: calc(100% - 9.25rem);
   }
   .bottom {
-    padding: 1rem 1.5rem;
+    position: relative;
+    padding: 1rem;
+    .fileBox {
+      position: absolute;
+      top: -2rem;
+      left: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0 1rem;
+      width: calc(100% - 2rem);
+      height: 36px;
+      border-radius: 8px;
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      box-shadow: 0 2px 4px rgba(47, 105, 254, 0.2);
+      background-color: #fff;
+      .fileName {
+        flex: 1;
+        width: 0;
+        word-break: keep-all;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    }
     .chatArea {
     }
   }

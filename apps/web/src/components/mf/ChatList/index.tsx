@@ -7,7 +7,7 @@ import ScrollBar from '@/components/ScrollBar'
 import Logo from '@/icons/mind-flow.svg'
 import { HistoryChat } from '@/hooks/mf/chat/useChatList'
 import { useChatLayoutContext } from '../ChatLayout'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useChatEdit } from '@/hooks/mf/chat/useChatEdit'
 import { showToast } from '../Toast'
 import Spin from '@/components/Spin'
@@ -81,13 +81,13 @@ const ChatListBox = ({ chatId, workspaceId }: ChatListProps) => {
   const [updateTitleEvent, setUpdateTitleEvent] = useState<EventSource | null>(null)
 
   const { chatList, setChatList, setRoundList, refreshChatList } = useChatLayoutContext()
-  const [currentTitle, setCurrentTitle] = useState('')
   const [isCommit, setIsCommit] = useState(false)
   const [isDialogOpen, setDialogOpen] = useState(false)
 
   const delChatId = useRef('')
   const eventTimeoutId = useRef(-1)
   const lastedTimeoutId = useRef(-1)
+  const inputRef = useRef<HTMLInputElement | null>(null)
   const lastedEvent = useRef<EventSource | null>(updateTitleEvent)
 
   const router = useRouter()
@@ -120,16 +120,15 @@ const ChatListBox = ({ chatId, workspaceId }: ChatListProps) => {
         showToast('对话更新成功', 'success')
       })
       .finally(() => {
-        setCurrentTitle('')
         setIsCommit(false)
       })
   }
 
-  const updateChat = (chat: HistoryChat) => {
-    if (chat.title !== currentTitle) {
-      commitTitle(chat.id, currentTitle)
+  const updateChat = async (chat: HistoryChat, editTitle: string) => {
+    if (chat.title !== editTitle) {
+      return commitTitle(chat.id, editTitle)
         .then(() => {
-          chat.title = currentTitle
+          chat.title = editTitle
         })
         .finally(() => {
           chat.isEditing = false
@@ -142,6 +141,7 @@ const ChatListBox = ({ chatId, workspaceId }: ChatListProps) => {
       setChatList((prevItems) =>
         prevItems.map((item) => (item.id === chat.id ? { ...item, newChat: chat } : item))
       )
+      return Promise.resolve()
     }
   }
 
@@ -188,74 +188,88 @@ const ChatListBox = ({ chatId, workspaceId }: ChatListProps) => {
     })
   }
 
-  const ChatListItem = ({ chat }: { chat: HistoryChat }) => {
-    return (
-      <div
-        className={clsx(
-          styles.chatItem,
-          chat.id === chatId ? styles.active : '' // 添加选中样式
-        )}
-        onClick={() => {
-          if (chat.id === chatId || chat.isEditing) {
-            return
-          }
-          setRoundList([])
+  const ChatListItem = useCallback(
+    ({ chat }: { chat: HistoryChat }) => {
+      const [currentTitle, setCurrentTitle] = useState(chat.title)
 
-          if (chat.type === 'report') {
-            router.push(
-              `/workspaces/${workspaceId}/documents/${chat.documentId}/notebook/edit?chatId=${chat.id}`
-            )
-          } else {
-            router.push(`/rag/${chat.id}`)
-          }
-        }}>
-        {chat.isEditing ? (
-          <div className={styles.inputBox}>
-            <input
-              type="text"
-              className={styles.titleInput}
-              onChange={(e) => {
-                setCurrentTitle(e.target.value)
-              }}
-              onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault() // 防止默认的换行行为
-                  updateChat(chat)
-                }
-              }}
-              value={currentTitle}
-              onBlur={() => {
-                updateChat(chat)
-              }}
-              autoFocus
-            />
-            <div className={isCommit ? styles.loadingIcon : styles.loadingIconHidden}>
-              <Spin color="#2F69FE" wrapperClassName="pl-2" />
-            </div>
-          </div>
-        ) : (
-          <div className={styles.itemTitle}>{chat.title}</div>
-        )}
-        <MoreBtn
-          items={[
-            { type: 'edit', label: '编辑标题' },
-            { type: 'del', label: '删除' },
-          ]}
-          onItemClick={(type) => {
-            if (type === 'del') {
-              setDialogOpen(true)
-              delChatId.current = chat.id
-            } else if (type === 'edit') {
-              setCurrentTitle(chat.title)
-              setChatList((prevItems) =>
-                prevItems.map((item) => (item.id === chat.id ? { ...item, isEditing: true } : item))
-              )
+      return (
+        <div
+          className={clsx(
+            styles.chatItem,
+            chat.id === chatId ? styles.active : '' // 添加选中样式
+          )}
+          onClick={() => {
+            if (chat.id === chatId || chat.isEditing) {
+              return
             }
-          }}
-        />
-      </div>
-    )
-  }
+            setRoundList([])
+
+            if (chat.type === 'report') {
+              router.push(
+                `/workspaces/${workspaceId}/documents/${chat.documentId}/notebook/edit?chatId=${chat.id}`
+              )
+            } else {
+              router.push(`/rag/${chat.id}`)
+            }
+          }}>
+          {chat.isEditing ? (
+            <div className={styles.inputBox}>
+              <input
+                ref={inputRef}
+                type="text"
+                className={styles.titleInput}
+                value={currentTitle}
+                onChange={(e) => {
+                  setCurrentTitle(e.target.value)
+                }}
+                onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault() // 防止默认的换行行为
+                    updateChat(chat, currentTitle).then(() => {
+                      inputRef.current?.blur()
+                      setCurrentTitle('')
+                    })
+                  }
+                }}
+                onBlur={(e) => {
+                  updateChat(chat, currentTitle).then(() => {
+                    inputRef.current?.blur()
+                    setCurrentTitle('')
+                  })
+                }}
+                autoFocus
+              />
+              <div className={isCommit ? styles.loadingIcon : styles.loadingIconHidden}>
+                <Spin color="#2F69FE" wrapperClassName="pl-2" />
+              </div>
+            </div>
+          ) : (
+            <div className={styles.itemTitle}>{chat.title}</div>
+          )}
+          <MoreBtn
+            items={[
+              { type: 'edit', label: '编辑标题' },
+              { type: 'del', label: '删除' },
+            ]}
+            onItemClick={(type) => {
+              if (type === 'del') {
+                setDialogOpen(true)
+                delChatId.current = chat.id
+              } else if (type === 'edit') {
+                setCurrentTitle(chat.title)
+                setChatList((prevItems) =>
+                  prevItems.map((item) =>
+                    item.id === chat.id ? { ...item, isEditing: true } : item
+                  )
+                )
+              }
+            }}
+          />
+        </div>
+      )
+    },
+    [chatList]
+  )
 
   return (
     <div className={clsx(styles.chatList, 'text-sm')}>

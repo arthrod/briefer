@@ -5,7 +5,7 @@ import { prisma } from '@briefer/database'
 import { logger } from '../../../logger.js'
 import { WSSharedDocV2, getYDocForUpdate, getDocId } from '../../../yjs/v2/index.js'
 import { DocumentPersistor } from '../../../yjs/v2/persistors.js'
-import { YBlock, YBlockGroup } from '@briefer/editor'
+import { dateInputValueFromDate, formatDateInputValue, YBlock, YBlockGroup } from '@briefer/editor'
 import { addBlockGroup, AddBlockGroupBlock } from '@briefer/editor'
 import {
     makeInputBlock,
@@ -20,11 +20,12 @@ import crypto from 'crypto'
 import fs from 'fs'
 import path from 'path'
 import { IOServer } from '../../../websocket/index.js'
-import { ValidationError, APIError, ERROR_CODES } from '../types/errors.js'
+import { ValidationError, APIError } from '../types/errors.js'
 import { ChatRecordStatus, ChatRecordTaskStatus } from '../types/interfaces.js'
+import { ErrorCode } from '../../../constants/errorcode.js'
 
 // 定义更新目标类型
-export interface ReportUpdateTarget {
+interface ReportUpdateTarget {
     type: 'chat_record'
     chatId: string
     roundId: string
@@ -43,6 +44,7 @@ interface BlockRequest {
     options?: Array<{ label: string; value: any }>
     tables?: string[]
     task_id?: string
+    default?: string
 }
 
 // 创建block的工厂函数
@@ -51,8 +53,29 @@ function createBlockFromRequest(blockRequest: BlockRequest): YBlock {
     const id = crypto.randomUUID()
     const blocks = new Y.Map<YBlock>()
 
+    // 验证基本字段
+    if (!blockRequest.type) {
+        throw new ValidationError('Block type is required');
+    }
+
+    // 记录block创建尝试
+    logger().debug({
+        msg: 'Creating block from request',
+        data: {
+            blockType: blockRequest.type,
+            hasContent: !!blockRequest.content,
+            hasVariable: !!blockRequest.variable,
+            hasVariables: !!blockRequest.variables,
+            hasOptions: !!blockRequest.options,
+            hasTables: !!blockRequest.tables
+        }
+    });
+
     switch (blockRequest.type) {
         case 'INPUT':
+            if (!blockRequest.variable) {
+                throw new ValidationError('Variable is required for INPUT block');
+            }
             const inputBlock = makeInputBlock(id, blocks)
             if (blockRequest.variable) {
                 inputBlock.setAttribute('variable', {
@@ -68,6 +91,9 @@ function createBlockFromRequest(blockRequest: BlockRequest): YBlock {
             return inputBlock
 
         case 'DROPDOWN_INPUT':
+            if (!blockRequest.options || !Array.isArray(blockRequest.options)) {
+                throw new ValidationError('Options array is required for DROPDOWN_INPUT block');
+            }
             const dropdownBlock = makeDropdownInputBlock(id, blocks)
             if (blockRequest.options) {
                 appendDropdownInputOptions(dropdownBlock, blocks, blockRequest.options.map(o => o.value), true)
@@ -75,9 +101,33 @@ function createBlockFromRequest(blockRequest: BlockRequest): YBlock {
             return dropdownBlock
 
         case 'DATE_INPUT':
-            return makeDateInputBlock(id, blocks)
+            const dateInputBlock = makeDateInputBlock(id, blocks)
+            if (blockRequest.variable) {
+                dateInputBlock.setAttribute('variable', blockRequest.variable)
+                dateInputBlock.setAttribute('newVariable', new Y.Text(blockRequest.variable))
+            }
+            if (blockRequest.label) {
+                dateInputBlock.setAttribute('label', new Y.Text(blockRequest.label))
+            }
+            if (blockRequest.default) {
+                // Parse the Chinese date format "2024年9月30日" to a Date object
+                const match = blockRequest.default.match(/(\d{4})年(\d{1,2})月(\d{1,2})日/)
+                if (match) {
+                    // Since we know the regex pattern will always capture these groups if there's a match
+                    const [_, year, month, day] = match as [string, string, string, string]
+                    const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+                    const value = dateInputValueFromDate(date, 'UTC')
+                    const formattedValue = formatDateInputValue(value, 'date')
+                    dateInputBlock.setAttribute('value', value)
+                    dateInputBlock.setAttribute('newValue', new Y.Text(formattedValue))
+                }
+            }
+            return dateInputBlock
 
         case 'RICH_TEXT':
+            if (!blockRequest.content) {
+                throw new ValidationError('Content is required for RICH_TEXT block');
+            }
             const richTextBlock = makeRichTextBlock(id, blockRequest.variables)
             if (blockRequest.content) {
                 const content = new Y.XmlFragment()
@@ -95,7 +145,17 @@ function createBlockFromRequest(blockRequest: BlockRequest): YBlock {
             return pythonBlock
 
         case 'SQL':
+            if (!blockRequest.variable) {
+                throw new ValidationError('Variable is required for SQL block');
+            }
             const sqlBlock = makeSQLBlock(id, blocks, { source: blockRequest.content })
+            if (blockRequest.variable) {
+                sqlBlock.setAttribute('dataframeName', {
+                    value: blockRequest.variable,
+                    newValue: blockRequest.variable,
+                    status: 'idle'
+                })
+            }
             return sqlBlock
 
         default:
@@ -161,6 +221,32 @@ async function handleDocumentBlock(
     updateTarget: ReportUpdateTarget
 ): Promise<void> {
     try {
+        // 验证输入数据
+        if (!blockData || typeof blockData !== 'object') {
+            throw new ValidationError('Invalid block data: blockData must be an object');
+        }
+        if (!blockData.type) {
+            throw new ValidationError('Invalid block data: type is required');
+        }
+
+        // 验证 Yjs 文档状态
+        if (!updateTarget.yDoc || !updateTarget.yLayout || !updateTarget.yBlocks) {
+            throw new ValidationError('Invalid Yjs document state');
+        }
+
+        // 在创建 block 之前记录数据
+        logger().info({
+            msg: 'Attempting to create block',
+            data: {
+                blockType: blockData.type,
+                blockContent: blockData.content ? '(content exists)' : '(no content)',
+                taskId: task_id,
+                chatId: updateTarget.chatId,
+                roundId: updateTarget.roundId,
+                layoutLength: updateTarget.yLayout.length
+            }
+        });
+
         // 创建block并转换为AddBlockGroupBlock类型
         const yBlock = createBlockFromRequest(blockData)
         const block: AddBlockGroupBlock = {
@@ -173,10 +259,21 @@ async function handleDocumentBlock(
             ...(blockData.variables && { variables: blockData.variables })
         }
 
-        let blockId: string;
+        // 初始化 blockId
+        let blockId = '';
+
         // 在单个事务中执行所有YJS操作
         updateTarget.yLayout.doc?.transact(() => {
             try {
+                // 记录事务开始
+                logger().debug({
+                    msg: 'Starting Yjs transaction',
+                    data: {
+                        chatId: updateTarget.chatId,
+                        roundId: updateTarget.roundId
+                    }
+                });
+
                 // 添加block到文档
                 blockId = addBlockGroup(
                     updateTarget.yLayout,
@@ -187,6 +284,17 @@ async function handleDocumentBlock(
 
                 // 使用创建的yBlock
                 updateTarget.yBlocks.set(blockId, yBlock)
+
+                // 记录block添加成功
+                logger().debug({
+                    msg: 'Block added to yBlocks',
+                    data: {
+                        blockId,
+                        blockType: blockData.type,
+                        chatId: updateTarget.chatId,
+                        roundId: updateTarget.roundId
+                    }
+                });
 
                 // 如果存在 taskId，保存映射关系
                 if (task_id) {
@@ -204,14 +312,16 @@ async function handleDocumentBlock(
 
                 // 确保block被正确添加到layout中
                 const blockGroup = updateTarget.yLayout.get(updateTarget.yLayout.length - 1)
-                if (blockGroup) {
-                    const tabs = blockGroup.getAttribute('tabs')
-                    if (tabs) {
-                        // 设置当前tab
-                        const currentRef = new Y.XmlElement('block-ref')
-                        currentRef.setAttribute('id', blockId)
-                        blockGroup.setAttribute('current', currentRef)
-                    }
+                if (!blockGroup) {
+                    throw new Error('Block group not found after addition');
+                }
+
+                const tabs = blockGroup.getAttribute('tabs')
+                if (tabs) {
+                    // 设置当前tab
+                    const currentRef = new Y.XmlElement('block-ref')
+                    currentRef.setAttribute('id', blockId)
+                    blockGroup.setAttribute('current', currentRef)
                 }
 
                 logger().info({
@@ -223,14 +333,15 @@ async function handleDocumentBlock(
                         roundId: updateTarget.roundId,
                         layoutLength: updateTarget.yLayout.length,
                         hasBlockGroup: !!blockGroup,
-                        hasTabs: !!(blockGroup && blockGroup.getAttribute('tabs'))
+                        hasTabs: !!tabs
                     }
                 })
             } catch (error) {
                 logger().error({
-                    msg: 'Failed to add block to layout',
+                    msg: 'Failed to add block in transaction',
                     data: {
                         error: error instanceof Error ? error.message : 'Unknown error',
+                        stack: error instanceof Error ? error.stack : undefined,
                         blockData,
                         chatId: updateTarget.chatId,
                         roundId: updateTarget.roundId
@@ -241,12 +352,14 @@ async function handleDocumentBlock(
         })
 
         logger().info({
-            msg: 'Block created successfully',
+            msg: 'Block creation completed',
             data: {
-                blockId: updateTarget.yBlocks.keys().next().value,
+                blockId: blockId,
                 blockType: blockData.type,
                 chatId: updateTarget.chatId,
-                roundId: updateTarget.roundId
+                roundId: updateTarget.roundId,
+                yBlocksSize: updateTarget.yBlocks.size,
+                yLayoutLength: updateTarget.yLayout.length
             }
         })
     } catch (error) {
@@ -254,6 +367,7 @@ async function handleDocumentBlock(
             msg: 'Failed to create block',
             data: {
                 error: error instanceof Error ? error.message : 'Unknown error',
+                stack: error instanceof Error ? error.stack : undefined,
                 blockData,
                 chatId: updateTarget.chatId,
                 roundId: updateTarget.roundId
@@ -272,6 +386,8 @@ async function handleJsonContent(
 ): Promise<void> {
     try {
         const parsedJson = JSON.parse(jsonStr)
+
+        // appendToSSELog(updateTarget.chatId, updateTarget.roundId, jsonStr)
 
         if (parsedJson.type === 'normal') {
             // 处理普通消息
@@ -296,8 +412,89 @@ async function handleJsonContent(
                 res.write('data: [NEW_STEP]\n\n')
             }
         } else if (parsedJson.type === 'document') {
-            // 处理文档块
-            await handleDocumentBlock(parsedJson.block, parsedJson.task_id, updateTarget)
+            // 验证文档消息的结构
+            if (!parsedJson.block || typeof parsedJson.block !== 'object') {
+                const error = new ValidationError('Invalid document message: missing or invalid block data');
+                logger().error({
+                    msg: 'Document message validation failed',
+                    data: {
+                        error: error.message,
+                        receivedData: parsedJson,
+                        chatId: updateTarget.chatId,
+                        roundId: updateTarget.roundId
+                    }
+                });
+                throw error;
+            }
+
+            // 记录接收到的文档消息
+            logger().info({
+                msg: 'Received document message',
+                data: {
+                    blockType: parsedJson.block.type,
+                    taskId: parsedJson.task_id,
+                    chatId: updateTarget.chatId,
+                    roundId: updateTarget.roundId,
+                    hasContent: !!parsedJson.block.content
+                }
+            });
+
+            try {
+                await handleDocumentBlock(parsedJson.block, parsedJson.task_id, updateTarget);
+
+                // 如果这个文档块对应的任务已经创建，更新任务的 blockId
+                const existingTask = await prisma().chatRecordTask.findFirst({
+                    where: {
+                        agentTaskId: parsedJson.task_id,
+                        chatRecord: {
+                            chatId: updateTarget.chatId,
+                            roundId: updateTarget.roundId
+                        }
+                    },
+                    include: {
+                        chatRecord: true
+                    }
+                });
+
+                if (existingTask) {
+                    const blockId = taskBlockMap.get(parsedJson.task_id);
+                    
+                    if (blockId) {
+                        await prisma().chatRecordTask.update({
+                            where: {
+                                id: existingTask.id
+                            },
+                            data: {
+                                blockId: blockId
+                            }
+                        });
+
+                        logger().info({
+                            msg: 'Updated existing task with blockId',
+                            data: {
+                                taskId: existingTask.id,
+                                blockId,
+                                agentTaskId: parsedJson.task_id,
+                                chatId: updateTarget.chatId,
+                                roundId: updateTarget.roundId
+                            }
+                        });
+                    }
+                }
+            } catch (error) {
+                logger().error({
+                    msg: 'Failed to handle document block',
+                    data: {
+                        error: error instanceof Error ? error.message : 'Unknown error',
+                        stack: error instanceof Error ? error.stack : undefined,
+                        blockData: parsedJson.block,
+                        taskId: parsedJson.task_id,
+                        chatId: updateTarget.chatId,
+                        roundId: updateTarget.roundId
+                    }
+                });
+                throw error;
+            }
         } else if (parsedJson.type === 'task') {
             logger().info({
                 msg: 'Processing task message',
@@ -381,27 +578,41 @@ async function handleJsonContent(
                         agentTaskId: parsedJson.params.id,
                         name: parsedJson.params.name,
                         description: parsedJson.params.description,
-                        parentId: parentTaskId, // 使用查询到的父任务ID
+                        parentId: parentTaskId,
                         subTaskCount: parseInt(parsedJson.params.sub_task_count) || 0,
                         status: parsedJson.params.status || ChatRecordTaskStatus.PENDING,
                         variable: parsedJson.params.variable,
-                        blockId: taskBlockMap.get(parsedJson.params.id) // 设置关联的 blockId
+                        blockId: taskBlockMap.get(parsedJson.params.id)
                     }
                 })
 
-                // 从映射中删除已使用的关系
-                taskBlockMap.delete(parsedJson.params.id);
-
+                // 记录任务创建状态
                 logger().info({
-                    msg: 'Created chat record task with block',
+                    msg: 'Created chat record task',
                     data: {
                         taskId: chatRecordTask.id,
                         agentTaskId: chatRecordTask.agentTaskId,
                         blockId: chatRecordTask.blockId,
+                        variable: chatRecordTask.variable,
                         chatId: updateTarget.chatId,
-                        roundId: updateTarget.roundId
+                        roundId: updateTarget.roundId,
+                        hasBlockId: !!taskBlockMap.get(parsedJson.params.id),
+                        taskMapSize: taskBlockMap.size,
+                        availableTaskIds: Array.from(taskBlockMap.keys())
                     }
                 });
+
+                // 从映射中删除已使用的关系
+                if (chatRecordTask.blockId) {
+                    taskBlockMap.delete(parsedJson.params.id);
+                    logger().debug({
+                        msg: 'Removed task-block mapping',
+                        data: {
+                            agentTaskId: parsedJson.params.id,
+                            remainingMappings: taskBlockMap.size
+                        }
+                    });
+                }
 
                 // 仅在没有已存在任务时发送消息
                 if (!existingTasks) {
@@ -423,26 +634,25 @@ async function handleJsonContent(
                     throw new Error(`Invalid status: ${parsedJson.params.status}`);
                 }
 
-                // 查找对应的 ChatRecord
-                const chatRecord = await prisma().chatRecord.findFirst({
+                // 查找对应的 ChatRecordTask
+                const chatRecordTask = await prisma().chatRecordTask.findFirst({
                     where: {
-                        chatId: updateTarget.chatId,
-                        roundId: updateTarget.roundId,
-                    },
-                    orderBy: {
-                        createdTime: 'desc'
+                        agentTaskId: parsedJson.params.id,
+                        chatRecord: {
+                            chatId: updateTarget.chatId,
+                            roundId: updateTarget.roundId
+                        }
                     }
                 });
 
-                if (!chatRecord) {
-                    throw new Error('ChatRecord not found for task update');
+                if (!chatRecordTask) {
+                    throw new Error('ChatRecordTask not found for task update');
                 }
 
                 // 更新任务状态
-                await prisma().chatRecordTask.updateMany({
+                await prisma().chatRecordTask.update({
                     where: {
-                        chatRecordId: chatRecord.id,
-                        agentTaskId: parsedJson.params.id
+                        id: chatRecordTask.id
                     },
                     data: {
                         name: parsedJson.params.name,
@@ -512,6 +722,27 @@ async function handleStreamEnd(
             ]);
         }
 
+        // 在发送 [DONE] 之前进行持久化
+        try {
+            await updateTarget.yDoc.persist(true);
+            logger().info({
+                msg: 'Successfully persisted yDoc state on stream end',
+                data: {
+                    chatId: updateTarget.chatId,
+                    roundId: updateTarget.roundId
+                }
+            });
+        } catch (persistError) {
+            logger().error({
+                msg: 'Failed to persist yDoc state on stream end',
+                data: {
+                    error: persistError instanceof Error ? persistError.message : 'Unknown error',
+                    chatId: updateTarget.chatId,
+                    roundId: updateTarget.roundId
+                }
+            });
+        }
+
         res.write('data: [DONE]\n\n')
     } catch (error) {
         logger().error({
@@ -558,6 +789,17 @@ async function handleStreamError(
 
         if (record) {
             await prisma().$transaction([
+                // Update any running tasks to failed status
+                prisma().chatRecordTask.updateMany({
+                    where: {
+                        chatRecordId: record.id,
+                        status: ChatRecordTaskStatus.IN_PROGRESS
+                    },
+                    data: {
+                        status: ChatRecordTaskStatus.FAILED
+                    }
+                }),
+                // Update chat record status
                 prisma().chatRecord.update({
                     where: { id: record.id },
                     data: {
@@ -630,7 +872,7 @@ abstract class BaseStreamProcessor implements StreamProcessor {
         if (!this.response.body) {
             throw new APIError(
                 'Response body is empty',
-                ERROR_CODES.API_ERROR,
+                ErrorCode.API_ERROR,
                 500
             )
         }
@@ -652,7 +894,7 @@ abstract class BaseStreamProcessor implements StreamProcessor {
         if (!stream) {
             throw new APIError(
                 'Response body is empty',
-                ERROR_CODES.API_ERROR,
+                ErrorCode.API_ERROR,
                 500
             )
         }

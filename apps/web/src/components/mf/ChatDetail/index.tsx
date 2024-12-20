@@ -1,20 +1,24 @@
 import { useCallback, useEffect, useState, useRef } from 'react'
 import styles from './index.module.scss'
 import clsx from 'clsx'
-import { ChatType, MessageContent } from '@/hooks/mf/chat/useChatDetail'
+import { MessageContent } from '@/hooks/mf/chat/useChatDetail'
 import { useSession } from '@/hooks/useAuth'
 import ScrollBar from '@/components/ScrollBar'
 import Pointer from '../Pointer'
 import Markdown from '../markdown'
-import ReportStep, { ContentJsonType, StepJsonType } from './ReportStep'
+import ReportStep, { ContentJsonType } from './ReportStep'
+import { ChatType } from '../../../../chat'
+import AssistantIcon from '@/icons/assistant.png'
+import FileIcon from '@/icons/file.svg'
+
 export interface ChatDetailProps {
   type: ChatType
-  loading?: boolean
+  generating?: boolean
   roundList: MessageContent[]
   onRegenerate: (message: MessageContent) => void
 }
 
-const ChatDetail = ({ type, roundList, loading = false, onRegenerate }: ChatDetailProps) => {
+const ChatDetail = ({ type, roundList, generating = false, onRegenerate }: ChatDetailProps) => {
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const session = useSession()
@@ -59,11 +63,11 @@ const ChatDetail = ({ type, roundList, loading = false, onRegenerate }: ChatDeta
         return (
           <div className={clsx(styles.chatItem, styles.robot)} key={index}>
             <span className={styles.robot}>
-              <img width={14} src="/icons/logo.svg" alt="" />
+              <img width={24} src={AssistantIcon.src} alt="" />
             </span>
             <div className={styles.content}>
               <Markdown>{message.content}</Markdown>
-              {!!(loading && index === roundList.length - 1) ? <Pointer /> : null}
+              {!!(generating && index === roundList.length - 1) ? <Pointer /> : null}
             </div>
           </div>
         )
@@ -72,17 +76,17 @@ const ChatDetail = ({ type, roundList, loading = false, onRegenerate }: ChatDeta
         if (type === 'rag') {
           contentJson.content = message.content
         } else if (type === 'report') {
-          if (message.content) {
+          try {
             contentJson = JSON.parse(message.content) as ContentJsonType
-          } else {
-            return
+          } catch (error) {
+            contentJson = { type: 'text', content: message.content }
           }
         }
 
         return (
           <div className={clsx(styles.chatItem, styles.robot)} key={index}>
             <span className={styles.robot}>
-              <img width={14} src="/icons/logo.svg" alt="" />
+              <img width={24} src={AssistantIcon.src} alt="" />
             </span>
             {message.isError ? (
               <div className={styles.errorContent}>
@@ -94,11 +98,11 @@ const ChatDetail = ({ type, roundList, loading = false, onRegenerate }: ChatDeta
                 </div>
               </div>
             ) : contentJson.type === 'step' ? (
-              <ReportStep jobs={contentJson.content.jobs}></ReportStep>
+              <ReportStep jobs={contentJson.content.jobs} />
             ) : (
               <div className={styles.content}>
-                <Markdown>{message.content}</Markdown>
-                {!!(loading && index === roundList.length - 1) ? <Pointer /> : null}
+                <Markdown>{contentJson.content}</Markdown>
+                {!!(generating && index === roundList.length - 1) ? <Pointer /> : null}
               </div>
             )}
           </div>
@@ -108,12 +112,13 @@ const ChatDetail = ({ type, roundList, loading = false, onRegenerate }: ChatDeta
         <div className={clsx(styles.chatItem, styles.user)} key={index}>
           <div className={styles.userAvatar}>{firstLetter}</div>
           <div className={styles.content}>
-            <span key={index}>{message.content}</span>
+            {message.file ? <FileIcon /> : null}
+            {message.content}
           </div>
         </div>
       )
     },
-    [loading, roundList]
+    [generating, roundList]
   )
 
   return (

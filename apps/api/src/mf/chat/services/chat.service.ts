@@ -1,23 +1,29 @@
 import { Request, Response } from 'express'
 import { prisma, createDocument } from '@briefer/database'
 import { ChatSpeakerType } from '@prisma/client'
-import { AuthorizationError, ValidationError, APIError, ERROR_CODES } from '../types/errors.js'
+import { AuthorizationError, ValidationError, APIError } from '../types/errors.js'
 import { activeRequests, fetchWithTimeout } from '../utils/fetch.js'
 import { Response as FetchResponse } from 'node-fetch'
 import { CONFIG } from '../config/constants.js'
 import { logger } from '../../../logger.js'
-import { handleStreamResponse, sendSSEError } from '../stream/rag-stream.js'
-import { ChatDetailResponse, ChatRecordStatus, Message, RelationCheckResponse, UpdateTarget } from '../types/interfaces.js'
+import { handleStreamResponse } from '../stream/rag-stream.js'
+import {
+  ChatDetailResponse,
+  ChatRecordStatus,
+  Message,
+  RelationCheckResponse,
+} from '../types/interfaces.js'
 import * as fs from 'fs/promises'
 import { v4 as uuidv4 } from 'uuid'
-import { sanitizeInput, formatDate } from '../../../utils/format.js'
+import { sanitizeInput, formatDate, ERROR_MESSAGES } from '../../../utils/format.js'
 import { titleUpdateEmitter } from '../task/title-summarizer.js'
 import { IOServer } from '../../../websocket/index.js'
 import { validateEnvVars } from '../../../utils/validation.js'
 import { handleReportStreamResponse } from '../stream/report-stream.js'
+import { sendSSEError } from '../utils/sse-utils.js'
+import { ErrorCode } from '../../../constants/errorcode.js'
 
 export class ChatService {
-
   async createChat(userId: string, type: 'rag' | 'report', fileId: string, workspaceId: string) {
     logger().info({
       msg: 'Attempting to create chat',
@@ -78,11 +84,15 @@ export class ChatService {
 
       let documentId = null
       if (type === 'report') {
-        const doc = await createDocument(workspaceId, {
-          id: uuidv4(),
-          title: sanitizeInput('新的报告'),
-          orderIndex: -1,
-        }, tx)
+        const doc = await createDocument(
+          workspaceId,
+          {
+            id: uuidv4(),
+            title: sanitizeInput('新的报告'),
+            orderIndex: -1,
+          },
+          tx
+        )
         documentId = doc.id
 
         await Promise.all([
@@ -220,10 +230,10 @@ export class ChatService {
     })
 
     if (!chat) {
-      return new AuthorizationError('对话不存在或无权限删除');
+      return new AuthorizationError('对话不存在或无权限删除')
     }
 
-    let filesToDelete: { fileId: string, filePath: string }[] = []
+    let filesToDelete: { fileId: string; filePath: string }[] = []
 
     // 使用事务确保数据一致性
     await prisma().$transaction(async (tx) => {
@@ -234,35 +244,35 @@ export class ChatService {
           userFile: {
             select: {
               fileId: true,
-              filePath: true
-            }
-          }
-        }
+              filePath: true,
+            },
+          },
+        },
       })
-      filesToDelete = fileRelations.map(relation => ({
+      filesToDelete = fileRelations.map((relation) => ({
         fileId: relation.userFile.fileId,
-        filePath: relation.userFile.filePath
+        filePath: relation.userFile.filePath,
       }))
 
       // 1. 获取关联的文档ID
       const documentRelation = await tx.chatDocumentRelation.findFirst({
         where: { chatId: chatId },
-        select: { documentId: true }
+        select: { documentId: true },
       })
 
       // 2. 删除聊天记录
       await tx.chatRecord.deleteMany({
-        where: { chatId: chatId }
+        where: { chatId: chatId },
       })
 
       // 3. 删除文档关联
       await tx.chatDocumentRelation.deleteMany({
-        where: { chatId: chatId }
+        where: { chatId: chatId },
       })
 
       // 4. 删除文件关联
       await tx.chatFileRelation.deleteMany({
-        where: { chatId: chatId }
+        where: { chatId: chatId },
       })
 
       // 5. 删除关联的UserFile记录
@@ -270,22 +280,22 @@ export class ChatService {
         await tx.userFile.deleteMany({
           where: {
             fileId: {
-              in: filesToDelete.map(file => file.fileId)
-            }
-          }
+              in: filesToDelete.map((file) => file.fileId),
+            },
+          },
         })
       }
 
       // 6. 如果存在关联文档，删除文档
       if (documentRelation?.documentId) {
         await tx.document.delete({
-          where: { id: documentRelation.documentId }
+          where: { id: documentRelation.documentId },
         })
       }
 
       // 7. 删除聊天主记录
       await tx.chat.delete({
-        where: { id: chatId }
+        where: { id: chatId },
       })
     })
 
@@ -299,8 +309,8 @@ export class ChatService {
           data: {
             error,
             fileId: file.fileId,
-            filePath: file.filePath
-          }
+            filePath: file.filePath,
+          },
         })
       }
     }
@@ -337,7 +347,11 @@ export class ChatService {
     }
 
     let chatRecord
-    if (chat.records && chat.records.length === 1 && chat.records[0]?.status === ChatRecordStatus.START) {
+    if (
+      chat.records &&
+      chat.records.length === 1 &&
+      chat.records[0]?.status === ChatRecordStatus.START
+    ) {
       // 更新现有记录
       chatRecord = await prisma().chatRecord.update({
         where: { id: chat.records[0].id },
@@ -381,7 +395,7 @@ export class ChatService {
     }
 
     return {
-      roundId: chatRecord.roundId
+      roundId: chatRecord.roundId,
     }
   }
 
@@ -393,334 +407,338 @@ export class ChatService {
     userId: string,
     socketServer: IOServer
   ) {
+    validateEnvVars()
+
     const controller = new AbortController()
-
-    try {
-      validateEnvVars()
-
-      const chatRecord = await prisma().chatRecord.findFirst({
-        where: {
-          roundId: roundId,
-          chatId: chatId,
-          speakerType: 'user',
-          chat: {
-            userId: userId,
-          },
+    const chatRecord = await prisma().chatRecord.findFirst({
+      where: {
+        roundId: roundId,
+        chatId: chatId,
+        speakerType: 'user',
+        chat: {
+          userId: userId,
         },
-        select: {
-          id: true,
-          question: true,
-          speakerType: true,
-          chat: {
-            select: {
-              id: true,
-              type: true,
-              fileRelations: {
-                select: {
-                  userFile: {
-                    select: {
-                      fileId: true,
-                      fileName: true,
-                      filePath: true,
-                    }
-                  }
-                }
-              }
+      },
+      select: {
+        id: true,
+        question: true,
+        speakerType: true,
+        chat: {
+          select: {
+            id: true,
+            type: true,
+            fileRelations: {
+              select: {
+                userFile: {
+                  select: {
+                    fileId: true,
+                    fileName: true,
+                    filePath: true,
+                  },
+                },
+              },
             },
           },
         },
-      })
+      },
+    })
 
-      if (!chatRecord) {
-        await sendSSEError(res, new AuthorizationError('对话记录不存在或无权访问'), {
+    if (!chatRecord) {
+      await sendSSEError(
+        res,
+        new AuthorizationError('对话记录不存在或无权访问'),
+        {
           type: 'chat_record',
           id: '',
           chatId,
           roundId,
+        },
+        'rag'
+      ) // 当 chatRecord 为 null 时，默认使用 rag 类型
+      return
+    }
+
+    try {
+      // 根据聊天类型进行不同处理
+      if (chatRecord.chat.type === 2) {
+        // report类型
+        logger().info({
+          msg: 'Processing report type chat',
+          data: {
+            chatId,
+            roundId,
+            userId: userId,
+          },
         })
-        return
-      }
 
-      try {
-        // 根据聊天类型进行不同处理
-        if (chatRecord.chat.type === 2) { // report类型
-          logger().info({
-            msg: 'Processing report type chat',
-            data: {
-              chatId,
-              roundId,
-              userId: userId
-            }
-          })
-
-          // 获取关联的文件
-          const fileRelation = chatRecord.chat.fileRelations[0]
-          if (!fileRelation?.userFile) {
-            await sendSSEError(res, new ValidationError('未找到关联的文件'), {
+        // 获取关联的文件
+        const fileRelation = chatRecord.chat.fileRelations[0]
+        if (!fileRelation?.userFile) {
+          await sendSSEError(
+            res,
+            new ValidationError('未找到关联的文件'),
+            {
               type: 'chat_record',
               id: chatRecord.id,
               chatId,
               roundId,
-            })
-            return
-          }
-
-          const userFile = fileRelation.userFile
-          const fileContent = await fs.readFile(userFile.filePath)
-
-          // 构建请求体
-          const formData = new FormData();
-          formData.append('user_input', chatRecord.question);
-          formData.append('docx_report', new Blob([fileContent]), userFile.fileName);
-
-          // 调用AI Agent接口
-          logger().info({
-            msg: 'Sending report request to AI Agent',
-            data: {
-              url: `${CONFIG.AI_AGENT_URL}${CONFIG.AI_AGENT_ENDPOINTS.REPORT_COMPLETIONS}`,
-              timeout: CONFIG.AI_AGENT_TIMEOUT,
-              filename: userFile.fileName,
-              question: chatRecord.question
-            }
-          });
-
-          const fetchResponse = await fetchWithTimeout(
-            `${CONFIG.AI_AGENT_URL}${CONFIG.AI_AGENT_ENDPOINTS.REPORT_COMPLETIONS}`,
-            {
-              method: 'POST',
-              body: formData,
-              headers: {
-                'Accept': 'text/event-stream'
-              },
-              signal: controller.signal
             },
-            60000  // 增加超时时间到 60 秒
+            chatRecord.chat.type === 2 ? 'report' : 'rag'
           )
+          return
+        }
 
-          if (!fetchResponse.ok) {
-            throw new APIError(
-              `AI 报告对话请求失败: ${fetchResponse.status}`,
-              ERROR_CODES.API_ERROR,
-              500
-            )
-          }
+        const userFile = fileRelation.userFile
+        const fileContent = await fs.readFile(userFile.filePath)
 
-          await handleReportStreamResponse(
-            fetchResponse,
-            req,
-            res,
+        // 构建请求体
+        const formData = new FormData()
+        formData.append('user_input', chatRecord.question)
+        formData.append('docx_report', new Blob([fileContent]), userFile.fileName)
+
+        // 调用AI Agent接口
+        logger().info({
+          msg: 'Sending report request to AI Agent',
+          data: {
+            url: `${CONFIG.AI_AGENT_URL}${CONFIG.AI_AGENT_ENDPOINTS.REPORT_COMPLETIONS}`,
+            timeout: CONFIG.AI_AGENT_TIMEOUT,
+            filename: userFile.fileName,
+            question: chatRecord.question,
+          },
+        })
+
+        const fetchResponse = await fetchWithTimeout(
+          `${CONFIG.AI_AGENT_URL}${CONFIG.AI_AGENT_ENDPOINTS.REPORT_COMPLETIONS}`,
+          {
+            method: 'POST',
+            body: formData,
+            headers: {
+              Accept: 'text/event-stream',
+            },
+            signal: controller.signal,
+          },
+          60000 // 增加超时时间到 60 秒
+        )
+
+        if (!fetchResponse.ok) {
+          throw new APIError(
+            `AI 报告对话请求失败: ${fetchResponse.status}`,
+            ErrorCode.API_ERROR,
+            500
+          )
+        }
+
+        await handleReportStreamResponse(
+          fetchResponse,
+          req,
+          res,
+          chatId,
+          roundId,
+          socketServer,
+          controller
+        )
+      } else {
+        // rag类型
+        const messages: Message[] = [
+          {
+            id: chatRecord.id,
+            role: 'user',
+            content: sanitizeInput(chatRecord.question),
+          },
+        ]
+
+        // 先打印请求参数日志
+        logger().info({
+          msg: 'Relation check request',
+          data: {
+            url: `${CONFIG.AI_AGENT_URL}${CONFIG.AI_AGENT_ENDPOINTS.RELATION_CHECK}`,
+            requestBody: { messages },
             chatId,
             roundId,
-            socketServer,
-            controller
-          )
-        } else { // rag类型
-          const messages: Message[] = [
-            {
-              id: chatRecord.id,
-              role: 'user',
-              content: sanitizeInput(chatRecord.question),
-            },
-          ]
+          },
+        })
 
-          // 先打印请求参数日志
+        const relationCheckResponse = await fetchWithTimeout(
+          `${CONFIG.AI_AGENT_URL}${CONFIG.AI_AGENT_ENDPOINTS.RELATION_CHECK}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ messages }),
+          },
+          5000
+        )
+
+        if (!relationCheckResponse.ok) {
+          throw new APIError(
+            `关联性检查请求失败: ${relationCheckResponse.status}`,
+            ErrorCode.API_ERROR,
+            500
+          )
+        }
+
+        const relationResult = (await relationCheckResponse.json()) as RelationCheckResponse
+
+        // 打印响应结果日志
+        logger().info({
+          msg: 'Relation check response',
+          data: {
+            response: relationResult,
+            chatId,
+            roundId,
+            userId: userId,
+          },
+        })
+
+        if (relationResult.code !== 0 || !relationResult.data.related) {
           logger().info({
-            msg: 'Relation check request',
-            data: {
-              url: `${CONFIG.AI_AGENT_URL}${CONFIG.AI_AGENT_ENDPOINTS.RELATION_CHECK}`,
-              requestBody: { messages },
-              chatId,
-              roundId,
-            },
+            msg: 'Chat content not related',
+            data: { roundId, chatId },
           })
 
-          const relationCheckResponse = await fetchWithTimeout(
-            `${CONFIG.AI_AGENT_URL}${CONFIG.AI_AGENT_ENDPOINTS.RELATION_CHECK}`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ messages }),
-            },
-            5000
-          )
+          const errorMessage = ['```content', ERROR_MESSAGES.UNRELATED_CONTENT, '```']
 
-          if (!relationCheckResponse.ok) {
-            throw new APIError(
-              `关联性检查请求失败: ${relationCheckResponse.status}`,
-              ERROR_CODES.API_ERROR,
-              500
-            )
-          }
+          const userInput = chatRecord.question
+          const title = userInput.slice(0, 15) // 截取前15个字
 
-          const relationResult = (await relationCheckResponse.json()) as RelationCheckResponse
+          try {
+            // 更新 ChatRecord 状态为结束，并存储错误信息和标题
+            await prisma().$transaction(async (tx) => {
+              // 更新 ChatRecord
+              await tx.chatRecord.update({
+                where: { id: chatRecord.id },
+                data: {
+                  status: ChatRecordStatus.COMPLETED, // 结束状态
+                  answer: Buffer.from(errorMessage.join('\n')),
+                  speakerType: 'assistant',
+                  updateTime: new Date(),
+                },
+              })
 
-          // 打印响应结果日志
-          logger().info({
-            msg: 'Relation check response',
-            data: {
-              response: relationResult,
-              chatId,
-              roundId,
-              userId: userId,
-            },
-          })
+              // 检查是否已设置标题
+              const chat = await tx.chat.findUnique({
+                where: { id: chatId },
+                select: { isTitleSet: true },
+              })
 
-          if (relationResult.code !== 0 || !relationResult.data.related) {
-            logger().info({
-              msg: 'Chat content not related',
-              data: { roundId, chatId },
-            })
-
-            const errorMessage = [
-              '```content',
-              '抱歉，我目前无法回答与查找数据无关的内容。如果您有查找数据需求，请随时告诉我！',
-              '```',
-            ]
-
-            const userInput = chatRecord.question
-            const title = userInput.slice(0, 15) // 截取前15个字
-
-            try {
-              // 更新 ChatRecord 状态为结束，并存储错误信息和标题
-              await prisma().$transaction(async (tx) => {
-                // 更新 ChatRecord
-                await tx.chatRecord.update({
-                  where: { id: chatRecord.id },
+              // 只有当标题未设置时才更新标题
+              if (!chat?.isTitleSet) {
+                const userInput = chatRecord.question
+                const title = userInput.slice(0, 15) // 截取前15个字
+                await tx.chat.update({
+                  where: { id: chatId },
                   data: {
-                    status: ChatRecordStatus.COMPLETED, // 结束状态
-                    answer: Buffer.from(errorMessage.join('\n')),
-                    speakerType: 'assistant',
+                    title: title,
+                    isTitleSet: true,
                     updateTime: new Date(),
                   },
                 })
 
-                // 检查是否已设置标题
-                const chat = await tx.chat.findUnique({
-                  where: { id: chatId },
-                  select: { isTitleSet: true }
+                // 发送标题更新事件
+                const updateData = {
+                  chatId: chatId,
+                  title: title,
+                }
+
+                logger().info({
+                  msg: 'Emitting title update event for unrelated content',
+                  data: updateData,
                 })
 
-                // 只有当标题未设置时才更新标题
-                if (!chat?.isTitleSet) {
-                  const userInput = chatRecord.question
-                  const title = userInput.slice(0, 15) // 截取前15个字
-                  await tx.chat.update({
-                    where: { id: chatId },
-                    data: {
-                      title: title,
-                      isTitleSet: true,
-                      updateTime: new Date(),
-                    },
-                  })
+                titleUpdateEmitter.emit('titleUpdate', updateData)
 
-                  // 发送标题更新事件
-                  const updateData = {
-                    chatId: chatId,
-                    title: title,
-                  }
-
-                  logger().info({
-                    msg: 'Emitting title update event for unrelated content',
-                    data: updateData,
-                  })
-
-                  titleUpdateEmitter.emit('titleUpdate', updateData)
-
-                  logger().info({
-                    msg: 'Title update event emitted for unrelated content',
-                    data: {
-                      chatId,
-                      listenerCount: titleUpdateEmitter.listenerCount('titleUpdate'),
-                    },
-                  })
-                }
-              })
-            } catch (dbError) {
-              logger().error({
-                msg: 'Failed to update database for unrelated content',
-                data: {
-                  error: dbError instanceof Error ? dbError.message : 'Unknown error',
-                  chatId,
-                  roundId,
-                },
-              })
-              // 使用sendSSEError处理数据库错误
-              await sendSSEError(res, dbError, {
+                logger().info({
+                  msg: 'Title update event emitted for unrelated content',
+                  data: {
+                    chatId,
+                    listenerCount: titleUpdateEmitter.listenerCount('titleUpdate'),
+                  },
+                })
+              }
+            })
+          } catch (dbError) {
+            logger().error({
+              msg: 'Failed to update database for unrelated content',
+              data: {
+                error: dbError instanceof Error ? dbError.message : 'Unknown error',
+                chatId,
+                roundId,
+              },
+            })
+            // 使用sendSSEError处理数据库错误
+            await sendSSEError(
+              res,
+              dbError,
+              {
                 type: 'chat_record',
                 chatId,
                 roundId,
-              })
-              return
-            }
-
-            errorMessage.forEach((line) => {
-              res.write(`data: ${line}\n`)
-            })
-            res.write('\n') // 表示该消息结束
-            res.write(`data: [DONE]\n\n`)
+              },
+              chatRecord.chat.type === 2 ? 'report' : 'rag'
+            )
             return
           }
 
-          logger().info({
-            msg: 'Sending request to AI Agent',
-            data: {
-              url: `${CONFIG.AI_AGENT_URL}${CONFIG.AI_AGENT_ENDPOINTS.DATA_COMPLETIONS}`,
-              timeout: CONFIG.AI_AGENT_TIMEOUT,
-              messages: messages
-            }
-          });
-
-          const response = (await fetchWithTimeout(
-            `${CONFIG.AI_AGENT_URL}${CONFIG.AI_AGENT_ENDPOINTS.DATA_COMPLETIONS}`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                user_input: chatRecord.question,
-              }),
-              signal: controller.signal, // 添加 signal
-            },
-            30000
-          )) as FetchResponse
-
-          if (!response.ok) {
-            throw new APIError(
-              `AI 对话请求失败: ${response.status}`,
-              ERROR_CODES.API_ERROR,
-              500
-            )
-          }
-
-          await handleStreamResponse(
-            response,
-            res,
-            {
-              type: 'chat_record',
-              chatId: chatId,
-              roundId: roundId,
-            },
-            controller
-          ) // 传入 controller
+          errorMessage.forEach((line) => {
+            res.write(`data: ${line}\n`)
+          })
+          res.write('\n') // 表示该消息结束
+          res.write(`data: [DONE]\n\n`)
+          return
         }
-      } catch (error) {
-        logger().error({
-          msg: 'AI service error',
-          data: { error },
+
+        logger().info({
+          msg: 'Sending request to AI Agent',
+          data: {
+            url: `${CONFIG.AI_AGENT_URL}${CONFIG.AI_AGENT_ENDPOINTS.DATA_COMPLETIONS}`,
+            timeout: CONFIG.AI_AGENT_TIMEOUT,
+            messages: messages,
+          },
         })
-        await sendSSEError(res, error, {
+
+        const response = (await fetchWithTimeout(
+          `${CONFIG.AI_AGENT_URL}${CONFIG.AI_AGENT_ENDPOINTS.DATA_COMPLETIONS}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              user_input: chatRecord.question,
+            }),
+            signal: controller.signal, // 添加 signal
+          },
+          30000
+        )) as FetchResponse
+
+        if (!response.ok) {
+          throw new APIError(`AI 对话请求失败: ${response.status}`, ErrorCode.API_ERROR, 500)
+        }
+
+        await handleStreamResponse(
+          response,
+          res,
+          {
+            type: 'chat_record',
+            chatId: chatId,
+            roundId: roundId,
+          },
+          controller
+        ) // 传入 controller
+      }
+    } catch (error) {
+      logger().error({
+        msg: 'AI service error',
+        data: { error },
+      })
+      await sendSSEError(
+        res,
+        error,
+        {
           type: 'chat_record',
           id: chatRecord.id,
           chatId,
           roundId,
-        })
-      }
-    } catch (error) {
-      await sendSSEError(res, error, {
-        type: 'chat_record',
-        id: '',
-        chatId,
-        roundId,
-      })
+        },
+        chatRecord.chat.type === 2 ? 'report' : 'rag'
+      )
     }
   }
 
@@ -749,6 +767,11 @@ export class ChatService {
             answer: true,
             status: true,
             createdTime: true,
+            chat: {
+              select: {
+                type: true,
+              },
+            },
           },
         },
         documentRelations: {
@@ -779,12 +802,12 @@ export class ChatService {
     }
 
     // 首先按时间排序聊天记录
-    const sortedRecords = [...chat.records].sort((a, b) =>
-      a.createdTime.getTime() - b.createdTime.getTime()
-    );
+    const sortedRecords = [...chat.records].sort(
+      (a, b) => a.createdTime.getTime() - b.createdTime.getTime()
+    )
 
     // 转换聊天记录为消息格式
-    const messages = [];
+    const messages = []
     for (const record of sortedRecords) {
       // 只有当 question 有内容时才添加 user 消息
       if (record.question) {
@@ -793,11 +816,11 @@ export class ChatService {
           role: 'user',
           content: sanitizeInput(record.question),
           status: 'success',
-        });
+        })
       }
 
       // 处理 answer 和任务
-      const answerContent = record.answer?.toString() || '';
+      const answerContent = record.answer?.toString('utf-8') || ''
       const tasks = await prisma().chatRecordTask.findMany({
         where: { chatRecordId: record.id },
         select: {
@@ -808,12 +831,12 @@ export class ChatService {
           parentId: true,
           blockId: true,
           variable: true,
-          createdTime: true
+          createdTime: true,
         },
         orderBy: {
-          createdTime: 'asc'
-        }
-      });
+          createdTime: 'asc',
+        },
+      })
 
       // 如果有 answer 内容，添加基本的 assistant 消息
       if (answerContent) {
@@ -833,27 +856,27 @@ export class ChatService {
                 return 'success'
             }
           })(),
-        });
+        })
       }
 
       // 如果有任务，添加任务消息
       if (tasks.length > 0) {
         // Group tasks by parentId
-        const taskMap = new Map();
-        const rootTasks: any[] = [];
-        const moduleMap = new Map();
+        const taskMap = new Map()
+        const rootTasks: any[] = []
+        const moduleMap = new Map()
 
         // Organize tasks into their respective groups
-        tasks.forEach(task => {
+        tasks.forEach((task) => {
           if (!task.parentId) {
             // Root level tasks (jobs)
             rootTasks.push({
               title: task.name,
               description: task.description,
               status: task.status,
-              modules: []
-            });
-            taskMap.set(task.id, rootTasks[rootTasks.length - 1]);
+              modules: [],
+            })
+            taskMap.set(task.id, rootTasks[rootTasks.length - 1])
           } else if (taskMap.has(task.parentId)) {
             // Module level tasks
             const moduleTask = {
@@ -861,10 +884,10 @@ export class ChatService {
               description: task.description,
               status: task.status,
               blockId: task.blockId,
-              tasks: []
-            };
-            taskMap.get(task.parentId).modules.push(moduleTask);
-            moduleMap.set(task.id, moduleTask);
+              tasks: [],
+            }
+            taskMap.get(task.parentId).modules.push(moduleTask)
+            moduleMap.set(task.id, moduleTask)
           } else if (moduleMap.has(task.parentId)) {
             // Sub-tasks
             const subTask = {
@@ -872,11 +895,11 @@ export class ChatService {
               description: task.description,
               status: task.status,
               blockId: task.blockId,
-              variable: task.variable
-            };
-            moduleMap.get(task.parentId).tasks.push(subTask);
+              variable: task.variable,
+            }
+            moduleMap.get(task.parentId).tasks.push(subTask)
           }
-        });
+        })
 
         if (rootTasks.length > 0) {
           messages.push({
@@ -885,11 +908,11 @@ export class ChatService {
             content: JSON.stringify({
               type: 'step',
               content: {
-                jobs: rootTasks
-              }
+                jobs: rootTasks,
+              },
             }),
-            status: 'success'
-          });
+            status: 'success',
+          })
         }
       }
     }
@@ -931,10 +954,7 @@ export class ChatService {
     return responseData
   }
 
-  async checkRelation(
-    chatId: string,
-    question: string
-  ): Promise<boolean> {
+  async checkRelation(chatId: string, question: string): Promise<boolean> {
     logger().info({
       msg: 'Checking content relation',
       data: { chatId, question },
@@ -954,10 +974,10 @@ export class ChatService {
                   fileId: true,
                   fileName: true,
                   filePath: true,
-                }
-              }
-            }
-          }
+                },
+              },
+            },
+          },
         },
       })
 
@@ -982,7 +1002,7 @@ export class ChatService {
           timeout: CONFIG.AI_AGENT_TIMEOUT,
           filename: userFile.fileName,
           question,
-        }
+        },
       })
 
       const response = await fetchWithTimeout(
@@ -995,16 +1015,11 @@ export class ChatService {
       )
 
       if (!response.ok) {
-        throw new APIError(
-          `关联性检查请求失败: ${response.status}`,
-          ERROR_CODES.API_ERROR,
-          500
-        )
+        throw new APIError(`关联性检查请求失败: ${response.status}`, ErrorCode.API_ERROR, 500)
       }
 
-      const result = await response.json() as RelationCheckResponse
+      const result = (await response.json()) as RelationCheckResponse
       return result.related === true
-
     } catch (error) {
       logger().error('Content relation check error:', {
         error,
@@ -1036,6 +1051,11 @@ export class ChatService {
           select: {
             status: true,
             id: true,
+            chat: {
+              select: {
+                type: true,
+              },
+            },
           },
         },
       },
@@ -1048,10 +1068,6 @@ export class ChatService {
     const status = chat.records[0]?.status === ChatRecordStatus.PROCESSING ? 'chatting' : 'idle'
     const roundId = status === 'chatting' ? chat.records[0]?.id : ''
 
-    let history: { type: string; content: any } = {
-      type: '',
-      content: undefined
-    }
     const records = await prisma().chatRecord.findMany({
       where: {
         chatId: chatId,
@@ -1062,84 +1078,103 @@ export class ChatService {
         speakerType: true,
         answer: true,
         status: true,
-        createdTime: true
+        createdTime: true,
+        chat: {
+          select: {
+            type: true,
+          },
+        },
       },
       orderBy: {
-        createdTime: 'asc'
-      }
-    });
+        createdTime: 'asc',
+      },
+    })
+
+    const answers = []
 
     // Process records sequentially
+
     for (const record of records) {
-      // Fetch ChatRecordTask entries for this record
-      const tasks = await prisma().chatRecordTask.findMany({
-        where: { chatRecordId: record.id },
-        select: {
-          id: true,
-          name: true,
-          description: true,
-          status: true,
-          parentId: true,
-          createdTime: true,
-          blockId: true,
-          variable: true
-        },
-        orderBy: {
-          createdTime: 'asc'
+      if (record.answer.length) {
+        let assistantAnswer = {
+          role: 'assistant',
+          content: record.answer.toString('utf-8'),
         }
-      });
+        answers.push(assistantAnswer)
+      } else {
+        // Fetch ChatRecordTask entries for this record
+        const tasks = await prisma().chatRecordTask.findMany({
+          where: { chatRecordId: record.id },
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            status: true,
+            parentId: true,
+            createdTime: true,
+            blockId: true,
+            variable: true,
+          },
+          orderBy: {
+            createdTime: 'asc',
+          },
+        })
 
-      if (tasks.length > 0) {
-        // Group tasks by parentId
-        const taskMap = new Map();
-        const rootTasks: any[] = [];
-        const moduleMap = new Map();
-        const subTaskMap = new Map();
+        if (tasks.length > 0) {
+          // Group tasks by parentId
+          const taskMap = new Map()
+          const rootTasks: any[] = []
+          const moduleMap = new Map()
+          const subTaskMap = new Map()
 
-        // First pass: Organize all tasks into their respective groups
-        tasks.forEach(task => {
-          if (!task.parentId) {
-            // Root level tasks (jobs)
-            rootTasks.push({
-              title: task.name,
-              description: task.description,
-              status: task.status,
-              modules: []
-            });
-            taskMap.set(task.id, rootTasks[rootTasks.length - 1]);
-          } else if (taskMap.has(task.parentId)) {
-            // Module level tasks
-            const moduleTask = {
-              title: task.name,
-              description: task.description,
-              status: task.status,
-              blockId: task.blockId,
-              tasks: []
-            };
-            taskMap.get(task.parentId).modules.push(moduleTask);
-            moduleMap.set(task.id, moduleTask);
-          } else if (moduleMap.has(task.parentId)) {
-            // Sub-tasks
-            const subTask = {
-              title: task.name,
-              description: task.description,
-              status: task.status,
-              blockId: task.blockId,
-              variable: task.variable
-            };
-            moduleMap.get(task.parentId).tasks.push(subTask);
-            subTaskMap.set(task.id, subTask);
-          }
-        });
-
-        // Add task records to history
-        if (rootTasks.length > 0) {
-          history = {
-            type: 'step',
-            content: {
-              jobs: rootTasks
+          // First pass: Organize all tasks into their respective groups
+          tasks.forEach((task) => {
+            if (!task.parentId) {
+              // Root level tasks (jobs)
+              rootTasks.push({
+                title: task.name,
+                description: task.description,
+                status: task.status,
+                modules: [],
+              })
+              taskMap.set(task.id, rootTasks[rootTasks.length - 1])
+            } else if (taskMap.has(task.parentId)) {
+              // Module level tasks
+              const moduleTask = {
+                title: task.name,
+                description: task.description,
+                status: task.status,
+                blockId: task.blockId,
+                tasks: [],
+              }
+              taskMap.get(task.parentId).modules.push(moduleTask)
+              moduleMap.set(task.id, moduleTask)
+            } else if (moduleMap.has(task.parentId)) {
+              // Sub-tasks
+              const subTask = {
+                title: task.name,
+                description: task.description,
+                status: task.status,
+                blockId: task.blockId,
+                variable: task.variable,
+              }
+              moduleMap.get(task.parentId).tasks.push(subTask)
+              subTaskMap.set(task.id, subTask)
             }
-          };
+          })
+
+          // Add task records to history
+          if (rootTasks.length > 0) {
+            answers.push({
+              role: 'assistant',
+              content: JSON.stringify({
+                type: 'step',
+                content: {
+                  jobs: rootTasks,
+                },
+              }),
+            })
+          }
         }
       }
     }
@@ -1157,10 +1192,7 @@ export class ChatService {
     return {
       status,
       roundId,
-      answers: [{
-        id: roundId,
-        content: JSON.stringify(history)
-      }]
+      answers: answers,
     }
   }
 
@@ -1211,7 +1243,7 @@ export class ChatService {
       }
 
       // 更新对话态为完成
-      const currentAnswer = chatRecord.answer.toString()
+      const currentAnswer = chatRecord.answer.toString('utf-8')
       const updatedAnswer = currentAnswer.includes('[DONE]')
         ? currentAnswer
         : `${currentAnswer}\n[DONE]`
@@ -1246,7 +1278,7 @@ export class ChatService {
       if (error instanceof AuthorizationError) {
         return new AuthorizationError(error.message)
       }
-      return error;
+      return error
     }
   }
 
@@ -1275,7 +1307,7 @@ export class ChatService {
           // 验证该聊天是否属于当前用户
           const chat = await prisma().chat.findUnique({
             where: { id: data.chatId },
-            select: { userId: true }
+            select: { userId: true },
           })
 
           if (chat && chat.userId === userId) {
@@ -1356,7 +1388,6 @@ export class ChatService {
           res.end()
         }
       })
-
     } catch (error) {
       logger().error({
         msg: 'Title update SSE error',

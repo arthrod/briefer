@@ -35,12 +35,14 @@ const useBlockEditor = ({
   needTransform,
   setTitle,
   variables,
+  updateMarkdown,
 }: {
   content: Y.XmlFragment
   needTransform: boolean
   isEditable: boolean
   setTitle: (title: string) => void
   variables: string[]
+  updateMarkdown: () => void
 }) => {
   const editor = useEditor(
     {
@@ -114,6 +116,7 @@ const useBlockEditor = ({
           //   editor.commands.setVariables(variables)
           // }
         }
+        updateMarkdown()
 
         setTitle(firstLineContent)
       },
@@ -179,6 +182,9 @@ const RichTextBlock = (props: Props) => {
     setTitle,
     isEditable: props.isEditable,
     variables: props.block.getAttribute('variables') || [],
+    updateMarkdown: () => {
+      props.block.setAttribute('markdown', editor.storage.markdown.getMarkdown())
+    },
   })
 
   useEffect(() => {
@@ -215,7 +221,7 @@ const RichTextBlock = (props: Props) => {
         props.dragPreview?.(d)
       }}
       className={clsx(
-        'ring-outline ring-offset-4',
+        'ring-outline ring-offset-4 overflow-x-auto',
         props.isDashboard ? 'h-full overflow-y-scroll px-4 py-3' : '',
         {
           'ring-ceramic-400 ring-1':

@@ -6,6 +6,7 @@ export const CONFIG = {
         STATUS: '/api/nodejs/experiment/run-all/job-status',
         APPROVE: '/api/nodejs/experiment/run-all/export-approve',
         DOWNLOAD: '/api/nodejs/experiment/run-all/result-download',
-        RUN: '/api/nodejs/run-all/create-version'
+        RUN: '/api/nodejs/run-all/create-version',
+        PUSH_SUCCESS: '/api/nodejs/run-all/push-success'
     }
 }

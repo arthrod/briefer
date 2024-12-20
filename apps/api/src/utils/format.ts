@@ -1,5 +1,11 @@
+import { ErrorCode } from '../constants/errorcode.js'
 import { logger } from '../logger.js'
-import { ERROR_CODES } from '../mf/chat/types/errors.js'
+
+// 错误消息常量
+export const ERROR_MESSAGES = {
+  GENERAL: '抱歉，操作未能成功，请稍后再试。如果问题持续，请联系我们的支持团队！ 🙏',
+  UNRELATED_CONTENT: '抱歉，我目前无法回答与查找数据无关的内容。如果您有查找数据需求，请随时告诉我！'
+} as const
 
 // 输入净化
 export function sanitizeInput(input: string): string {
@@ -31,7 +37,7 @@ export function formatDate(date: Date, format: string = 'YYYY-MM-DD HH:mm:ss'): 
 }
 
 // 错误消息格式化
-export function formatErrorMessage(error: unknown): string {
+export function formatErrorMessage(chatType: 'rag' | 'report', error: unknown): string {
   // 记录原始错误信息到日志
   logger().error({
     msg: 'Error details',
@@ -41,11 +47,20 @@ export function formatErrorMessage(error: unknown): string {
     },
   })
 
-  return [
+  const baseErrorContent = [
     '```error',
-    '抱歉，操作未能成功，请稍后再试。如果问题持续，请联系我们的支持团队！ 🙏',
-    '```',
-  ].join('\n')
+    ERROR_MESSAGES.GENERAL,
+    '```'
+  ].join('\n');
+
+  if (chatType === 'report') {
+    return JSON.stringify({
+      type: 'text',
+      content: baseErrorContent
+    });
+  }
+
+  return baseErrorContent;
 }
 
 // 创建错误响应
@@ -60,7 +75,7 @@ export function createErrorResponse(code: number, message: string) {
 // 创建成功响应
 export function createSuccessResponse<T>(data: T, message: string = 'success') {
   return {
-    code: ERROR_CODES.SUCCESS,
+    code: ErrorCode.SUCCESS,
     msg: message,
     data
   }

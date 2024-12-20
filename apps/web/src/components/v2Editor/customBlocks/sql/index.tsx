@@ -88,10 +88,9 @@ function SQLBlock(props: Props) {
   )
 
   const hasOaiKey = useMemo(() => {
-    return (
-      !properties.data?.disableCustomOpenAiKey &&
-      (currentWorkspace?.secrets.hasOpenAiApiKey ?? false)
-    )
+    return true
+    // !properties.data?.disableCustomOpenAiKey &&
+    // (currentWorkspace?.secrets.hasOpenAiApiKey ?? false)
   }, [currentWorkspace, properties.data])
 
   const toggleResultHidden = useCallback(() => {
@@ -514,15 +513,14 @@ function SQLBlock(props: Props) {
                         'group relative flex items-center gap-x-2 rounded-sm border border-gray-200 px-2 py-1 font-sans text-gray-400'
                       )}>
                       <SparklesIcon className="h-3 w-3" />
-
-                      <span>通过AI编辑</span>
+                      <span>AI编辑</span>
                       <div
                         className={clsx(
                           'bg-hunter-950 pointer-events-none absolute -top-2 left-1/2 z-20 flex -translate-x-1/2 -translate-y-full flex-col items-center justify-center gap-y-1 rounded-md p-2 font-sans text-xs text-white opacity-0 transition-opacity group-hover:opacity-100',
                           hasOaiKey ? 'w-28' : 'w-40'
                         )}>
-                        <span>{hasOaiKey ? 'Open AI edit form' : '敬请期待'}</span>
-                        <span className="inline-flex items-center gap-x-1 text-gray-400">
+                        <span>{hasOaiKey ? 'AI编辑' : ''}</span>
+                        {/* <span className="inline-flex items-center gap-x-1 text-gray-400">
                           {hasOaiKey ? (
                             <>
                               <span>⌘</span>
@@ -531,7 +529,7 @@ function SQLBlock(props: Props) {
                             </>
                           ) : // <span>Admins can add an OpenAI key in settings.</span>
                           null}
-                        </span>
+                        </span> */}
                       </div>
                     </button>
                   )}

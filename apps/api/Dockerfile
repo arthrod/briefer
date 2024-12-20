@@ -46,7 +46,6 @@ RUN yarn turbo run build --filter=@briefer/api...
 
 FROM base AS runner
 WORKDIR /app
-
 # Don't run production as root
 RUN groupadd -r expressjs && useradd -r -g expressjs expressjs \
     && mkdir -p /home/expressjs/Downloads \

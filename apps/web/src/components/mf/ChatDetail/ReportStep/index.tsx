@@ -4,6 +4,7 @@ import styles from './index.module.scss'
 import { LoadingCircle } from '../../LoadingCircle'
 import JobSuccessIcon from '@/icons/job-success.svg'
 import StepSuccessIcon from '@/icons/step-success.svg'
+import StepFailedIcon from '@/icons/step-failed.svg'
 import DoubleArrowIcon from '@/icons/double-arrow.svg'
 import clsx from 'clsx'
 import { StepProps } from 'rc-steps/lib/Step'
@@ -30,6 +31,7 @@ interface Job {
   description: string
   status: Status
   modules: Module[]
+  isCollapsed?: boolean
 }
 
 interface StepContent {
@@ -54,7 +56,7 @@ const getJobStatusIcon = (status: Status) => {
     case 'success':
       return <JobSuccessIcon></JobSuccessIcon>
     case 'failed':
-      return <StepSuccessIcon></StepSuccessIcon>
+      return <div>failed</div>
   }
 }
 const getStepStatusIcon = (status: Status) => {
@@ -65,56 +67,44 @@ const getStepStatusIcon = (status: Status) => {
     case 'success':
       return <StepSuccessIcon></StepSuccessIcon>
     case 'failed':
-      return <StepSuccessIcon></StepSuccessIcon>
+      return <StepFailedIcon></StepFailedIcon>
   }
 }
-const ModuleSteps: React.FC<{ modules: Module[] }> = ({ modules }) => {
-  const [isCollapsed, setIsCollapsed] = useState(false)
-  const contentHeight = useRef<number>(0)
 
-  useEffect(() => {
-    if (isCollapsed) {
-    } else {
-      isCollapsed
-    }
-  }, [isCollapsed])
-
+const ModuleSteps: React.FC<{ modules: Module[]; className?: string }> = ({
+  modules,
+  className,
+}) => {
   return (
-    <div className={styles.moduleSteps}>
+    <div className={clsx(className, styles.moduleSteps)}>
       {modules.map((module, mIndex) => (
-        <div key={`module` + mIndex} className={styles.moduleItem}>
+        <div key={`module` + mIndex} className={clsx(styles.moduleItem)}>
+          <div className={clsx(styles.moduleIcon, styles[`module-${module.status}`])}>
+            {getStepStatusIcon(module.status)}
+          </div>
           <div className={styles.moduleContent}>
-            <div className={clsx(styles.moduleIcon, styles[`module-${module.status}`])}>
-              {getStepStatusIcon(module.status)}
-            </div>
-            <div>
-              <div className={styles.moduleTitle}>{module.title}</div>
-              <div className={clsx(styles.tasks, isCollapsed && styles.isCollapsed)}>
-                {module.tasks.map((task, tIndex) => (
-                  <div key={`task` + tIndex} className={styles.taskItem}>
-                    <div className={clsx(styles.taskIcon, styles[`task-${task.status}`])}>
-                      {getStepStatusIcon(task.status)}
-                    </div>
-                    <div className={styles.taskTitle}>
-                      {`任务${tIndex + 1}: `}
-                      {task.variable ? (
-                        <span style={{ color: '#2F69FE' }}>{`@${task.variable}`}</span>
-                      ) : null}
-                      {task.title}
-                    </div>
+            <a
+              className={styles.moduleTitle}
+              href={`#${module.blockId ? module.blockId : module.tasks[0]?.blockId}`}>
+              {module.title}
+            </a>
+            <div className={clsx(styles.tasks)}>
+              {module.tasks.map((task, tIndex) => (
+                <div key={`task` + tIndex} className={styles.taskItem}>
+                  <div className={clsx(styles.taskIcon, styles[`task-${task.status}`])}>
+                    {getStepStatusIcon(task.status)}
                   </div>
-                ))}
-              </div>
+                  <a href={task.blockId ? `#${task.blockId}` : ''} className={styles.taskTitle}>
+                    {`任务${tIndex + 1}: `}
+                    {task.variable ? (
+                      <span style={{ color: '#2F69FE' }}>{`@${task.variable}`}</span>
+                    ) : null}
+                    {task.title}
+                  </a>
+                </div>
+              ))}
             </div>
           </div>
-          {module.tasks && module.tasks.length ? (
-            <div className={styles.collapse} onClick={() => setIsCollapsed(!isCollapsed)}>
-              {isCollapsed ? '展开详情' : '折叠详情'}
-              <i className={clsx(styles.collapseIcon, isCollapsed ? styles.rotated : null)}>
-                <DoubleArrowIcon />
-              </i>
-            </div>
-          ) : null}
         </div>
       ))}
     </div>
@@ -127,14 +117,47 @@ interface Props {
 
 const ReportStep: React.FC<Props> = ({ jobs }) => {
   const [stepItems, setStepItems] = useState<StepProps[]>([])
+  const [renderJobs, setRenderJobs] = useState<Job[]>(jobs)
+
+  useEffect(() => {
+    const newJobs = [...jobs]
+    renderJobs.forEach((job, index) => {
+      newJobs[index].isCollapsed = !!job.isCollapsed
+    })
+    setRenderJobs([...jobs])
+  }, [jobs])
+
+  const handleCollapsed = (index: number) => {
+    const newJobs = [...renderJobs]
+    const job = newJobs[index]
+    job.isCollapsed = !job.isCollapsed
+    setRenderJobs(newJobs)
+  }
+
   useEffect(() => {
     setStepItems(() => {
-      return jobs.map((job) => ({
+      return renderJobs.map((job, jobIndex) => ({
         title: job.title,
         description: (
           <div>
             {job.description ? <div>{job.description}</div> : null}
-            {job.modules ? <ModuleSteps modules={job.modules}></ModuleSteps> : null}
+            {job.modules && job.modules.length ? (
+              <>
+                <ModuleSteps
+                  className={job.isCollapsed ? styles.isCollapsed : ''}
+                  modules={job.modules}></ModuleSteps>
+                <div
+                  className={styles.collapse}
+                  onClick={() => {
+                    handleCollapsed(jobIndex)
+                  }}>
+                  {job.isCollapsed ? '展开详情' : '折叠详情'}
+                  <i className={clsx(styles.collapseIcon, job.isCollapsed ? styles.rotated : null)}>
+                    <DoubleArrowIcon />
+                  </i>
+                </div>
+              </>
+            ) : null}
           </div>
         ),
         icon: (
@@ -142,7 +165,8 @@ const ReportStep: React.FC<Props> = ({ jobs }) => {
         ),
       }))
     })
-  }, [jobs])
+  }, [renderJobs])
+
   return (
     <div className={styles.detailSteps}>
       <Steps current={jobs.length - 1} direction="vertical" items={stepItems} />

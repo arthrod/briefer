@@ -35,7 +35,6 @@ import { showToast } from '../mf/Toast'
 import { ChatStatus, useChatStatus } from '@/hooks/mf/chat/useChatStatus'
 import {
   Sheet,
-  SheetClose,
   SheetContent,
   SheetDescription,
   SheetHeader,
@@ -43,6 +42,7 @@ import {
   SheetTrigger,
 } from '../ui/sheet'
 import ChatListBox from '../mf/ChatList'
+import FileIcon from '@/icons/file.svg'
 
 const syne = Syne({ subsets: ['latin'] })
 
@@ -54,8 +54,15 @@ interface Props extends PropsWithChildren {
 
 function ChatDetailLayout({ chatId, workspaceId }: { chatId: string; workspaceId: string }) {
   const [loading, setLoading] = useState(false)
-  const { roundList, setRoundList, refreshRoundList, stopChat, startRoundChat } =
-    useChatLayoutContext()
+  const {
+    generating,
+    fileInfo,
+    roundList,
+    setRoundList,
+    refreshRoundList,
+    stopChat,
+    startRoundChat,
+  } = useChatLayoutContext()
   const timer = useRef(-1)
   const getChatStatus = useChatStatus()
 
@@ -147,14 +154,24 @@ function ChatDetailLayout({ chatId, workspaceId }: { chatId: string; workspaceId
         <ChatDetail
           type="report"
           roundList={roundList}
-          loading={loading}
-          onRegenerate={function (message: MessageContent): void {
-            throw new Error('Function not implemented.')
-          }}></ChatDetail>
+          generating={generating}
+          onRegenerate={function (message: MessageContent): void {}}></ChatDetail>
       </div>
       <div className={styles.bottom}>
+        {fileInfo ? (
+          <div className={clsx(styles.fileBox, 'text-sm')}>
+            <FileIcon />
+            <span className={styles.fileName}>{fileInfo.name}</span>
+          </div>
+        ) : null}
         <div className={styles.chatArea}>
-          <ChatInput loading={loading} showUpload={false} onSend={handleSend} onStop={handleStop} />
+          <ChatInput
+            chatType="report"
+            loading={loading}
+            showUpload={false}
+            onSend={handleSend}
+            onStop={handleStop}
+          />
         </div>
       </div>
     </div>
@@ -255,7 +272,7 @@ export default function WorkspaceLayout({ children, pagePath, topBarClassname }:
 
       <main
         className={clsx(
-          `flex h-screen w-full flex-col ${syne.className} relative`,
+          `relative flex h-screen w-full flex-col`,
           isSideBarOpen ? `md:max-w-[67%] lg:max-w-[75%]` : `md:max-w-[100%] lg:max-w-[100%]`
         )}>
         <span

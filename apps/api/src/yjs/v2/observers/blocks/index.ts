@@ -1,26 +1,16 @@
-import { YBlock, getBaseAttributes, switchBlockType } from '@briefer/editor'
+import { YBlock, YBlockGroup, getBaseAttributes, switchBlockType } from '@briefer/editor'
 import { ISQLObserver, SQLObserver } from './sql.js'
 import { IPythonObserver, PythonObserver } from './python.js'
-import {
-  IVisualizationObserver,
-  VisualizationObserver,
-} from './visualization.js'
+import { IVisualizationObserver, VisualizationObserver } from './visualization.js'
 import { logger } from '../../../../logger.js'
 import { IInputObserver, InputObserver } from './input.js'
-import {
-  IDropdownInputObserver,
-  DropdownInputObserver,
-} from './dropdown-input.js'
+import { IDropdownInputObserver, DropdownInputObserver } from './dropdown-input.js'
 import { DataFrame } from '@briefer/types'
 import * as Y from 'yjs'
 import { ValueTypes } from 'yjs/dist/src/internals'
 import PQueue from 'p-queue'
 import { FileUploadObserver, IFileUploadObserver } from './file-upload.js'
-import {
-  EventContext,
-  NotebookBlockEvents,
-  NotebookEvents,
-} from '../../../../events/index.js'
+import { EventContext, NotebookBlockEvents, NotebookEvents } from '../../../../events/index.js'
 import { IWritebackObserver, WritebackObserver } from './writeback.js'
 import { DateInputObserver, IDateInputObserver } from './date-input.js'
 import { IPivotTableObserver, PivotTableObserver } from './pivot-table.js'
@@ -174,18 +164,13 @@ export class BlocksObserver implements IBlocksObserver {
     switchBlockType(block, {
       onPython: (b) => this.pythonBlocksObserver.handleInitialBlockState(b),
       onSQL: (b) => this.sqlBlocksObserver.handleInitialBlockState(b),
-      onVisualization: (b) =>
-        this.visualizationBlockObserver.handleInitialBlockState(b),
-      onWriteback: (b) =>
-        this.writebackBlocksObserver.handleInitialBlockState(b),
+      onVisualization: (b) => this.visualizationBlockObserver.handleInitialBlockState(b),
+      onWriteback: (b) => this.writebackBlocksObserver.handleInitialBlockState(b),
       onInput: (b) => this.inputBlocksObserver.handleInitialBlockState(b),
-      onDropdownInput: (b) =>
-        this.dropdownInputBlocksObserver.handleInitialBlockState(b),
-      onDateInput: (b) =>
-        this.dateInputBlocksObserver.handleInitialBlockState(b),
+      onDropdownInput: (b) => this.dropdownInputBlocksObserver.handleInitialBlockState(b),
+      onDateInput: (b) => this.dateInputBlocksObserver.handleInitialBlockState(b),
       onRichText: () => {},
-      onFileUpload: (b) =>
-        this.fileUploadBlocksObserver.handleInitialBlockState(b),
+      onFileUpload: (b) => this.fileUploadBlocksObserver.handleInitialBlockState(b),
       onDashboardHeader: () => {},
       onPivotTable: (b) => {
         this.pivotTableBlocksObserver.handleInitialBlockState(b)
@@ -212,79 +197,23 @@ export class BlocksObserver implements IBlocksObserver {
 
           switchBlockType(block, {
             onPython: (b) =>
-              this.pythonBlocksObserver.handleBlockEvent(
-                b,
-                action,
-                oldValue,
-                key,
-                tr
-              ),
-            onSQL: (b) =>
-              this.sqlBlocksObserver.handleBlockEvent(
-                b,
-                action,
-                oldValue,
-                key,
-                tr
-              ),
+              this.pythonBlocksObserver.handleBlockEvent(b, action, oldValue, key, tr),
+            onSQL: (b) => this.sqlBlocksObserver.handleBlockEvent(b, action, oldValue, key, tr),
             onVisualization: (b) =>
-              this.visualizationBlockObserver.handleBlockEvent(
-                b,
-                action,
-                oldValue,
-                key,
-                tr
-              ),
+              this.visualizationBlockObserver.handleBlockEvent(b, action, oldValue, key, tr),
             onWriteback: (b) =>
-              this.writebackBlocksObserver.handleBlockEvent(
-                b,
-                action,
-                oldValue,
-                key,
-                tr
-              ),
-            onInput: (b) =>
-              this.inputBlocksObserver.handleBlockEvent(
-                b,
-                action,
-                oldValue,
-                key,
-                tr
-              ),
+              this.writebackBlocksObserver.handleBlockEvent(b, action, oldValue, key, tr),
+            onInput: (b) => this.inputBlocksObserver.handleBlockEvent(b, action, oldValue, key, tr),
             onDropdownInput: (b) =>
-              this.dropdownInputBlocksObserver.handleBlockEvent(
-                b,
-                action,
-                oldValue,
-                key,
-                tr
-              ),
+              this.dropdownInputBlocksObserver.handleBlockEvent(b, action, oldValue, key, tr),
             onDateInput: (b) =>
-              this.dateInputBlocksObserver.handleBlockEvent(
-                b,
-                action,
-                oldValue,
-                key,
-                tr
-              ),
+              this.dateInputBlocksObserver.handleBlockEvent(b, action, oldValue, key, tr),
             onRichText: () => {},
             onFileUpload: (b) =>
-              this.fileUploadBlocksObserver.handleBlockEvent(
-                b,
-                action,
-                oldValue,
-                key,
-                tr
-              ),
+              this.fileUploadBlocksObserver.handleBlockEvent(b, action, oldValue, key, tr),
             onDashboardHeader: () => {},
             onPivotTable: (b) =>
-              this.pivotTableBlocksObserver.handleBlockEvent(
-                b,
-                action,
-                oldValue,
-                key,
-                tr
-              ),
+              this.pivotTableBlocksObserver.handleBlockEvent(b, action, oldValue, key, tr),
           })
         }
       })
@@ -296,10 +225,7 @@ export class BlocksObserver implements IBlocksObserver {
       if (action === 'add') {
         const block = event.target.get(key)
         if (block) {
-          this.events.blockAdd(
-            EventContext.fromYTransaction(tr),
-            getBaseAttributes(block).type
-          )
+          this.events.blockAdd(EventContext.fromYTransaction(tr), getBaseAttributes(block).type)
           this.handleInitialBlockState(block)
           block.observe(this.onBlockEvent)
         }
@@ -311,6 +237,7 @@ export class BlocksObserver implements IBlocksObserver {
     workspaceId: string,
     documentId: string,
     blocks: Y.Map<YBlock>,
+    layout: Y.Array<YBlockGroup>,
     dataframes: Y.Map<DataFrame>,
     executionQueue: PQueue,
     events: NotebookEvents
@@ -320,6 +247,7 @@ export class BlocksObserver implements IBlocksObserver {
       documentId,
       dataframes,
       blocks,
+      layout,
       executionQueue,
       events
     )
@@ -328,6 +256,7 @@ export class BlocksObserver implements IBlocksObserver {
       documentId,
       dataframes,
       blocks,
+      layout,
       executionQueue,
       events
     )
@@ -338,12 +267,7 @@ export class BlocksObserver implements IBlocksObserver {
       executionQueue,
       events
     )
-    const inputObserver = InputObserver.make(
-      workspaceId,
-      documentId,
-      blocks,
-      executionQueue
-    )
+    const inputObserver = InputObserver.make(workspaceId, documentId, blocks, executionQueue)
     const dropdownInputObserver = DropdownInputObserver.make(
       workspaceId,
       documentId,

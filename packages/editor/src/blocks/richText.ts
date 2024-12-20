@@ -13,6 +13,7 @@ export type RichTextBlock = BaseBlock<BlockType.RichText> & {
   needTransform: boolean
   variables?: string[]
   content: Y.XmlFragment
+  markdown?: Y.Text
 }
 export const isRichTextBlock = (block: YBlock): block is Y.XmlElement<RichTextBlock> => {
   return block.getAttribute('type') === BlockType.RichText
@@ -31,6 +32,7 @@ export const makeRichTextBlock = (
     title: '',
     type: BlockType.RichText,
     content: new Y.XmlFragment(),
+    markdown: new Y.Text(''),
     variables: variables ?? [],
   }
 
@@ -46,7 +48,9 @@ export function getRichTextAttributes(block: Y.XmlElement<RichTextBlock>): RichT
   return {
     ...getBaseAttributes(block),
     content: getAttributeOr(block, 'content', new Y.XmlFragment()),
+    markdown: getAttributeOr(block, 'markdown', new Y.Text('')),
     needTransform: getAttributeOr(block, 'needTransform', true),
+    variables: getAttributeOr(block, 'variables', []),
   }
 }
 

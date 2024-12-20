@@ -7,16 +7,17 @@ import RagIcon from '@/icons/rag.svg'
 import ReportIcon from '@/icons/report.svg'
 import ChatLayout, { useChatLayoutContext } from '@/components/mf/ChatLayout'
 import clsx from 'clsx'
-import { ChatType } from '@/hooks/mf/chat/useChatList'
 import { useRouter } from 'next/router'
 import { showToast } from '@/components/mf/Toast'
 import { useDocuments } from '@/hooks/useDocuments'
 import { useWorkspaces } from '@/hooks/useWorkspaces'
+import { ChatType } from '../../../chat'
 
 const fullText = '我能帮你做点什么？'
 
 function HomePage() {
-  const [chatType, setChatType] = useState<ChatType>('report')
+  const [chatType, setChatType] = useState<ChatType>('')
+  const [question, setQuestion] = useState('') // 当前显示的文字
   // 逐字动画逻辑
   const [displayText, setDisplayText] = useState('') // 当前显示的文字
   const [disableCursor, setDisableCursor] = useState(false)
@@ -113,6 +114,8 @@ function HomePage() {
         style={{ transform: `translateY(${translateY}px)`, width: '768px' }}>
         <ChatInput
           className={styles.input}
+          chatType={chatType}
+          value={question}
           showUpload={chatType === 'report'}
           loading={loading}
           onSend={handleSend}
@@ -127,6 +130,7 @@ function HomePage() {
           )}
           onClick={() => {
             setChatType('report')
+            setQuestion('基于这份数据分析报告，帮我进行数据产品研发')
           }}>
           <ReportIcon />
           撰写数据分析报告
@@ -135,6 +139,7 @@ function HomePage() {
           className={clsx(styles.item, chatType === 'rag' ? styles.item_active : null)}
           onClick={() => {
             setChatType('rag')
+            setQuestion('')
           }}>
           <RagIcon />
           根据需求查找数据
