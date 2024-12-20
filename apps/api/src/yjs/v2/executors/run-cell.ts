@@ -125,27 +125,27 @@ def get_job_status(job_id: str):
                                      json=request_data)  # 发送 POST 请求
             response.raise_for_status()  # 检查 HTTP 状态码是否为 200
             result = response.json()
-            print(result)
             if result['code'] == 0:
-                list = result['data']
+                list = result['data']['list']
                 if len(list) > 0:
                     status = list[0]['runStatus']
                     if status == 2:
-                        print('运行成功')
-                        outputs = redis_client.get(KEY)
+                        outputs = redis_client.get(REDIS_KEY)
                         if not outputs:
                             return outputs
+                        else:
+                            return
                     elif status == 3:
                         is_running = False
+            time.sleep(5)
         except requests.exceptions.RequestException as e:
-            print("HTTP 请求失败:", e)
             raise Exception('获取状态失败')
 
 
 job_id = create_job()
 print(job_id)
 if job_id is False:
-    raise Exception('获取job失败')
+    raise Exception('创建全量运行记录失败')
 else:
     push_success(job_id)
     get_job_status(job_id)
