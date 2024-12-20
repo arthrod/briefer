@@ -15,6 +15,7 @@ import { fileURLToPath } from 'url'
 import { NotebookConverter } from '../../utils/notebook-converter.js'
 import AdmZip from 'adm-zip'
 import os from 'os'
+import { v4 as uuidv4 } from 'uuid'
 import { mkdir, mkdtemp } from 'fs/promises'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -641,7 +642,7 @@ export class RunAllController {
   async uploadCode(yDoc: WSSharedDocV2, chatId: string, userId: string, jobId: string) {
 
     const notebook = convertYjsDocumentToNotebook(yDoc.blocks, yDoc.layout)
-    const ossPath = join('chat/', chatId, '/', chatId)
+    const ossPath = join('chat/', chatId, '/', uuidv4())
     const result = await saveNotebookToOSS(notebook, ossPath)
     if (result) {
       try {
