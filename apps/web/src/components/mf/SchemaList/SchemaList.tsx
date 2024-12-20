@@ -20,6 +20,7 @@ import TableIcon from '../../../icons/table-icon.svg'
 import { Input } from '../Input'
 import { NoData } from '../NoData'
 import styles from './index.module.scss'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 export interface IProps {
   workspaceId: string
@@ -235,13 +236,25 @@ export default function SchemaList(props: IProps) {
                       <TableIcon></TableIcon>
                     </div>
                     <div key={`content-${index}`} className={styles.contentLayout}>
-                      <div className={styles.name}>{item.name}</div>
-                      <div className={styles.tableName}>{item.tableName}</div>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <div className={styles.name}>{item.cnName}</div>
+                          </TooltipTrigger>
+                          <TooltipContent>{item.cnName}</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <div className={styles.name}>{item.tableName}</div>
+                          </TooltipTrigger>
+                          <TooltipContent>{item.tableName}</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </div>
                   </div>
-                  <div key={`des-${index}`} className={styles.des}>
+                  {/* <div key={`des-${index}`} className={styles.des}>
                     {item.des}
-                  </div>
+                  </div> */}
                   <div key={`stats-${index}`} className={styles.rowAndColLayout}>
                     {/* <div key={`row-${index}`} className={styles.row}>
                       <RowIcon></RowIcon>
@@ -281,7 +294,9 @@ export default function SchemaList(props: IProps) {
               <AlertDialogContent
                 className="max-w-[800px]"
                 aria-describedby="alert-dialog-description">
-                <AlertDialogTitle>{selectedItem.tableName}</AlertDialogTitle>
+                <AlertDialogTitle>
+                  {`${selectedItem.tableName}${selectedItem.cnName ? `(${selectedItem.cnName})` : ''}`}
+                </AlertDialogTitle>
                 <div id="alert-dialog-description" className="space-y-4">
                   <AlertDialogDescription asChild>
                     <div className="text-sm text-gray-500">{selectedItem.des}</div>
