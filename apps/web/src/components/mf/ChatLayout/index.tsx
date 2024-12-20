@@ -59,7 +59,7 @@ interface ChatLayoutContextType {
   chatList: HistoryChat[]
   setChatList: Dispatch<SetStateAction<HistoryChat[]>>
   addChatList: (chat: HistoryChat) => void
-  refreshChatList: () => void
+  refreshChatList: () => Promise<void>
   roundList: MessageContent[]
   setRoundList: Dispatch<SetStateAction<MessageContent[]>>
   refreshRoundList: (chatId: string) => Promise<void>
@@ -99,7 +99,7 @@ export function ChatProvider(props: { children: ReactNode }) {
   }
 
   const refreshChatList = () => {
-    getChatListApi().then((data: ChatList) => {
+    return getChatListApi().then((data: ChatList) => {
       setChatList(data.list)
     })
   }

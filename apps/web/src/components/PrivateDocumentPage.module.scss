@@ -20,3 +20,26 @@
   height: 3.75rem;
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
+.inputBox {
+  display: flex;
+  align-items: center;
+  .titleInput {
+    height: 40px;
+    border-radius: 5px;
+    font-size: 14px;
+    background-color: #fff;
+    border: 1.5px solid #e8eaee;
+    box-shadow: none;
+    &:focus {
+      border-color: #2f69fe;
+    }
+  }
+  .loadingIcon {
+    flex-grow: 1;
+    margin-right: 12px;
+    visibility: visible;
+  }
+  .loadingIconHidden {
+    visibility: hidden;
+  }
+}

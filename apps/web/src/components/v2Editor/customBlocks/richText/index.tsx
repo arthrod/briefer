@@ -221,7 +221,7 @@ const RichTextBlock = (props: Props) => {
         props.dragPreview?.(d)
       }}
       className={clsx(
-        'ring-outline ring-offset-4 overflow-x-auto',
+        'ring-outline ring-offset-4 overflow-x-auto overflow-y-hidden',
         props.isDashboard ? 'h-full overflow-y-scroll px-4 py-3' : '',
         {
           'ring-ceramic-400 ring-1':
