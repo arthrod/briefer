@@ -441,6 +441,46 @@ async function handleJsonContent(
 
             try {
                 await handleDocumentBlock(parsedJson.block, parsedJson.task_id, updateTarget);
+
+                // 如果这个文档块对应的任务已经创建，更新任务的 blockId
+                const existingTask = await prisma().chatRecordTask.findFirst({
+                    where: {
+                        agentTaskId: parsedJson.task_id,
+                        chatRecord: {
+                            chatId: updateTarget.chatId,
+                            roundId: updateTarget.roundId
+                        }
+                    },
+                    include: {
+                        chatRecord: true
+                    }
+                });
+
+                if (existingTask) {
+                    const blockId = taskBlockMap.get(parsedJson.task_id);
+                    
+                    if (blockId) {
+                        await prisma().chatRecordTask.update({
+                            where: {
+                                id: existingTask.id
+                            },
+                            data: {
+                                blockId: blockId
+                            }
+                        });
+
+                        logger().info({
+                            msg: 'Updated existing task with blockId',
+                            data: {
+                                taskId: existingTask.id,
+                                blockId,
+                                agentTaskId: parsedJson.task_id,
+                                chatId: updateTarget.chatId,
+                                roundId: updateTarget.roundId
+                            }
+                        });
+                    }
+                }
             } catch (error) {
                 logger().error({
                     msg: 'Failed to handle document block',
@@ -538,27 +578,41 @@ async function handleJsonContent(
                         agentTaskId: parsedJson.params.id,
                         name: parsedJson.params.name,
                         description: parsedJson.params.description,
-                        parentId: parentTaskId, // 使用查询到的父任务ID
+                        parentId: parentTaskId,
                         subTaskCount: parseInt(parsedJson.params.sub_task_count) || 0,
                         status: parsedJson.params.status || ChatRecordTaskStatus.PENDING,
                         variable: parsedJson.params.variable,
-                        blockId: taskBlockMap.get(parsedJson.params.id) // 设置关联的 blockId
+                        blockId: taskBlockMap.get(parsedJson.params.id)
                     }
                 })
 
-                // 从映射中删除已使用的关系
-                taskBlockMap.delete(parsedJson.params.id);
-
+                // 记录任务创建状态
                 logger().info({
-                    msg: 'Created chat record task with block',
+                    msg: 'Created chat record task',
                     data: {
                         taskId: chatRecordTask.id,
                         agentTaskId: chatRecordTask.agentTaskId,
                         blockId: chatRecordTask.blockId,
+                        variable: chatRecordTask.variable,
                         chatId: updateTarget.chatId,
-                        roundId: updateTarget.roundId
+                        roundId: updateTarget.roundId,
+                        hasBlockId: !!taskBlockMap.get(parsedJson.params.id),
+                        taskMapSize: taskBlockMap.size,
+                        availableTaskIds: Array.from(taskBlockMap.keys())
                     }
                 });
+
+                // 从映射中删除已使用的关系
+                if (chatRecordTask.blockId) {
+                    taskBlockMap.delete(parsedJson.params.id);
+                    logger().debug({
+                        msg: 'Removed task-block mapping',
+                        data: {
+                            agentTaskId: parsedJson.params.id,
+                            remainingMappings: taskBlockMap.size
+                        }
+                    });
+                }
 
                 // 仅在没有已存在任务时发送消息
                 if (!existingTasks) {
@@ -580,26 +634,25 @@ async function handleJsonContent(
                     throw new Error(`Invalid status: ${parsedJson.params.status}`);
                 }
 
-                // 查找对应的 ChatRecord
-                const chatRecord = await prisma().chatRecord.findFirst({
+                // 查找对应的 ChatRecordTask
+                const chatRecordTask = await prisma().chatRecordTask.findFirst({
                     where: {
-                        chatId: updateTarget.chatId,
-                        roundId: updateTarget.roundId,
-                    },
-                    orderBy: {
-                        createdTime: 'desc'
+                        agentTaskId: parsedJson.params.id,
+                        chatRecord: {
+                            chatId: updateTarget.chatId,
+                            roundId: updateTarget.roundId
+                        }
                     }
                 });
 
-                if (!chatRecord) {
-                    throw new Error('ChatRecord not found for task update');
+                if (!chatRecordTask) {
+                    throw new Error('ChatRecordTask not found for task update');
                 }
 
                 // 更新任务状态
-                await prisma().chatRecordTask.updateMany({
+                await prisma().chatRecordTask.update({
                     where: {
-                        chatRecordId: chatRecord.id,
-                        agentTaskId: parsedJson.params.id
+                        id: chatRecordTask.id
                     },
                     data: {
                         name: parsedJson.params.name,
