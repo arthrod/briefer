@@ -149,9 +149,10 @@ export class ChatService {
         title: true,
         type: true,
         createdTime: true,
+        updateTime: true,
       },
       orderBy: {
-        createdTime: 'desc',
+        updateTime: 'desc',
       },
     })
 

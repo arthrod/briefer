@@ -30,6 +30,10 @@ import SchemaList from './mf/SchemaList/SchemaList'
 import { useChatLayoutContext } from './mf/ChatLayout'
 import { getQueryParam } from '@/hooks/useQueryArgs'
 import UserAvatar from './mf/UserAvatar'
+import Spin from './Spin'
+import { showToast } from './mf/Toast'
+import { useChatEdit } from '@/hooks/mf/chat/useChatEdit'
+import EditIcon from '@/icons/edit.svg'
 // this is needed because this component only works with the browser
 const V2Editor = dynamic(() => import('@/components/v2Editor'), {
   ssr: false,
@@ -77,6 +81,90 @@ export default function PrivateDocumentPage(props: Props) {
   )
 }
 
+const Title = ({ chatTitle, chatId }: { chatTitle: string; chatId: string }) => {
+  const [isEdit, setIsEdit] = useState(false)
+  const [editTitle, setEditTitle] = useState('')
+  const [isCommit, setIsCommit] = useState(false)
+  const inputRef = useRef<HTMLInputElement | null>(null)
+  const { refreshChatList } = useChatLayoutContext()
+  const chatEditApi = useChatEdit()
+  const updateChat = async () => {
+    if (chatTitle !== editTitle) {
+      return commitTitle(chatId, editTitle)
+        .then(() => {
+          refreshChatList().then(() => {
+            setIsEdit(false)
+            setEditTitle(editTitle)
+            showToast('标题更新成功', 'success')
+            inputRef.current?.blur()
+          })
+        })
+        .catch(() => {
+          showToast('标题更新失败', 'error')
+        })
+    } else {
+      setIsEdit(false)
+      setEditTitle('')
+      return Promise.resolve()
+    }
+  }
+
+  const commitTitle = (id: string, title: string) => {
+    if (isCommit) {
+      return Promise.reject()
+    }
+    setIsCommit(true)
+    return chatEditApi(id, title).finally(() => {
+      setIsCommit(false)
+    })
+  }
+  return (
+    <div
+      style={{ color: '#272A33', fontWeight: 500 }}
+      className="flex w-full items-center gap-x-1.5 overflow-hidden font-sans text-lg">
+      {isEdit ? (
+        <div className={styles.inputBox}>
+          <input
+            ref={inputRef}
+            type="text"
+            className={styles.titleInput}
+            value={editTitle}
+            disabled={isCommit}
+            onChange={(e) => {
+              setEditTitle(e.target.value)
+            }}
+            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault() // 防止默认的换行行为
+                updateChat()
+              }
+            }}
+            onBlur={(e) => {
+              updateChat()
+            }}
+            autoFocus
+          />
+          <div className={isCommit ? styles.loadingIcon : styles.loadingIconHidden}>
+            <Spin color="#2F69FE" wrapperClassName="pl-2" />
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-center gap-1">
+          <span className="flex w-full items-center truncate">{chatTitle}</span>
+          <i
+            className="cursor-pointer"
+            onClick={() => {
+              setIsEdit(true)
+              setEditTitle(chatTitle)
+            }}>
+            <EditIcon />
+          </i>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function PrivateDocumentPageInner(
   props: Props & {
     document: ApiDocument
@@ -85,7 +173,7 @@ function PrivateDocumentPageInner(
   }
 ) {
   const documentTitle = useMemo(() => props.document.title || '新的报告', [props.document.title])
-  const runAllListRef = useRef<RunAllListRef>(null)
+
   const [selectedSidebar, setSelectedSidebar] = useState<
     | { _tag: 'comments' }
     | { _tag: 'schedules' }
@@ -100,6 +188,8 @@ function PrivateDocumentPageInner(
     | { _tag: 'schema' }
     | null
   >(null)
+
+  const runAllListRef = useRef<RunAllListRef>(null)
 
   const [{ data: dataSources }] = useDataSources(props.workspaceId)
   const { chatList } = useChatLayoutContext()
@@ -232,13 +322,7 @@ function PrivateDocumentPageInner(
   const topBarContent = useMemo(() => {
     return (
       <div className={styles.documentTitle}>
-        <div
-          style={{ color: '#272A33', fontWeight: 500 }}
-          className="flex w-full items-center gap-x-1.5 overflow-hidden font-sans text-lg">
-          <span className="flex w-full items-center truncate">{chatTitle}</span>
-          {/* <span className="flex w-full items-center truncate">{documentTitle}</span> */}
-        </div>
-
+        <Title chatId={chatId} chatTitle={chatTitle} />
         <div className="flex h-[36px] w-full items-center justify-end gap-x-4">
           {!isViewer && (
             <RunAllV2
