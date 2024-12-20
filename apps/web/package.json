@@ -32,6 +32,7 @@
     "@radix-ui/react-popover": "^1.1.2",
     "@radix-ui/react-slot": "^1.1.0",
     "@radix-ui/react-toast": "^1.2.2",
+    "@radix-ui/react-tooltip": "^1.1.6",
     "@react-email/render": "^0.0.9",
     "@replit/codemirror-vscode-keymap": "6.0.2",
     "@simbathesailor/use-what-changed": "^2.0.0",

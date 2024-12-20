@@ -72,7 +72,7 @@ function PlusButton(props: Props) {
         <div className="h-[1px] w-full bg-gray-200" />
         <div className="flex items-center justify-center gap-x-1 whitespace-nowrap text-[10px] text-gray-400">
           <PlusIcon className="h-3 w-3 text-gray-400" />
-          <span>Add block</span>
+          <span>添加block</span>
         </div>
         <div className="h-[1px] w-full bg-gray-200" />
       </button>

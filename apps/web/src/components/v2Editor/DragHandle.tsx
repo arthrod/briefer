@@ -102,7 +102,7 @@ const DragHandle = ({
                           className="hover:bg-gray-100 w-full px-2 py-1.5 rounded-md text-left flex gap-x-2 items-center whitespace-nowrap"
                         >
                           <ForwardIcon className="h-4 w-4" />
-                          <span>Run all tabs</span>
+                          <span>运行全部标签页</span>
                         </Menu.Item>
                       )}
 
@@ -112,7 +112,7 @@ const DragHandle = ({
                         className="hover:bg-gray-100 w-full px-2 py-1.5 rounded-md text-left flex gap-x-2 items-center whitespace-nowrap"
                       >
                         <BarsArrowDownIcon className="h-4 w-4" />
-                        <span>Run onwards</span>
+                        <span>运行后续</span>
                       </Menu.Item>
 
                       {onRunAllTabs && (
@@ -146,7 +146,7 @@ const DragHandle = ({
                         className="hover:bg-gray-100 w-full px-2 py-1.5 rounded-md text-left flex gap-x-2 items-center whitespace-nowrap"
                       >
                         <RectangleStackIcon className="h-4 w-4" />
-                        <span>Duplicate block</span>
+                        <span>复制block</span>
                       </Menu.Item>
                     </div>
                     <div className="py-0.5 px-0.5">
@@ -157,7 +157,7 @@ const DragHandle = ({
                           onClick={onDeleteTab}
                         >
                           <MinusCircleIcon className="h-4 w-4" />
-                          <span>Delete tab</span>
+                          <span>删除标签页</span>
                         </Menu.Item>
                       )}
                       <Menu.Item
@@ -166,7 +166,7 @@ const DragHandle = ({
                         className="hover:bg-gray-100 w-full px-2 py-1.5 rounded-md text-left flex gap-x-2 items-center whitespace-nowrap"
                       >
                         <XCircleIcon className="h-4 w-4" />
-                        <span>Delete block</span>
+                        <span>删除block</span>
                       </Menu.Item>
                     </div>
                   </div>
