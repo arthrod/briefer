@@ -9,6 +9,7 @@ export type TableItem = {
   id: number
   name: string
   tableName: string
+  schemaName: string
   cnName: string
   dataSource: string
   des: string

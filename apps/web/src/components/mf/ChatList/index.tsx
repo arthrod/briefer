@@ -228,6 +228,7 @@ const ChatListBox = ({ chatId, workspaceId }: ChatListProps) => {
                     updateChat(chat, currentTitle).then(() => {
                       inputRef.current?.blur()
                       setCurrentTitle('')
+                      refreshChatList();
                     })
                   }
                 }}
