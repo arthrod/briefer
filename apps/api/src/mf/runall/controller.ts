@@ -15,6 +15,7 @@ import { fileURLToPath } from 'url'
 import { NotebookConverter } from '../../utils/notebook-converter.js'
 import AdmZip from 'adm-zip'
 import os from 'os'
+import { v4 as uuidv4 } from 'uuid'
 import { mkdir, mkdtemp } from 'fs/promises'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -343,10 +344,7 @@ export class RunAllController {
       if (!id) {
         return res.status(400).json(fail(ErrorCode.PARAM_ERROR, '参数不正确，缺少下载全量记录的id'))
       }
-      const idNum = Number(id)
-      if (isNaN(idNum)) {
-        return res.status(400).json(fail(ErrorCode.PARAM_ERROR, '参数不正确，缺少下载全量记录的id'))
-      }
+
       // 获取文件的 URL
       const fileStreamRes = await fetch(
         `${CONFIG.MANAGER_URL}${CONFIG.ENDPOINTS.DOWNLOAD}?id=${id}`,
@@ -360,15 +358,17 @@ export class RunAllController {
       )
 
       // // 使用本地zip文件
-      // const testZipPath = path.join(__dirname, '../../test-files/test.zip')
-      // if (!fs.existsSync(testZipPath)) {
+      // const testZipPath1 = path.join(__dirname, '../../test-files/dian.zip')
+      // if (!fs.existsSync(testZipPath1)) {
       //   return res.status(500).json(fail(ErrorCode.SERVER_ERROR, '测试文件不存在'))
       // }
 
       // // 读取zip文件并创建流
-      // const zipFileStream = fs.createReadStream(testZipPath)
+      // const zipFileStream = fs.createReadStream(testZipPath1)
       // const fileStreamRes = {
       //   ok: true,
+      //   status: 200,
+      //   statusText: 'OK',
       //   headers: new Map([['content-disposition', `attachment; filename="test-${id}.zip"`]]),
       //   body: new ReadableStream({
       //     start(controller) {
@@ -382,236 +382,355 @@ export class RunAllController {
       //         controller.error(error)
       //       })
       //     }
-      //   })
+      //   }),
+      //   // 实现 arrayBuffer 方法
+      //   arrayBuffer: async () => {
+      //     return new Promise<ArrayBuffer>((resolve, reject) => {
+      //       const chunks: Buffer[] = [];
+      //       zipFileStream.on('data', (chunk: Buffer) => {
+      //         if (Buffer.isBuffer(chunk)) {
+      //           chunks.push(chunk);
+      //         } else {
+      //           chunks.push(Buffer.from(chunk));
+      //         }
+      //       });
+      //       zipFileStream.on('end', () => {
+      //         const buffer = Buffer.concat(chunks);
+      //         resolve(buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength));
+      //       });
+      //       zipFileStream.on('error', reject);
+      //     });
+      //   }
       // }
 
       // 检查文件是否成功获取
       if (!fileStreamRes.ok) {
-        return res.status(500).json(fail(ErrorCode.SERVER_ERROR, '文件获取失败'))
+        console.error('Failed to fetch file:', fileStreamRes.statusText)
+        return res.status(fileStreamRes.status).json(fail(ErrorCode.SERVER_ERROR, '获取文件失败'))
       }
 
-      // 检查响应体是否存在
-      if (!fileStreamRes.body) {
-        return res.status(500).json(fail(ErrorCode.SERVER_ERROR, '文件内容为空'))
-      }
+      // 获取文件名
+      const contentDisposition = fileStreamRes.headers.get('content-disposition')
+      const filename = contentDisposition
+        ? contentDisposition.split('filename=')[1]?.replace(/"/g, '')
+        : `download-${id}.zip`
 
-      // 创建临时zip文件
-      const testZipPath = path.join(os.tmpdir(), `download-${id}-${Date.now()}.zip`)
-      const writeStream = fs.createWriteStream(testZipPath)
+      // 创建临时目录
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'notebook-conversion-'))
+      console.log('Created directories:', {
+        tempDir,
+        extractDir: path.join(tempDir, 'extracted'),
+        pdfDir: path.join(tempDir, 'pdf')
+      })
 
-      // 将响应流写入临时文件
-      const streamReader = fileStreamRes.body.getReader()
       try {
-        while (true) {
-          const { done, value } = await streamReader.read()
-          if (done) break
-          writeStream.write(Buffer.from(value))
-        }
+        // 创建目录结构
+        const extractDir = path.join(tempDir, 'extracted')
+        const pdfDir = path.join(tempDir, 'pdf')
+        fs.mkdirSync(extractDir, { recursive: true })
+        fs.mkdirSync(pdfDir, { recursive: true })
+
+        // 保存文件流到临时文件
+        const tempZipPath = path.join(tempDir, 'input.zip')
+        const writeStream = fs.createWriteStream(tempZipPath)
+        const arrayBuffer = await fileStreamRes.arrayBuffer()
+        writeStream.write(Buffer.from(arrayBuffer))
         writeStream.end()
 
-        // 等待写入完成
+        // 等待文件写入完成
         await new Promise((resolve, reject) => {
           writeStream.on('finish', resolve)
           writeStream.on('error', reject)
         })
-      } catch (error) {
-        console.error('Error saving stream to file:', error)
-        fs.unlinkSync(testZipPath)
-        return res.status(500).json(fail(ErrorCode.SERVER_ERROR, '文件保存失败'))
-      }
 
-      // 创建临时目录用于处理文件
-      const tempDir = await mkdtemp(path.join(os.tmpdir(), 'notebook-conversion-'))
-      const extractDir = path.join(tempDir, 'extracted')
-      const pdfDir = path.join(tempDir, 'pdf')
+        // 解压文件
+        await this.unzip(tempZipPath, extractDir)
 
-      try {
-        // 创建必要的目录
-        await mkdir(extractDir, { recursive: true })
-        await mkdir(pdfDir, { recursive: true })
-        console.log('Created directories:', { extractDir, pdfDir })
-
-        // 解压原始zip文件，跳过 __MACOSX，并记录原始路径
-        const zip = new AdmZip(testZipPath)
-        const entries = zip.getEntries()
-        const notebookPaths = new Map<string, string>() // 记录notebook的原始路径
-
-        entries.forEach(entry => {
-          if (!entry.entryName.startsWith('__MACOSX/') && entry.entryName.endsWith('.ipynb')) {
-            // 保存原始路径信息
-            const extractPath = path.join(extractDir, entry.entryName)
-            notebookPaths.set(extractPath, entry.entryName)
-            // 确保目标目录存在
-            fs.mkdirSync(path.dirname(extractPath), { recursive: true })
-            // 解压文件
-            zip.extractEntryTo(entry, path.dirname(extractPath), false, true)
-          }
-        })
-
-        // 递归查找所有ipynb文件
-        function findIpynbFiles(dir: string): string[] {
-          const files: string[] = []
-          const entries = fs.readdirSync(dir, { withFileTypes: true })
-
-          for (const entry of entries) {
-            if (entry.name === '__MACOSX') {
-              console.log('Skipping __MACOSX directory:', path.join(dir, entry.name))
-              continue
-            }
-
-            const fullPath = path.join(dir, entry.name)
-            if (entry.isDirectory()) {
-              files.push(...findIpynbFiles(fullPath))
-            } else if (entry.isFile() && entry.name.endsWith('.ipynb')) {
-              console.log('Found notebook file:', fullPath)
-              files.push(fullPath)
-            }
-          }
-
-          return files
-        }
-
-        // 转换所有ipynb文件
-        const converter = new NotebookConverter()
-        const ipynbFiles = findIpynbFiles(extractDir)
+        // 查找并处理所有 ipynb 文件
+        const ipynbFiles = this.findIpynbFiles(extractDir)
         console.log('Found ipynb files:', ipynbFiles)
 
+        // 处理每个 ipynb 文件
         for (const inputPath of ipynbFiles) {
-          // 获取原始路径，并基于此创建PDF路径
-          const originalPath = notebookPaths.get(inputPath) || path.relative(extractDir, inputPath)
-          const pdfPath = originalPath.replace('.ipynb', '.pdf')
-          const outputPath = path.join(pdfDir, pdfPath)
-
-          // 确保输出目录存在
-          await mkdir(path.dirname(outputPath), { recursive: true })
-
           console.log('Converting file:', {
             inputPath,
-            outputPath,
-            originalPath,
-            pdfPath
+            pdfPath: path.join(pdfDir, path.relative(extractDir, inputPath).replace('.ipynb', '.pdf')),
+            originalPath: path.relative(extractDir, inputPath),
           })
-          await converter.convertFile(inputPath, outputPath)
-          console.log('Conversion completed for:', originalPath)
-        }
 
-        // 创建新的zip文件包含所有PDF
-        const outputZip = new AdmZip()
+          try {
+            // 先转换 ipynb 文件内容
+            const notebookContent = JSON.parse(fs.readFileSync(inputPath, 'utf8'))
+            const convertedContent = this.convertNotebookContent(notebookContent, inputPath)
+            fs.writeFileSync(inputPath, JSON.stringify(convertedContent, null, 2))
 
-        // 递归添加PDF文件，保持目录结构
-        function addPdfFiles(dir: string, baseDir: string) {
-          const entries = fs.readdirSync(dir, { withFileTypes: true })
-          for (const entry of entries) {
-            const fullPath = path.join(dir, entry.name)
-            if (entry.isDirectory()) {
-              addPdfFiles(fullPath, baseDir)
-            } else if (entry.isFile() && entry.name.endsWith('.pdf')) {
-              // 使用相对于基础目录的路径作为zip中的路径
-              const relativePath = path.relative(baseDir, fullPath)
-              console.log('Adding to zip:', {
-                file: fullPath,
-                relativePath,
-                size: fs.statSync(fullPath).size
-              })
-              outputZip.addLocalFile(fullPath, path.dirname(relativePath))
-            }
+            // 获取原始路径，并基于此创建PDF路径
+            const relativePath = path.relative(extractDir, inputPath)
+            const pdfPath = path.join(pdfDir, relativePath.replace('.ipynb', '.pdf'))
+
+            // 确保输出目录存在
+            fs.mkdirSync(path.dirname(pdfPath), { recursive: true })
+
+            console.log('PDF conversion paths:', {
+              inputPath,
+              relativePath,
+              pdfPath,
+              pdfDir
+            })
+
+            // 转换为 PDF
+            const converter = new NotebookConverter()
+            await converter.convertFile(inputPath, pdfPath)
+          } catch (error) {
+            console.error('Error processing notebook file:', inputPath, error)
           }
         }
 
-        addPdfFiles(pdfDir, pdfDir)
+        // 创建输出 zip 文件
+        const outputZipPath = path.join(tempDir, 'output.zip')
+        await this.zipDirectory(pdfDir, outputZipPath)
+        const stats = fs.statSync(outputZipPath)
+        console.log('Created output zip:', outputZipPath, 'Size:', stats.size)
 
-        // 将zip写入临时文件
-        const tempZipPath = path.join(tempDir, 'output.zip')
-        outputZip.writeZip(tempZipPath)
-        console.log('Created output zip:', tempZipPath, 'Size:', fs.statSync(tempZipPath).size)
+        // 发送文件
+        res.setHeader('Content-Type', 'application/zip')
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+        fs.createReadStream(outputZipPath).pipe(res)
 
-        // 创建新的响应对象
-        const convertedZipStream = fs.createReadStream(tempZipPath)
-        const responseBody = new ReadableStream({
-          start(controller) {
-            convertedZipStream.on('data', (chunk) => {
-              controller.enqueue(chunk)
-            })
-            convertedZipStream.on('end', () => {
-              controller.close()
-              // 清理临时文件
-              fs.rm(tempDir, { recursive: true, force: true }, (err) => {
-                if (err) console.error('Error cleaning up temp files:', err)
-              })
-              fs.unlink(testZipPath, (err) => {
-                if (err) console.error('Error cleaning up temp zip file:', err)
-              })
-            })
-            convertedZipStream.on('error', (error) => {
-              controller.error(error)
-              // 清理临时文件
-              fs.rm(tempDir, { recursive: true, force: true }, (err) => {
-                if (err) console.error('Error cleaning up temp files:', err)
-              })
-              fs.unlink(testZipPath, (err) => {
-                if (err) console.error('Error cleaning up temp zip file:', err)
-              })
-            })
+        // 清理临时文件
+        res.on('finish', () => {
+          try {
+            fs.rmSync(tempDir, { recursive: true, force: true })
+          } catch (error) {
+            console.error('Error cleaning up temp directory:', error)
           }
         })
-
-        // 创建新的响应头
-        const responseHeaders = new Map(fileStreamRes.headers)
-        responseHeaders.set('content-disposition', `attachment; filename="converted-${id}.zip"`)
-
-        // 将文件流传递给响应对象
-        const fileStream = responseBody
-
-        // 将文件流传递给响应对象
-        const reader = fileStream.getReader()
-        const stream = new ReadableStream({
-          start(controller) {
-            // 每次读取文件流
-            function push() {
-              reader
-                .read()
-                .then(({ done, value }) => {
-                  if (done) {
-                    controller.close() // 完成时关闭流
-                    res.end() // 结束响应
-                    return
-                  }
-                  controller.enqueue(value) // 将块写入可写流
-                  push() // 继续读取
-                })
-                .catch((err) => {
-                  console.error('Error reading file stream:', err)
-                  res.status(500).json(fail(ErrorCode.SERVER_ERROR, '文件流读取失败'))
-                })
-            }
-            push()
-          },
-        })
-
-        // 通过 Web Streams API 将内容写入响应
-        await stream.pipeTo(
-          new WritableStream({
-            write(chunk) {
-              res.write(chunk)
-            },
-            close() {
-              res.end()
-            },
-          })
-        )
       } catch (error) {
         // 清理临时文件
-        fs.rm(tempDir, { recursive: true, force: true }, (err) => {
-          if (err) console.error('Error cleaning up temp files:', err)
-        })
+        try {
+          fs.rmSync(tempDir, { recursive: true, force: true })
+        } catch (cleanupError) {
+          console.error('Error cleaning up temp directory:', cleanupError)
+        }
         throw error
       }
-
     } catch (error) {
-      console.error('Error handling download:', error)
-      res.status(500).json(fail(ErrorCode.SERVER_ERROR, '下载处理失败'))
+      console.error('Error in download:', error)
+      return res.status(500).json(fail(ErrorCode.SERVER_ERROR, '下载文件失败'))
     }
   }
+
+  // 转换 ipynb 文件内容，将 outputs 内容转换到 source
+  private convertNotebookContent(notebookContent: any, inputPath: string) {
+    if (!notebookContent.cells) return notebookContent;
+
+    // 创建图片目录
+    const notebookDir = path.dirname(inputPath);
+    const imagesDir = path.join(notebookDir, 'images');
+    fs.mkdirSync(imagesDir, { recursive: true });
+
+    // 过滤掉 sql 类型的 cell
+    notebookContent.cells = notebookContent.cells
+      .filter((cell: any) => cell.cell_type !== 'sql')
+      .map((cell: any, cellIndex: number) => {
+        // 处理 markdown/rich_text 类型的 cell
+        if (cell.cell_type === 'markdown' || cell.cell_type === 'rich_text') {
+          // 如果有 outputs 且包含 markdown 数据，使用它
+          if (cell.outputs?.length > 0) {
+            const output = cell.outputs[0];
+            if (output?.data?.['text/markdown']) {
+              cell.source = output.data['text/markdown'];
+            }
+          }
+
+          // 确保 source 是字符串数组
+          if (typeof cell.source === 'string') {
+            cell.source = [cell.source];
+          } else if (Array.isArray(cell.source)) {
+            cell.source = cell.source.map((item: any) =>
+              typeof item === 'string' ? item : String(item)
+            );
+          } else if (!cell.source) {
+            cell.source = [];
+          }
+
+          // 处理 source 中的 base64 图片
+          cell.source = cell.source.map((source: string) => {
+            return source.replace(
+              /!\[([^\]]*)\]\((data:image\/([^;]+);base64,([^)]+))\)/g,
+              (match: string, altText: string, dataUrl: string, imageType: string, base64Data: string) => {
+                try {
+                  // 清理 base64 数据
+                  base64Data = base64Data.replace(/[\s\n]/g, '');
+                  if (base64Data.length < 10) {
+                    console.warn('Skipping invalid base64 image data');
+                    return match;
+                  }
+
+                  const imageFileName = `image_${cellIndex}_${Date.now()}.${imageType}`;
+                  const imagePath = path.join(imagesDir, imageFileName);
+
+                  try {
+                    // 解码并保存图片
+                    const imageBuffer = Buffer.from(base64Data, 'base64');
+                    fs.writeFileSync(imagePath, imageBuffer);
+
+                    // 检查文件是否有效
+                    const stats = fs.statSync(imagePath);
+                    if (stats.size === 0) {
+                      console.warn('Generated empty image file, skipping');
+                      fs.unlinkSync(imagePath);
+                      return match;
+                    }
+
+                    // 返回 LaTeX 格式的图片引用
+                    return `\\begin{figure}[H]
+                            \\centering
+                            \\includegraphics[max width=\\textwidth, max height=0.7\\textheight]{images/${imageFileName}}
+                            ${altText ? `\\caption{${altText}}` : ''}
+                            \\end{figure}`;
+                  } catch (error) {
+                    console.error('Error saving image:', error);
+                    return match;
+                  }
+                } catch (error) {
+                  console.error('Error processing base64 image:', error);
+                  return match;
+                }
+              }
+            );
+          });
+
+          cell.cell_type = 'markdown';
+          return cell;
+        }
+
+        // 处理 code 类型的 cell
+        if (cell.cell_type === 'code') {
+          // 如果没有 outputs，直接返回
+          if (!cell.outputs || cell.outputs.length === 0) return cell;
+
+          // 处理文本输出
+          const textOutput = cell.outputs.find((o: any) => o.name === 'stdout');
+          if (textOutput?.text) {
+            cell.source = Array.isArray(textOutput.text) ? textOutput.text : [textOutput.text];
+          }
+
+          // 处理图片输出
+          const imageOutputs = cell.outputs.filter((o: any) =>
+            o.data && (
+              o.data['image/png'] ||
+              o.data['image/jpeg'] ||
+              o.data['image/jpg'] ||
+              o.data['image/gif']
+            )
+          );
+
+          if (imageOutputs.length > 0) {
+            // 创建一个新的 markdown cell 来显示图片
+            const imageCell = {
+              cell_type: 'markdown',
+              metadata: {},
+              source: imageOutputs.map((output: any) => {
+                try {
+                  // 获取图片数据和类型
+                  const imageType = Object.keys(output.data).find(key => key.startsWith('image/'))?.split('/')[1];
+                  if (!imageType) return '';
+
+                  const base64Data = output.data[`image/${imageType}`];
+                  if (!base64Data || base64Data.length < 10) {
+                    console.warn('Invalid base64 image data');
+                    return '';
+                  }
+
+                  const imageFileName = `image_${cellIndex}_${Date.now()}.${imageType}`;
+                  const imagePath = path.join(imagesDir, imageFileName);
+
+                  try {
+                    // 解码并保存图片
+                    const imageBuffer = Buffer.from(base64Data, 'base64');
+                    fs.writeFileSync(imagePath, imageBuffer);
+
+                    // 检查文件是否有效
+                    const stats = fs.statSync(imagePath);
+                    if (stats.size === 0) {
+                      console.warn('Generated empty image file, skipping');
+                      fs.unlinkSync(imagePath);
+                      return '';
+                    }
+
+                    // 返回 LaTeX 格式的图片引用
+                    return `\\begin{figure}[H]
+                            \\centering
+                            \\includegraphics[max width=\\textwidth, max height=0.7\\textheight]{images/${imageFileName}}
+                            \\end{figure}`;
+                  } catch (error) {
+                    console.error('Error saving image:', error);
+                    return '';
+                  }
+                } catch (error) {
+                  console.error('Error processing base64 image:', error);
+                  return '';
+                }
+              }).filter(Boolean)  // 移除空字符串
+            };
+
+            // 只有当有有效的图片时才返回 imageCell
+            if (imageCell.source.length > 0) {
+              return [cell, imageCell];
+            }
+          }
+        }
+
+        return cell;
+      });
+
+    // 展平数组，因为 map 可能返回数组（当处理包含图片的 code cell 时）
+    notebookContent.cells = notebookContent.cells.flat();
+
+    // 确保所有 cell 的 source 都是字符串数组
+    notebookContent.cells = notebookContent.cells.map((cell: any) => {
+      if (Array.isArray(cell.source)) {
+        // 如果 source 是数组，确保其中的每个元素都是字符串
+        cell.source = cell.source.map((item: any) =>
+          typeof item === 'string' ? item : String(item)
+        );
+      } else if (cell.source) {
+        // 如果 source 不是数组，将其转换为字符串数组
+        cell.source = [String(cell.source)];
+      } else {
+        // 如果 source 不存在，设置为空数组
+        cell.source = [];
+      }
+      return cell;
+    });
+
+    return notebookContent;
+  }
+
+  // 递归查找所有ipynb文件
+  private findIpynbFiles(dir: string): string[] {
+    const files: string[] = []
+    const entries = fs.readdirSync(dir, { withFileTypes: true })
+
+    for (const entry of entries) {
+      if (entry.name === '__MACOSX') {
+        console.log('Skipping __MACOSX directory:', path.join(dir, entry.name))
+        continue
+      }
+
+      const fullPath = path.join(dir, entry.name)
+      if (entry.isDirectory()) {
+        files.push(...this.findIpynbFiles(fullPath))
+      } else if (entry.isFile() && entry.name.endsWith('.ipynb')) {
+        console.log('Found notebook file:', fullPath)
+        files.push(fullPath)
+      }
+    }
+
+    return files
+  }
+
   async getYDoc(chatId: string, req: Request): Promise<WSSharedDocV2> {
     const userId = req.session!.user.id
 
@@ -641,7 +760,7 @@ export class RunAllController {
   async uploadCode(yDoc: WSSharedDocV2, chatId: string, userId: string, jobId: string) {
 
     const notebook = convertYjsDocumentToNotebook(yDoc.blocks, yDoc.layout)
-    const ossPath = join('chat/', chatId, '/', chatId)
+    const ossPath = join('chat/', chatId, '/', uuidv4())
     const result = await saveNotebookToOSS(notebook, ossPath)
     if (result) {
       try {
@@ -667,19 +786,77 @@ export class RunAllController {
 
   }
 
+  private async unzip(zipPath: string, extractDir: string) {
+    const zip = new AdmZip(zipPath)
+    const entries = zip.getEntries()
+    for (const entry of entries) {
+      if (!entry.entryName.startsWith('__MACOSX/')) {
+        const extractPath = path.join(extractDir, entry.entryName)
+        // 确保目标目录存在
+        fs.mkdirSync(path.dirname(extractPath), { recursive: true })
+        // 解压文件
+        zip.extractEntryTo(entry, path.dirname(extractPath), false, true)
+      }
+    }
+  }
 
+  private async zipDirectory(sourceDir: string, outputZipPath: string) {
+    const zip = new AdmZip()
+    const files = await this.getFiles(sourceDir)
 
-  // async download(req: Request, res: Response) {
-  // try {
-  //   // 文件路径（可根据需求动态生成）
-  //   const { id } = req.query
-  //   if (!id) {
-  //     return res.status(400).json({ message: '参数不正确，缺少下载全量记录的id' });
-  //   }
-  //   const idNum = Number(id)
-  //   if (isNaN(idNum)) {
-  //     return res.status(400).json({ message: '参数不正确，缺少下载全量记录的id' });
-  //   }
+    // 记录已添加的文件路径，用于去重
+    const addedPaths = new Set<string>()
+
+    for (const file of files) {
+      // 获取相对于源目录的路径
+      const relativePath = path.relative(sourceDir, file)
+
+      // 跳过不在子目录中的文件
+      if (!relativePath.includes(path.sep)) {
+        console.log('Skipping file not in subdirectory:', relativePath)
+        continue
+      }
+
+      // 跳过已添加的路径
+      if (addedPaths.has(relativePath)) {
+        console.log('Skipping duplicate file:', relativePath)
+        continue
+      }
+
+      console.log('Adding file to zip:', {
+        file,
+        relativePath,
+        targetPath: path.dirname(relativePath),
+        size: fs.statSync(file).size
+      })
+
+      // 添加文件到zip
+      zip.addLocalFile(file, path.dirname(relativePath))
+      addedPaths.add(relativePath)
+    }
+
+    zip.writeZip(outputZipPath)
+    console.log('Zip file created:', {
+      path: outputZipPath,
+      size: fs.statSync(outputZipPath).size,
+      files: Array.from(addedPaths)
+    })
+  }
+
+  private async getFiles(dir: string): Promise<string[]> {
+    const files: string[] = []
+    const entries = fs.readdirSync(dir, { withFileTypes: true })
+
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name)
+      if (entry.isDirectory()) {
+        files.push(...await this.getFiles(fullPath))
+      } else if (entry.isFile() && entry.name.endsWith('.pdf')) { // 只添加 PDF 文件
+        files.push(fullPath)
+      }
+    }
+
+    return files
+  }
 
 }
-
