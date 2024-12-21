@@ -245,9 +245,12 @@ export default function SchemaList(props: IProps) {
                         </Tooltip>
                         <Tooltip>
                           <TooltipTrigger>
-                            <div className={styles.name}>{item.tableName}</div>
+                            <div
+                              className={
+                                styles.name
+                              }>{`${item.schemaName ? `${item.schemaName}.` : ''}${item.tableName}`}</div>
                           </TooltipTrigger>
-                          <TooltipContent>{item.tableName}</TooltipContent>
+                          <TooltipContent>{`${item.schemaName ? `${item.schemaName}.` : ''}${item.tableName}`}</TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
                     </div>
@@ -295,7 +298,7 @@ export default function SchemaList(props: IProps) {
                 className="max-w-[800px]"
                 aria-describedby="alert-dialog-description">
                 <AlertDialogTitle>
-                  {`${selectedItem.tableName}${selectedItem.cnName ? `(${selectedItem.cnName})` : ''}`}
+                  {`${selectedItem.schemaName ? `${selectedItem.schemaName}.` : ''}${selectedItem.tableName}${selectedItem.cnName ? `(${selectedItem.cnName})` : ''}`}
                 </AlertDialogTitle>
                 <div id="alert-dialog-description" className="space-y-4">
                   <AlertDialogDescription asChild>
