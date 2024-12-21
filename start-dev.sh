@@ -20,7 +20,7 @@ if [ ! -f ./apps/api/.env ]; then
   echo "POSTGRES_PORT=5432" >> ./apps/api/.env
   echo "AI_AGENT_URL=http://192.168.31.23:8666" >> ./apps/api/.env
   echo "ROOT_DIR=/opt/mindflow/" >> ./apps/api/.env
-  echo "ENDPOINT=http://192.168.31.14:19000" >> ./apps/api/.env
+  echo "OSS_ENDPOINT=http://192.168.31.14:19000" >> ./apps/api/.env
   echo "OSS_AK=dhGORiDGwvyrEPav" >> ./apps/api/.env
   echo "OSS_SK=WkKJeBTWCWz4MjQHa51X" >> ./apps/api/.env
   echo "OSS_BUCKET=lc-debug-bucket" >> ./apps/api/.env
