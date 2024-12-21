@@ -46,6 +46,11 @@ export function run_cell_request_code(chatId: string, cellId: string, userId: st
 import time
 import requests
 import redis
+import json
+import javaobj.v2 as javaobj  # 使用 javaobj-py3 库
+import base64
+from IPython.display import display, Image
+from io import BytesIO
 
 # HTTP 请求的目标 URL 和 Redis 服务器配置
 HTTP_URL = "${process.env['MANAGER_URL']}" # 替换为实际的 HTTP 请求 URL
@@ -58,7 +63,12 @@ try:
 except NameError:
     redis_client = None
 if not redis_client:
-    redis_client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, password=REDIS_PASSWORD, db=0)
+    redis_client = redis.Redis(
+        host=REDIS_HOST,
+        port=REDIS_PORT,
+        password=REDIS_PASSWORD,
+        db=0
+    )
 # 轮询间隔时间（秒）
 POLL_INTERVAL = 5
 
@@ -130,8 +140,30 @@ def get_job_status(job_id: str):
                 if len(list) > 0:
                     status = list[0]['runStatus']
                     if status == 2:
+                         # 测试连接
+                        redis_client.ping()
+
+                        # 获取 Redis 数据
                         outputs = redis_client.get(REDIS_KEY)
-                        if not outputs:
+                        
+                        if outputs:
+                            obj = javaobj.loads(outputs)
+                            if hasattr(obj, 'outputs'):
+                                outputs_value = obj.outputs  # 假设 obj.outputs 是你需要的字段
+                                for index, value in enumerate(outputs_value):
+                                    str_value=str(value)
+                                    value_obj=json.loads(str_value)
+                                    img_data = value_obj['data']['image/png']
+                                    img_bytes = base64.b64decode(img_data)
+
+                                    # 将字节数据转换为图像
+                                    img = Image(data=img_bytes)
+
+                                    # 显示图像
+                                    display(img)
+                            else:
+                                print("No 'outputs' field found in the deserialized object.")
+
                             return outputs
                         else:
                             return
