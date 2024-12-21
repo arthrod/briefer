@@ -457,7 +457,7 @@ export class RunAllController {
           try {
             // 先转换 ipynb 文件内容
             const notebookContent = JSON.parse(fs.readFileSync(inputPath, 'utf8'));
-            const convertedContent = this.convertNotebookContent(notebookContent);
+            const convertedContent = this.convertNotebookContent(notebookContent, inputPath);
             fs.writeFileSync(inputPath, JSON.stringify(convertedContent, null, 2));
 
             // 获取原始路径，并基于此创建PDF路径
@@ -601,43 +601,187 @@ export class RunAllController {
   }
 
   // 转换 ipynb 文件内容，将 outputs 内容转换到 source
-  private convertNotebookContent(notebookContent: any) {
+  private convertNotebookContent(notebookContent: any, inputPath: string) {
     if (!notebookContent.cells) return notebookContent;
+
+    // 创建图片目录
+    const notebookDir = path.dirname(inputPath);
+    const imagesDir = path.join(notebookDir, 'images');
+    fs.mkdirSync(imagesDir, { recursive: true });
     
     // 过滤掉 sql 类型的 cell
     notebookContent.cells = notebookContent.cells
       .filter((cell: any) => cell.cell_type !== 'sql')
-      .map((cell: any) => {
-        // 如果没有 outputs 或者是空数组，直接返回原 cell
-        if (!cell.outputs || cell.outputs.length === 0) return cell;
-
-        if (cell.cell_type === 'rich_text') {
-          const output = cell.outputs[0];
-          // 只有当存在 text/markdown 数据时才进行替换
-          if (output?.data?.['text/markdown']) {
-            return {
-              ...cell,
-              source: [output.data['text/markdown']],
-              cell_type: 'markdown'
-            };
+      .map((cell: any, cellIndex: number) => {
+        // 处理 markdown/rich_text 类型的 cell
+        if (cell.cell_type === 'markdown' || cell.cell_type === 'rich_text') {
+          // 如果有 outputs 且包含 markdown 数据，使用它
+          if (cell.outputs?.length > 0) {
+            const output = cell.outputs[0];
+            if (output?.data?.['text/markdown']) {
+              cell.source = output.data['text/markdown'];
+            }
           }
+
+          // 确保 source 是字符串数组
+          if (typeof cell.source === 'string') {
+            cell.source = [cell.source];
+          } else if (Array.isArray(cell.source)) {
+            cell.source = cell.source.map((item: any) => 
+              typeof item === 'string' ? item : String(item)
+            );
+          } else if (!cell.source) {
+            cell.source = [];
+          }
+
+          // 处理 source 中的 base64 图片
+          cell.source = cell.source.map((source: string) => {
+            return source.replace(
+              /!\[([^\]]*)\]\((data:image\/([^;]+);base64,([^)]+))\)/g,
+              (match: string, altText: string, dataUrl: string, imageType: string, base64Data: string) => {
+                try {
+                  // 清理 base64 数据
+                  base64Data = base64Data.replace(/[\s\n]/g, '');
+                  if (base64Data.length < 10) {
+                    console.warn('Skipping invalid base64 image data');
+                    return match;
+                  }
+
+                  const imageFileName = `image_${cellIndex}_${Date.now()}.${imageType}`;
+                  const imagePath = path.join(imagesDir, imageFileName);
+
+                  try {
+                    // 解码并保存图片
+                    const imageBuffer = Buffer.from(base64Data, 'base64');
+                    fs.writeFileSync(imagePath, imageBuffer);
+
+                    // 检查文件是否有效
+                    const stats = fs.statSync(imagePath);
+                    if (stats.size === 0) {
+                      console.warn('Generated empty image file, skipping');
+                      fs.unlinkSync(imagePath);
+                      return match;
+                    }
+
+                    // 返回 LaTeX 格式的图片引用
+                    return `\\begin{figure}[H]
+                            \\centering
+                            \\includegraphics[width=\\textwidth]{images/${imageFileName}}
+                            ${altText ? `\\caption{${altText}}` : ''}
+                            \\end{figure}`;
+                  } catch (error) {
+                    console.error('Error saving image:', error);
+                    return match;
+                  }
+                } catch (error) {
+                  console.error('Error processing base64 image:', error);
+                  return match;
+                }
+              }
+            );
+          });
+
+          cell.cell_type = 'markdown';
+          return cell;
         }
 
-        // 处理 code 类型
+        // 处理 code 类型的 cell
         if (cell.cell_type === 'code') {
-          const output = cell.outputs[0];
-          // 只有当存在 text 数据时才进行替换
-          if (output?.data?.['text']) {
-            return {
-              ...cell,
-              source: [output.data['text']]
-            }
+          // 如果没有 outputs，直接返回
+          if (!cell.outputs || cell.outputs.length === 0) return cell;
+
+          // 处理文本输出
+          const textOutput = cell.outputs.find((o: any) => o.name === 'stdout');
+          if (textOutput?.text) {
+            cell.source = Array.isArray(textOutput.text) ? textOutput.text : [textOutput.text];
+          }
+
+          // 处理图片输出
+          const imageOutputs = cell.outputs.filter((o: any) => 
+            o.data && (
+              o.data['image/png'] ||
+              o.data['image/jpeg'] ||
+              o.data['image/jpg'] ||
+              o.data['image/gif']
+            )
+          );
+
+          if (imageOutputs.length > 0) {
+            // 创建一个新的 markdown cell 来显示图片
+            const imageCell = {
+              cell_type: 'markdown',
+              metadata: {},
+              source: imageOutputs.map((output: any) => {
+                try {
+                  // 获取图片数据和类型
+                  const imageType = Object.keys(output.data).find(key => key.startsWith('image/'))?.split('/')[1];
+                  if (!imageType) return '';
+                  
+                  const base64Data = output.data[`image/${imageType}`];
+                  if (!base64Data || base64Data.length < 10) {
+                    console.warn('Invalid base64 image data');
+                    return '';
+                  }
+
+                  const imageFileName = `image_${cellIndex}_${Date.now()}.${imageType}`;
+                  const imagePath = path.join(imagesDir, imageFileName);
+
+                  try {
+                    // 解码并保存图片
+                    const imageBuffer = Buffer.from(base64Data, 'base64');
+                    fs.writeFileSync(imagePath, imageBuffer);
+
+                    // 检查文件是否有效
+                    const stats = fs.statSync(imagePath);
+                    if (stats.size === 0) {
+                      console.warn('Generated empty image file, skipping');
+                      fs.unlinkSync(imagePath);
+                      return '';
+                    }
+
+                    // 返回 LaTeX 格式的图片引用
+                    return `\\begin{figure}[H]
+                            \\centering
+                            \\includegraphics[width=\\textwidth]{images/${imageFileName}}
+                            \\end{figure}`;
+                  } catch (error) {
+                    console.error('Error saving image:', error);
+                    return '';
+                  }
+                } catch (error) {
+                  console.error('Error processing base64 image:', error);
+                  return '';
+                }
+              })
+            };
+
+            // 返回两个 cell：原始的 code cell 和新的图片 cell
+            return [cell, imageCell];
           }
         }
         
-        // 如果没有满足替换条件，返回原 cell
         return cell;
       });
+
+    // 展平数组，因为 map 可能返回数组（当处理包含图片的 code cell 时）
+    notebookContent.cells = notebookContent.cells.flat();
+
+    // 确保所有 cell 的 source 都是字符串数组
+    notebookContent.cells = notebookContent.cells.map((cell: any) => {
+      if (Array.isArray(cell.source)) {
+        // 如果 source 是数组，确保其中的每个元素都是字符串
+        cell.source = cell.source.map((item: any) => 
+          typeof item === 'string' ? item : String(item)
+        );
+      } else if (cell.source) {
+        // 如果 source 不是数组，将其转换为字符串数组
+        cell.source = [String(cell.source)];
+      } else {
+        // 如果 source 不存在，设置为空数组
+        cell.source = [];
+      }
+      return cell;
+    });
 
     return notebookContent;
   }
@@ -719,19 +863,5 @@ export class RunAllController {
     }
 
   }
-
-
-
-  // async download(req: Request, res: Response) {
-  // try {
-  //   // 文件路径（可根据需求动态生成）
-  //   const { id } = req.query
-  //   if (!id) {
-  //     return res.status(400).json({ message: '参数不正确，缺少下载全量记录的id' });
-  //   }
-  //   const idNum = Number(id)
-  //   if (isNaN(idNum)) {
-  //     return res.status(400).json({ message: '参数不正确，缺少下载全量记录的id' });
-  //   }
 
 }
