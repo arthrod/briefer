@@ -330,7 +330,9 @@ function PrivateDocumentPageInner(
               yDoc={yDoc}
               primary={props.isApp}
               createSuccess={() => {
-                onToggleRunAll();
+                if (selectedSidebar?._tag !== 'runAll') {
+                  onToggleRunAll();
+                }
                 runAllListRef.current?.refresh()
               }}
             />
@@ -383,7 +385,7 @@ function PrivateDocumentPageInner(
         </div>
       </div>
     )
-  }, [documentTitle, yDoc, chatList])
+  }, [documentTitle, yDoc, chatList, selectedSidebar])
 
 
   useEffect(() => {
