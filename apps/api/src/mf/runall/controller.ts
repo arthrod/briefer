@@ -675,11 +675,15 @@ export class RunAllController {
               }).filter(Boolean)  // 移除空字符串
             };
 
-            // 只有当有有效的图片时才返回 imageCell
+            // 只有当有有效的图片时才返回新的 markdown cell
             if (imageCell.source.length > 0) {
-              return [cell, imageCell];
+              // 移除原始 cell 中的图片输出，只保留文本输出
+              cell.outputs = cell.outputs.filter((o: any) => o.name === 'stdout');
+              return [imageCell]; // 只返回 imageCell
             }
           }
+
+          return cell;
         }
 
         return cell;
