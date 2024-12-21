@@ -16,7 +16,7 @@ export class OssClient {
     const config: OssConfig = {
       accessKeyId: process.env['OSS_AK'] || '',
       secretAccessKey: process.env['OSS_SK'] || '',
-      endpoint: process.env['ENDPOINT'] || '',
+      endpoint: process.env['OSS_ENDPOINT'] || '',
       bucketName: process.env['OSS_BUCKET'] || '',
     };
 
