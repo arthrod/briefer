@@ -330,7 +330,7 @@ function PrivateDocumentPageInner(
               yDoc={yDoc}
               primary={props.isApp}
               createSuccess={() => {
-                onToggleSchema();
+                onToggleRunAll();
                 runAllListRef.current?.refresh()
               }}
             />
@@ -384,7 +384,7 @@ function PrivateDocumentPageInner(
       </div>
     )
   }, [documentTitle, yDoc, chatList])
-  
+
 
   useEffect(() => {
     props.updateTopBar && props.updateTopBar(topBarContent)
