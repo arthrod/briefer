@@ -722,9 +722,9 @@ async function handleStreamEnd(
             ]);
         }
 
-        // 在发送 [DONE] 之前进行持久化
+        // 在发送 [DONE] 之前进行持久化，但不清理历史记录
         try {
-            await updateTarget.yDoc.persist(true);
+            await updateTarget.yDoc.persist(false);
             logger().info({
                 msg: 'Successfully persisted yDoc state on stream end',
                 data: {
@@ -935,7 +935,7 @@ class ReportStreamProcessor extends BaseStreamProcessor {
     private completeMessage = '';
     private jsonBuffer = '';
     private isCollectingJson = false;
-    private pendingJsonMessage: string | null = null;  // 存储待处理的完整 JSON 消息
+    private pendingJsonMessage: string | null = null;
     private updateTarget: ReportUpdateTarget;
 
     constructor(
@@ -975,13 +975,26 @@ class ReportStreamProcessor extends BaseStreamProcessor {
     protected async handleData(data: string): Promise<boolean> {
         // 如果是 [DONE] 消息，处理待发送的消息（如果有）并结束
         if (data === '[DONE]') {
-            if (this.pendingJsonMessage) {
-                // 处理最后一条消息，但不发送 [NEW_STEP]
-                await handleJsonContent(this.pendingJsonMessage, this.config.res, this.updateTarget, true);
-                this.pendingJsonMessage = null;
+            try {
+                if (this.pendingJsonMessage) {
+                    // 处理最后一条消息，但不发送 [NEW_STEP]
+                    await handleJsonContent(this.pendingJsonMessage, this.config.res, this.updateTarget, true);
+                    this.pendingJsonMessage = null;
+                }
+                await handleStreamEnd(this.config.res, this.updateTarget, this.completeMessage);
+                return true;
+            } catch (error) {
+                logger().error({
+                    msg: 'Error handling stream end',
+                    data: {
+                        error: error instanceof Error ? error.message : 'Unknown error',
+                        chatId: this.config.chatId,
+                        roundId: this.config.roundId
+                    }
+                });
+                await this.handleError(error);
+                return true;
             }
-            await handleStreamEnd(this.config.res, this.updateTarget, this.completeMessage);
-            return true;
         }
 
         try {
@@ -1007,43 +1020,59 @@ class ReportStreamProcessor extends BaseStreamProcessor {
     }
 
     private async processContent(content: string): Promise<void> {
-        // 处理 JSON 开始标记
-        if (content.includes('```json')) {
-            this.isCollectingJson = true;
-            this.jsonBuffer = '';
-            return;
-        }
-
-        // 处理 JSON 结束标记
-        if (this.isCollectingJson && content.includes('```')) {
-            const currentJsonMessage = this.jsonBuffer.trim();  // 清理可能的空白字符
-            this.isCollectingJson = false;
-            this.jsonBuffer = '';
-
-            // 处理之前缓存的消息（如果有）
-            if (this.pendingJsonMessage) {
-                await handleJsonContent(
-                    this.pendingJsonMessage,
-                    this.config.res,
-                    this.updateTarget,
-                    false  // 不是最后一条消息，因为现在有新消息
-                );
-                this.pendingJsonMessage = null;
+        try {
+            // 处理 JSON 开始标记
+            if (content.includes('```json')) {
+                this.isCollectingJson = true;
+                this.jsonBuffer = '';
+                return;
             }
 
-            this.pendingJsonMessage = currentJsonMessage;
-            return;
-        }
+            // 处理 JSON 结束标记
+            if (this.isCollectingJson && content.includes('```')) {
+                const currentJsonMessage = this.jsonBuffer.trim();  // 清理可能的空白字符
+                this.isCollectingJson = false;
+                this.jsonBuffer = '';
 
-        // 收集 JSON 内容
-        if (this.isCollectingJson) {
-            this.jsonBuffer += content;
-            return;
-        }
+                // 处理之前缓存的消息（如果有）
+                if (this.pendingJsonMessage) {
+                    await handleJsonContent(
+                        this.pendingJsonMessage,
+                        this.config.res,
+                        this.updateTarget,
+                        false  // 不是最后一条消息，因为现在有新消息
+                    );
+                    this.pendingJsonMessage = null;
+                }
 
-        // 处理普通文本内容
-        this.completeMessage += content;
-        this.config.res.write(`data: ${content}\n\n`);
+                // 保存当前消息为待处理消息
+                if (currentJsonMessage) {
+                    this.pendingJsonMessage = currentJsonMessage;
+                }
+                return;
+            }
+
+            // 收集 JSON 内容
+            if (this.isCollectingJson) {
+                this.jsonBuffer += content;
+                return;
+            }
+
+            // 处理普通文本内容
+            this.completeMessage += content;
+            this.config.res.write(`data: ${content}\n\n`);
+        } catch (error) {
+            logger().error({
+                msg: 'Error processing content',
+                data: {
+                    error: error instanceof Error ? error.message : 'Unknown error',
+                    chatId: this.config.chatId,
+                    roundId: this.config.roundId,
+                    content: content.substring(0, 100) // 只记录前100个字符
+                }
+            });
+            throw error;
+        }
     }
 
     protected handleAbort(): void {
