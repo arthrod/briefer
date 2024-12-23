@@ -1,10 +1,6 @@
 import * as dfns from 'date-fns'
 import * as Y from 'yjs'
-import {
-  RichTextBlock,
-  duplicateRichTextBlock,
-  getRichTextBlockExecStatus,
-} from './richText.js'
+import { RichTextBlock, duplicateRichTextBlock, getRichTextBlockExecStatus } from './richText.js'
 import {
   SQLBlock,
   duplicateSQLBlock,
@@ -46,10 +42,7 @@ import {
   getDropdownInputBlockExecutedAt,
 } from './dropdownInput.js'
 import { clone } from 'ramda'
-import {
-  DashboardHeaderBlock,
-  duplicateDashboardHeaderBlock,
-} from './dashboard.js'
+import { DashboardHeaderBlock, duplicateDashboardHeaderBlock } from './dashboard.js'
 import {
   WritebackBlock,
   duplicateWritebackBlock,
@@ -126,7 +119,7 @@ export const requestRun = <B extends YBlock>(
     ? []
     : computeDepencyQueue(block, layout, blocks, environmentStartedAt)
 
-  const queue = dependencies
+  const queue = [block]
   if (!customOnRequestRun) {
     queue.push(block)
   }
@@ -184,10 +177,7 @@ export const setTitle = (block: YBlock, title: string) => {
   block.setAttribute('title', title)
 }
 
-export const getExecStatus = (
-  block: YBlock,
-  blocks: Y.Map<YBlock>
-): ExecStatus =>
+export const getExecStatus = (block: YBlock, blocks: Y.Map<YBlock>): ExecStatus =>
   switchBlockType(block, {
     onPython: getPythonBlockExecStatus,
     onSQL: getSQLBlockExecStatus,
@@ -214,10 +204,7 @@ export const execStatusIsDisabled = (status: ExecStatus): boolean => {
   }
 }
 
-export const getResultStatus = (
-  block: YBlock,
-  blocks: Y.Map<YBlock>
-): ExecStatus =>
+export const getResultStatus = (block: YBlock, blocks: Y.Map<YBlock>): ExecStatus =>
   switchBlockType(block, {
     onPython: getPythonBlockResultStatus,
     onSQL: getSQLBlockResultStatus,
@@ -268,10 +255,11 @@ export type ValueTypes =
   | Uint8Array
   | Y.AbstractType<any>
 
-export function getAttributeOr<
-  B extends { [key: string]: ValueTypes },
-  K extends keyof B & string
->(block: Y.XmlElement<B>, key: K, defaultValue: B[K]): B[K] {
+export function getAttributeOr<B extends { [key: string]: ValueTypes }, K extends keyof B & string>(
+  block: Y.XmlElement<B>,
+  key: K,
+  defaultValue: B[K]
+): B[K] {
   const value = block.getAttribute(key)
   if (value === undefined) {
     block.setAttribute(key, defaultValue)
@@ -287,17 +275,13 @@ function getAttributeOrThrow<B extends Block, K extends keyof B & string>(
 ): B[K] {
   const value = block.getAttribute(key)
   if (value === undefined) {
-    throw new Error(
-      `Block(${block.getAttribute('id')} is missing required attribute ${key}`
-    )
+    throw new Error(`Block(${block.getAttribute('id')} is missing required attribute ${key}`)
   }
 
   return value
 }
 
-export function getBaseAttributes<T extends BlockType>(
-  block: YBlock
-): BaseBlock<T> {
+export function getBaseAttributes<T extends BlockType>(block: YBlock): BaseBlock<T> {
   const id = getAttributeOrThrow(block, 'id')
   const index = getAttributeOr(block, 'index', null)
   const title = getAttributeOr(block, 'title', '')
@@ -361,13 +345,11 @@ export function duplicateBlock(
     onPython: (block) => duplicatePythonBlock(newBlockId, block, options),
     onVisualization: (block) => duplicateVisualizationBlock(newBlockId, block),
     onInput: (block) => duplicateInputBlock(newBlockId, block, blocks),
-    onDropdownInput: (block) =>
-      duplicateDropdownInputBlock(newBlockId, block, blocks),
+    onDropdownInput: (block) => duplicateDropdownInputBlock(newBlockId, block, blocks),
     onDateInput: (block) => duplicateDateInputBlock(newBlockId, block, blocks),
     onRichText: (block) => duplicateRichTextBlock(newBlockId, block),
     onFileUpload: (block) => duplicateFileUploadBlock(newBlockId, block),
-    onDashboardHeader: (block) =>
-      duplicateDashboardHeaderBlock(newBlockId, block),
+    onDashboardHeader: (block) => duplicateDashboardHeaderBlock(newBlockId, block),
     onWriteback: (block) => duplicateWritebackBlock(newBlockId, block, options),
     onPivotTable: (block) =>
       duplicatePivotTableBlock(newBlockId, block, blocks, !duplicatingDocument),
