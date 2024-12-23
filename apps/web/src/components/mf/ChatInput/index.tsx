@@ -18,7 +18,7 @@ interface IProps {
   value?: string
   chatType: ChatType
   loading?: boolean
-  onSend?: (question: string, fileId?: string) => Promise<void>
+  onSend?: (question: string, file?: { id: string; name: string }) => Promise<void>
   onStop?: () => void
 }
 
@@ -34,16 +34,16 @@ const ChatInput = ({
   const [question, setQuestion] = useState('')
   const [disabled, setDisabled] = useState(true)
 
-  const [fileId, setFileId] = useState('')
   const [isOpen, setIsOpen] = useState(false)
+
   const [shake, setShake] = useState(false)
+  const [fileId, setFileId] = useState('')
+  const [uploadFileName, setUploadFileName] = useState('')
+  const [uploadPercent, setUploadPercent] = useState(0)
 
   const questionRef = useRef<HTMLInputElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const xhrRef = useRef<XMLHttpRequest | null>(null)
-
-  const [uploadFileName, setUploadFileName] = useState('')
-  const [uploadPercent, setUploadPercent] = useState(0)
 
   useEffect(() => {
     setDisabled(!question)
@@ -132,7 +132,7 @@ const ChatInput = ({
     }
 
     if (onSend) {
-      onSend(question, fileId)
+      onSend(question, { id: fileId, name: uploadFileName })
         .then(() => {
           setQuestion('')
           if (questionRef.current) {

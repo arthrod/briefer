@@ -67,7 +67,8 @@ interface ChatLayoutContextType {
   startRoundChat: (
     chatId: string,
     msg: string,
-    doneCallback?: (isError: boolean) => void
+    doneCallback?: (isError: boolean) => void,
+    fileName?: string
   ) => Promise<void>
   stopChat: () => Promise<void>
   createChat: (type: ChatType, _fileId?: string) => Promise<HistoryChat>
@@ -143,7 +144,8 @@ export function ChatProvider(props: { children: ReactNode }) {
   const startRoundChat = async (
     chatId: string,
     question: string,
-    doneCallback?: (isError: boolean) => void
+    doneCallback?: (isError: boolean) => void,
+    fileName?: string
   ) => {
     const { id: roundId } = await chatRoundCreateApi(question, chatId)
     const msgId = uuidv4()
@@ -154,8 +156,11 @@ export function ChatProvider(props: { children: ReactNode }) {
     }
     const assistantMsg = createAssistantMsg('')
     assistantMsg.roundId = roundId
-    setRoundList([...roundList, userMsg, assistantMsg])
-
+    const updatedList = [...roundList, userMsg, assistantMsg]
+    if (fileName) {
+      updatedList.unshift({ id: uuidv4(), role: 'user', content: `${fileName}`, file: true })
+    }
+    setRoundList(updatedList)
     sendChat(chatId, roundId, msgId, doneCallback)
   }
 

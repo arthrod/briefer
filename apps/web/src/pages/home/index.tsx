@@ -32,29 +32,35 @@ function HomePage() {
   const workspaceId = workspaces.data[0]?.id || ''
   const [_, { createDocument }] = useDocuments(workspaceId)
 
-  const handleSend = async (msg: string, _fileId?: string) => {
+  const handleSend = async (msg: string, _file?: { id: string; name: string }) => {
     if (loading) {
       return Promise.reject('')
     }
-    if (chatType === 'report' && !_fileId) {
+    if (chatType === 'report' && !_file) {
       showToast('请上传报告模版', 'warning')
       return Promise.reject('noFile')
     }
     setLoading(true)
     try {
       // 创建对话
-      createChat(chatType, _fileId).then((data) => {
-        createRound(data.id, msg, data.workspaceId, data.documentId)
+      createChat(chatType, _file?.id).then((data) => {
+        createRound(data.id, msg, data.workspaceId, data.documentId, _file?.name)
       })
     } finally {
       setLoading(false)
     }
   }
 
-  const createRound = (chatId: string, msg: string, workspaceId?: string, documentId?: string) => {
+  const createRound = (
+    chatId: string,
+    msg: string,
+    workspaceId?: string,
+    documentId?: string,
+    fileName?: string
+  ) => {
     createDocument({ version: 2 })
 
-    startRoundChat(chatId, msg).then(() => {
+    startRoundChat(chatId, msg, undefined, fileName).then(() => {
       if (chatType === 'rag') {
         if (chatInputRef.current) {
           const rect = chatInputRef.current.getBoundingClientRect()
