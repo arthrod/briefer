@@ -27,7 +27,7 @@ function HomePage() {
   const chatInputRef = useRef<HTMLDivElement>(null)
 
   const router = useRouter()
-  const { createChat, startRoundChat } = useChatLayoutContext()
+  const { setRoundList, createChat, startRoundChat } = useChatLayoutContext()
   const [workspaces] = useWorkspaces()
   const workspaceId = workspaces.data[0]?.id || ''
   const [_, { createDocument }] = useDocuments(workspaceId)
@@ -80,6 +80,7 @@ function HomePage() {
 
   useEffect(() => {
     let index = 0
+    setRoundList([])
     setDisplayText('')
     setDisableCursor(false)
     let intervalId = -1

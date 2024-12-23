@@ -56,7 +56,7 @@ const getJobStatusIcon = (status: Status) => {
     case 'success':
       return <JobSuccessIcon></JobSuccessIcon>
     case 'failed':
-      return <div>failed</div>
+      return <StepFailedIcon></StepFailedIcon>
   }
 }
 const getStepStatusIcon = (status: Status) => {
@@ -122,7 +122,7 @@ const ReportStep: React.FC<Props> = ({ jobs }) => {
   useEffect(() => {
     const newJobs = [...jobs]
     renderJobs.forEach((job, index) => {
-      newJobs[index].isCollapsed = !!job.isCollapsed
+      newJobs[index].isCollapsed = !!job?.isCollapsed
     })
     setRenderJobs([...jobs])
   }, [jobs])

@@ -29,6 +29,7 @@ import ChatListBox from '../ChatList'
 import { StepJsonType } from '../ChatDetail/ReportStep'
 import { ChatType } from '../../../../chat'
 import UserAvatar from '../UserAvatar'
+import { getQueryParam } from '@/hooks/useQueryArgs'
 const defaultMsg: MessageContent = { id: '', role: 'system', content: '我是你的AI小助手' }
 
 interface Props {
@@ -77,16 +78,16 @@ interface ChatLayoutContextType {
 
 export const ChatContext = createContext<ChatLayoutContextType | null>(null)
 const sseLoadingMap = new Map<string, boolean>() // 用于AI生成
+
 export function ChatProvider(props: { children: ReactNode }) {
   const [fileInfo, setFileInfo] = useState<FileInfo | null>(null)
   const [chatList, setChatList] = useState<HistoryChat[]>([])
   const [roundList, setRoundList] = useState<MessageContent[]>([])
-  const chatSessions = useRef<ChatSession[]>([])
-
   const [loading, setLoading] = useState(false) // 用于接口发送
 
+  const chatSessions = useRef<ChatSession[]>([])
   const curChatSession = useRef<ChatSession | null>(null)
-
+  const chatIdParam = getQueryParam('chatId')
   const getChatListApi = useChatList()
   const chatStopApi = useChatStop()
   const getChatDetailApi = useChatDetail()
@@ -128,6 +129,7 @@ export function ChatProvider(props: { children: ReactNode }) {
             setFileInfo(file)
             results.unshift({ id: uuidv4(), role: 'user', content: `${file.name}`, file: true })
           }
+          // 用于发送消息后的初始化
           if (lastItem.role === 'assistant') {
             setRoundList([...results])
           }
@@ -152,9 +154,7 @@ export function ChatProvider(props: { children: ReactNode }) {
     }
     const assistantMsg = createAssistantMsg('')
     assistantMsg.roundId = roundId
-    setRoundList((preList) => {
-      return [...preList, userMsg, assistantMsg]
-    })
+    setRoundList([...roundList, userMsg, assistantMsg])
 
     sendChat(chatId, roundId, msgId, doneCallback)
   }
@@ -176,7 +176,7 @@ export function ChatProvider(props: { children: ReactNode }) {
     _chatSession.listener.onopen = () => {}
 
     _chatSession.listener.onerror = () => {
-      updateMsg(msgId, '服务错误', true)
+      // updateMsg(msgId, '服务错误', true)
       sessionReset(chatId)
     }
 
@@ -187,9 +187,7 @@ export function ChatProvider(props: { children: ReactNode }) {
       }
       if (data === '[NEW_STEP]') {
         const assistantMsg = createAssistantMsg('', roundId)
-        setRoundList((preList) => {
-          return [...preList, assistantMsg]
-        })
+        setRoundList([...roundList, assistantMsg])
         return
       }
       if (data === '[DONE]') {
@@ -249,13 +247,13 @@ export function ChatProvider(props: { children: ReactNode }) {
     }
   }
 
-  const getRound = useCallback((roundId: string) => {
+  const getRound = (roundId: string) => {
     for (let i = 0; i < chatSessions.current.length; i++) {
       if (chatSessions.current[i].roundId === roundId) {
         return chatSessions.current[i]
       }
     }
-  }, [])
+  }
 
   const chat = (chatId: string, roundId: string) => {
     const eventSource = new EventSource(
@@ -307,18 +305,30 @@ export function ChatProvider(props: { children: ReactNode }) {
     return chatSession
   }
 
-  const stopChat = useCallback(async (): Promise<void> => {
+  const stopChat = (): Promise<void> => {
+    let chatId: string = ''
+    let roundId: string = ''
     if (curChatSession.current) {
-      const { chatId, roundId } = curChatSession.current
-      return chatStopApi(roundId)
-        .then(() => {
-          sessionReset(chatId)
-        })
-        .catch(() => {
-          showToast('停止失败，请重试', 'error')
-        })
+      const { chatId: cId, roundId: rid } = curChatSession.current
+      chatId = cId
+      roundId = rid
+    } else {
+      chatId = chatIdParam
+      const len = roundList.length - 1
+      const lastRound = roundList[len]
+      roundId = lastRound?.roundId || ''
     }
-  }, [roundList])
+    if (!roundId) {
+      return Promise.reject()
+    }
+    return chatStopApi(roundId)
+      .then(() => {
+        sessionReset(chatId)
+      })
+      .catch(() => {
+        showToast('停止失败，请重试', 'error')
+      })
+  }
 
   return (
     <ChatContext.Provider

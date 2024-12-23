@@ -201,12 +201,9 @@ export default function WorkspaceLayout({ children, pagePath, topBarClassname }:
     setSearchOpen((prev) => !prev)
   })
 
-  const toggleSideBar = useCallback(
-    (state: boolean) => {
-      return () => setSideBarOpen(state)
-    },
-    [setSideBarOpen]
-  )
+  const toggleSideBar = (state: boolean) => {
+    setSideBarOpen(state)
+  }
 
   useEffect(() => {
     const workspace = workspaces.find((w) => w.id === workspaceId)
@@ -280,7 +277,7 @@ export default function WorkspaceLayout({ children, pagePath, topBarClassname }:
             !isSideBarOpen && 'hidden',
             'bg-ceramic-50 hover:bg-ceramic-100 absolute left-0 top-[50%] z-20 flex h-7 w-7 -translate-x-1/2 items-center justify-center rounded-full border border-gray-200 px-0 text-gray-400 hover:cursor-pointer hover:text-gray-600'
           )}
-          onClick={toggleSideBar(false)}>
+          onClick={() => toggleSideBar(false)}>
           <ToggleIcon className="h-4 w-4" />
         </span>
         <div
@@ -294,7 +291,7 @@ export default function WorkspaceLayout({ children, pagePath, topBarClassname }:
                 isSideBarOpen ? 'hidden' : '',
                 'bg-ceramic-50 hover:bg-ceramic-100 relative h-[3.75rem] w-[3.75rem] flex-shrink cursor-pointer text-gray-500'
               )}
-              onClick={toggleSideBar(true)}>
+              onClick={() => toggleSideBar(true)}>
               <ChevronDoubleRightIcon className="absolute left-1/2 top-1/2 h-5 w-5 -translate-x-1/2 -translate-y-1/2" />
             </div>
             {pagePath && <PagePath pages={pagePath} />}
