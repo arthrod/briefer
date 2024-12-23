@@ -36,6 +36,10 @@ function HomePage() {
     if (loading) {
       return Promise.reject('')
     }
+    if (!chatType) {
+      showToast('请选择对话类型', 'warning')
+      return Promise.reject()
+    }
     if (chatType === 'report' && !_file) {
       showToast('请上传报告模版', 'warning')
       return Promise.reject('noFile')
