@@ -106,7 +106,7 @@ def push_success(job_id: str):
         "notebookPath": 'chat/${chatId}/${cellId}'
     }
     headers = {
-        'mf-nodejs-user-id': '76576439-5212-4d59-9cf9-14a688bdeff9'
+        'mf-nodejs-user-id': '${userId}'
     }
     try:
         response = requests.post(HTTP_URL + '/api/nodejs/run-all/push-success', headers=headers,
