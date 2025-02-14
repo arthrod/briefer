@@ -1,3 +1,5 @@
+marimo>=0.6.21 
+jupyter-marimo-proxy
 jupyter_server==2.12.1
 ipykernel==6.27.1
 matplotlib==3.8.2

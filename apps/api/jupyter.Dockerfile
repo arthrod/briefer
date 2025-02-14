@@ -50,11 +50,12 @@ ENV C_INCLUDE_PATH=/usr/include/gdal
 ARG JUPYTER_REQUIREMENTS_FILE=jupyter-requirements.txt
 COPY $JUPYTER_REQUIREMENTS_FILE ./requirements.txt
 
-RUN pip install --upgrade pip
-RUN pip install --no-cache-dir jupyter_server
-RUN pip install --no-cache-dir ipykernel
+RUN pip install uv
+RUN uv pip install --upgrade pip
+RUN uv pip install --no-cache-dir jupyter_server
+RUN uv pip install --no-cache-dir ipykernel
 
-RUN pip install --no-cache-dir -r requirements.txt
+RUN uv pip install --no-cache-dir -r requirements.txt
 
 # jupyter extension
 COPY ./jupyter_briefer_extension /usr/src/jupyter_briefer_extension

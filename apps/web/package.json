@@ -3,10 +3,10 @@
   "version": "0.0.104",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 4000",
-    "build": "next build",
-    "start": "node dist/server.js",
-    "lint": "next lint",
+    "dev": "bunx --bun next dev -p 4000",
+    "build": "bunx --bun next build",
+    "start": "bun dist/server.js",
+    "lint": "bunx --bun next lint",
     "test": "jest --passWithNoTests"
   },
   "dependencies": {
@@ -51,6 +51,7 @@
     "@types/js-cookie": "^3.0.6",
     "@types/react-vega": "^7.0.0",
     "@types/react-window": "^1.8.8",
+    "@types/bun": "latest",
     "@uidotdev/usehooks": "^2.4.1",
     "axios": "^1.6.2",
     "bcrypt": "^5.1.1",
