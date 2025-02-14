@@ -86,6 +86,26 @@ export function decodeAuthToken(token: string) {
   )
 }
 
+/**
+ * Retrieves a session from the provided cookies by decoding an authentication token.
+ *
+ * The function extracts the JWT from the `cookies` object using the key "token". It then decodes this token,
+ * checks if it is expired, and if valid, queries the database to fetch the associated user along with their workspaces.
+ * If the user is found, a session object containing user details (including `loginName`, `phone`, `nickname`, `status`, and `isDeleted`)
+ * and a mapping of the user's workspaces is returned. If any step fails (e.g., missing token, invalid or expired token, or user not found),
+ * the function returns `null`.
+ *
+ * @param cookies - An object representing cookies where the "token" key should contain the JWT.
+ * @returns A promise that resolves to a session object if a valid token is provided and the user exists, or `null` otherwise.
+ *
+ * @example
+ * const session = await sessionFromCookies({ token: "your-jwt-token" });
+ * if (session) {
+ *   console.log("User authenticated:", session.user.email);
+ * } else {
+ *   console.log("Authentication failed, no valid session.");
+ * }
+ */
 export async function sessionFromCookies(
   cookies: Record<string, string>
 ): Promise<Session | null> {
@@ -109,11 +129,15 @@ export async function sessionFromCookies(
       id: true,
       email: true,
       name: true,
+      loginName: true,
       picture: true,
-      lastVisitedWorkspaceId: true,
+      phone: true,
+      nickname: true,
       createdAt: true,
       updatedAt: true,
       workspaces: true,
+      status: true,
+      isDeleted: true,
     },
   })
   if (!user) {
@@ -130,15 +154,35 @@ export async function sessionFromCookies(
       id: user.id,
       email: user.email,
       name: user.name,
+      loginName: user.loginName,
       picture: user.picture,
-      lastVisitedWorkspaceId: user.lastVisitedWorkspaceId,
+      phone: user.phone,
+      nickname: user.nickname,
+      status: user.status,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
+      isDeleted: user.isDeleted,
     },
     userWorkspaces,
   }
 }
 
+/**
+ * Express middleware that authenticates a user by validating the session from cookies and ensuring the user is active.
+ *
+ * The middleware retrieves a session via `sessionFromCookies` and queries the database to fetch the latest user data.
+ * It checks whether the session exists and then verifies that the corresponding user is present, not deleted, and active.
+ * If the validation fails at any step, it clears the token cookie and responds with:
+ * - HTTP 401 if no session is found.
+ * - HTTP 403 if the user is non-existent, disabled (status === 0), or marked as deleted, or if the JWT is invalid.
+ * - HTTP 500 for any unexpected errors during token verification.
+ *
+ * @param req - The Express request object, which should include cookies.
+ * @param res - The Express response object used to send HTTP responses.
+ * @param next - The next middleware function in the Express request-response cycle.
+ *
+ * @returns A Promise that resolves to void. The function either calls `next()` to continue processing or sends an error response.
+ */
 export async function authenticationMiddleware(
   req: Request,
   res: Response,
@@ -147,7 +191,25 @@ export async function authenticationMiddleware(
   try {
     const session = await sessionFromCookies(req.cookies)
     if (!session) {
-      res.status(401).json('Unauthorized')
+      res.status(401).end()
+      return
+    }
+
+    // 检查用户状态
+    const user = await prisma().user.findUnique({
+      where: { 
+        id: session.user.id,
+        isDeleted: false
+      }
+    })
+
+    if (!user || user.status === 0 || user.isDeleted) {
+      res.clearCookie('token')
+      res.status(403).json({
+        code: 403,
+        msg: '用户不存在或已被禁用',
+        data: {}
+      })
       return
     }
 
@@ -156,12 +218,12 @@ export async function authenticationMiddleware(
     next()
   } catch (err) {
     if (err instanceof jwt.JsonWebTokenError) {
-      res.status(403).json('Forbidden')
+      res.status(403).send('Invalid token')
       return
     }
 
     req.log.error({ err }, 'Error verifying token')
-    res.status(500).json('Internal server error')
+    res.status(500).end()
   }
 }
 
@@ -202,6 +264,21 @@ export function canUpdateWorkspace(
   )
 }
 
+/**
+ * Middleware that checks if the current user is authorized to read a specified document.
+ *
+ * This function performs the following steps:
+ * 1. Extracts the document ID from the request parameters.
+ * 2. Validates the document ID, responding with a 400 status if invalid.
+ * 3. Verifies that the user associated with the session is authorized to access the document.
+ *    - If unauthorized, it responds with a 403 status.
+ * 4. On successful authorization, it calls the next middleware in the Express stack.
+ * 5. Catches and logs any errors, sending a 500 status if an exception occurs.
+ *
+ * @param req - The Express request object containing parameters and session data.
+ * @param res - The Express response object used to send HTTP status responses.
+ * @param next - The function to invoke the next middleware in the chain.
+ */
 export async function canReadDocument(
   req: Request,
   res: Response,
@@ -216,7 +293,7 @@ export async function canReadDocument(
 
     const result = await isAuthorizedForDocument(
       documentId,
-      req.session.user.id
+      req.session.user['id']
     )
     if (!result) {
       res.status(403).end()
@@ -318,10 +395,6 @@ export const isAuthorizedForDataSource = async (
     }
     case 'snowflake': {
       const result = await prisma().snowflakeDataSource.findFirst(query)
-      return result !== null
-    }
-    case 'databrickssql': {
-      const result = await prisma().databricksSQLDataSource.findFirst(query)
       return result !== null
     }
   }

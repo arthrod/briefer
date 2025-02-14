@@ -17,7 +17,7 @@ import { logger } from './logger.js'
 import { setupYJSSocketServerV2 } from './yjs/v2/index.js'
 import { runSchedule } from './schedule/index.js'
 import { initUpdateChecker } from './update-checker.js'
-import { startPubSubPayloadCleanup } from './yjs/v2/pubsub/pg.js'
+import mfRouter from './mf/index.js'
 
 const getDBUrl = async () => {
   const username = config().POSTGRES_USERNAME
@@ -37,7 +37,6 @@ const getDBUrl = async () => {
   if (!Number.isNaN(poolTimeout)) {
     query['pool_timeout'] = poolTimeout.toString()
   }
-
   const querystring = qs.stringify(query)
   if (querystring !== '') {
     url = `${url}?${querystring}`
@@ -46,42 +45,43 @@ const getDBUrl = async () => {
   return url
 }
 
+/**
+ * Initializes and starts the Express-based server along with integrated systems such as the database, Socket.IO, scheduled tasks, YJS server, and Jupyter manager.
+ *
+ * This async function performs the following operations:
+ * - Retrieves the PostgreSQL database URL from configuration using `getDBUrl()` and initializes the database.
+ * - Creates an Express application and an HTTP server.
+ * - Sets up a Socket.IO server for real-time communication.
+ * - Initializes scheduled tasks via `runSchedule()` and a YJS socket server using `setupYJSSocketServerV2()`, adding their shutdown procedures to a shutdown handler list.
+ * - Configures middleware for logging (using `pinoHttp`), cookie parsing, CORS (with allowed origins from configuration), and parsing of JSON and URL-encoded bodies.
+ * - Registers routes for:
+ *   - Authentication on `/auth` via `authRouter`
+ *   - Micro-frontend endpoints on `/v1/mf` via `mfRouter` (registered first to handle specific routes)
+ *   - General version 1 API endpoints on `/v1` via `v1Router`
+ * - Defines health check endpoints:
+ *   - `/livez` returns 200 if the server is alive and 503 during shutdown.
+ *   - `/readyz` returns 200 when the server is ready and 503 otherwise.
+ * - Implements an error-handling middleware that logs uncaught errors and responds with a 500 status.
+ * - Starts the server on port 8080.
+ * - Initializes and starts a Jupyter manager, incorporating its shutdown function into the shutdown handler list.
+ * - Sets up a shutdown routine, including a retry loop for clean termination of all integrated services, and registers this routine to run on `SIGTERM` and `SIGINT` signals.
+ *
+ * @async
+ * @returns A promise that resolves once the server is initialized and running. The promise remains pending during runtime as shutdown handlers manage process termination.
+ */
 async function main() {
-  const cfg = config()
   const dbUrl = await getDBUrl()
-
-  const initOptions: db.InitOptions = {
-    connectionString: dbUrl,
-    ssl: false,
-  }
-  if (!cfg.POSTGRES_SSL_DISABLED) {
-    if (
-      cfg.POSTGRES_SSL_CA !== null ||
-      cfg.POSTGRES_SSL_REJECT_UNAUTHORIZED !== null
-    ) {
-      initOptions.ssl = {
-        rejectUnauthorized: cfg.POSTGRES_SSL_REJECT_UNAUTHORIZED ?? undefined,
-        ca: cfg.POSTGRES_SSL_CA ?? undefined,
-      }
-    } else {
-      initOptions.ssl = 'prefer'
-    }
-  }
-
-  db.init(initOptions)
+  db.init(dbUrl)
 
   const app = express()
   const server = http.createServer(app)
 
   let shutdownFunctions: (() => Promise<void> | void)[] = []
-  const socketServer = await createSocketServer(server)
+  const socketServer = createSocketServer(server)
   shutdownFunctions.push(() => socketServer.shutdown())
 
   const stopSchedules = await runSchedule(socketServer.io)
   shutdownFunctions.push(stopSchedules)
-
-  const stopPubSubPayloadCleanup = await startPubSubPayloadCleanup()
-  shutdownFunctions.push(stopPubSubPayloadCleanup)
 
   const yjsServerV2 = setupYJSSocketServerV2(server, socketServer.io)
   shutdownFunctions.push(() => yjsServerV2.shutdown())
@@ -113,8 +113,8 @@ async function main() {
   )
 
   app.use('/auth', authRouter(socketServer.io))
-  app.use('/v1', v1Router(socketServer.io))
-
+  app.use('/v1/mf', mfRouter(socketServer.io))  // 先注册具体路由
+  app.use('/v1', v1Router(socketServer.io))     // 后注册通用路由
   let shuttingDown = false
   app.get('/livez', (_req, res) => {
     if (shuttingDown) {
@@ -147,9 +147,8 @@ async function main() {
     res.end(res.sentry + '\n')
   })
 
-  const port = process.env['PORT'] || 8080
-  server.listen(port, () => {
-    logger().info(`Server is running on port ${port}`)
+  server.listen(8080, () => {
+    logger().info('Server is running on port 8080')
   })
 
   const jupyterManager = getJupyterManager()
@@ -158,7 +157,7 @@ async function main() {
 
   ready = true
 
-  shutdownFunctions.push(await initUpdateChecker())
+  // shutdownFunctions.push(await initUpdateChecker())
 
   let shutdownPromise: Promise<void> | null = null
   async function shutdown() {
