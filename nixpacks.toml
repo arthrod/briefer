@@ -1,5 +1,5 @@
 [phases.setup]
-aptPkgs = ['curl', 'wget', 'git'] 
+aptPkgs = ['curl', 'wget', 'git', 'unzip'] 
 nixPkgs = ['bun']
 [phases.install]
 cmds = [
