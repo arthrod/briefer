@@ -1,0 +1,12 @@
+[install]
+registry = "https://registry.npmjs.org"
+cache-dir = ".bun-cache"
+lockfile = true
+frozenLockfile = true
+[install.scopes]
+briefer = { url = "https://registry.npmjs.org" }
+[install.overrides]
+"y-prosemirror" = "^1.2.11"
+[install.trusted]
+dependencies = ["es5-ext"]
+

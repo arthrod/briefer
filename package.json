@@ -2,7 +2,7 @@
   "name": "briefer",
   "version": "0.0.104",
   "main": "index.js",
-  "repository": "git@github.com:briefercloud/briefer.git",
+  "repository": "git@github.com:/rthrodbriefer.git",
   "private": true,
   "workspaces": ["apps/*", "packages/*"],
   "packageManager": "bun@1.2.2",
@@ -21,6 +21,10 @@
     "postinstall-postinstall": "^2.1.0",
     "prettier": "^2.8.8",
     "turbo": "^1.9.3"
+  },
+  "resolutions": {
+    "y-prosemirror": "^1.2.11",
+    "@tiptap/extension-collaboration": "^2.11.5"
   },
   "trustedDependencies": [
     "es5-ext"
