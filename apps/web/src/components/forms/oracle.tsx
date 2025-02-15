@@ -6,13 +6,20 @@ import { GATEWAY_IP } from '@/utils/info'
 
 import FormError from './formError'
 import Spin from '../Spin'
+import { readFile } from '@/utils/file'
+import FileUploadInput from './FileUploadInput'
 
 export type OracleDataSourceInput = OracleDataSource & {
   password: string
+  additionalInfo?: string
 }
 
-type OracleDataSourceFormValues = OracleDataSourceInput & {
+type OracleDataSourceFormValues = Omit<
+  OracleDataSourceInput,
+  'additionalInfo'
+> & {
   password: string
+  additionalInfo: File
 }
 
 type OracleFormProps = {
@@ -28,9 +35,10 @@ export default function OracleForm({
 }: OracleFormProps) {
   const isEditing = Boolean(oracleDataSource)
 
-  const { register, handleSubmit, formState, reset } =
+  const { register, handleSubmit, formState, reset, control } =
     useForm<OracleDataSourceFormValues>({
       mode: 'onChange',
+      defaultValues: { notes: '' },
     })
 
   useEffect(() => {
@@ -39,7 +47,18 @@ export default function OracleForm({
     }
   }, [oracleDataSource, reset])
 
-  const onSubmitHandler = handleSubmit(onSubmit)
+  const onSubmitHandler = handleSubmit(async (data) => {
+    const additionalInfoFile = data.additionalInfo
+    let additionalInfoContent = undefined as string | undefined
+    if (additionalInfoFile) {
+      additionalInfoContent = await readFile(additionalInfoFile, 'utf-8')
+    }
+
+    onSubmit({
+      ...data,
+      additionalInfo: additionalInfoContent,
+    })
+  })
 
   return (
     <form className="px-4 sm:p-6 lg:p-12" onSubmit={onSubmitHandler} noValidate>
@@ -244,26 +263,28 @@ export default function OracleForm({
               </div>
             </div>
 
-            <div className="col-span-full">
+            <div className="col-span-full pt-8">
               <label
-                htmlFor="notes"
+                htmlFor="additionalInfo"
                 className="block text-sm font-medium leading-6 text-gray-900"
               >
-                Notes
+                AI Additional Context{' '}
+                <span className="pl-1 text-gray-500">(optional)</span>
               </label>
-              <div className="mt-2">
-                <textarea
-                  {...register('notes', { required: false })}
-                  name="notes"
-                  rows={3}
-                  className="block w-full rounded-md border-0 py-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-ceramic-200/70 sm:text-md sm:leading-6"
-                  defaultValue={''}
-                />
-              </div>
-              <p className="mt-3 text-sm leading-6 text-gray-600">
-                Add any notes about this database you may want others to be
-                aware of.
-              </p>
+              <FileUploadInput
+                label={
+                  isEditing
+                    ? 'Upload a new file with additional context for the AI assistant'
+                    : 'Upload a file with additional context for the AI assistant'
+                }
+                subLabel={
+                  isEditing
+                    ? 'this should be a plain text file (.txt, .json, .yaml, .md, etc.) with examples and descriptions - leave empty to keep the current one'
+                    : 'this should be a plain text file (.txt, .json, .yaml, .md, etc.) with examples and descriptions'
+                }
+                control={control}
+                {...register('additionalInfo')}
+              />
             </div>
           </div>
         </div>

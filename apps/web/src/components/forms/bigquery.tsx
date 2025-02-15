@@ -28,6 +28,7 @@ async function validateServiceAccountJson(file: File) {
 
 export type BigQueryDataSourceInput = BigQueryDataSource & {
   serviceAccountKey: string
+  additionalInfo?: string
 }
 
 export type BigQueryDataSourceFormValues = Omit<
@@ -35,6 +36,7 @@ export type BigQueryDataSourceFormValues = Omit<
   'serviceAccountKey'
 > & {
   serviceAccountKey: File
+  additionalInfo: File
 }
 
 type BigQueryFormProps = {
@@ -51,7 +53,10 @@ export default function BigQueryForm({
   const isEditing = Boolean(bigQueryDataSource)
 
   const { register, handleSubmit, formState, reset, control } =
-    useForm<BigQueryDataSourceFormValues>({ mode: 'onChange' })
+    useForm<BigQueryDataSourceFormValues>({
+      mode: 'onChange',
+      defaultValues: { notes: '' },
+    })
 
   useEffect(() => {
     if (bigQueryDataSource) {
@@ -72,10 +77,17 @@ export default function BigQueryForm({
           void err
         }
 
+        const additionalInfoFile = data.additionalInfo
+        let additionalInfoContent = undefined as string | undefined
+        if (additionalInfoFile) {
+          additionalInfoContent = await readFile(additionalInfoFile, 'utf-8')
+        }
+
         await onSubmit({
           ...data,
           name: data.name,
           serviceAccountKey: fileContent,
+          additionalInfo: additionalInfoContent,
           projectId,
           notes: data.notes,
         })
@@ -126,7 +138,7 @@ export default function BigQueryForm({
               </div>
             </div>
 
-            <div className="col-span-full pb-6">
+            <div className="col-span-full">
               <label
                 htmlFor="cover-photo"
                 className="block text-sm font-medium leading-6 text-gray-900"
@@ -153,27 +165,28 @@ export default function BigQueryForm({
                 </span>
               )}
             </div>
-
-            <div className="col-span-full">
+            <div className="col-span-full pt-8">
               <label
-                htmlFor="notes"
+                htmlFor="additionalInfo"
                 className="block text-sm font-medium leading-6 text-gray-900"
               >
-                Notes
+                AI Additional Context{' '}
+                <span className="pl-1 text-gray-500">(optional)</span>
               </label>
-              <div className="mt-2">
-                <textarea
-                  {...register('notes', { required: false })}
-                  name="notes"
-                  rows={3}
-                  className="block w-full rounded-md border-0 py-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-ceramic-200/70 sm:text-md sm:leading-6"
-                  defaultValue={''}
-                />
-              </div>
-              <p className="mt-3 text-sm leading-6 text-gray-600">
-                Add any notes about this data source you may want others to be
-                aware of.
-              </p>
+              <FileUploadInput
+                label={
+                  isEditing
+                    ? 'Upload a new file with additional context for the AI assistant'
+                    : 'Upload a file with additional context for the AI assistant'
+                }
+                subLabel={
+                  isEditing
+                    ? 'this should be a plain text file (.txt, .json, .yaml, .md, etc.) with examples and descriptions - leave empty to keep the current one'
+                    : 'this should be a plain text file (.txt, .json, .yaml, .md, etc.) with examples and descriptions'
+                }
+                control={control}
+                {...register('additionalInfo')}
+              />
             </div>
           </div>
         </div>
