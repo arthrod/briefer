@@ -34,7 +34,7 @@ services:
   jupyter_server:
     image: briefercloud/briefer-jupyter
     labels:
-      cloud.briefer.jupyter-container: true
+      jupyter-container: true
     build:
       context: 'apps/api'
       dockerfile: 'jupyter.Dockerfile'
