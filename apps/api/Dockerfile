@@ -1,6 +1,6 @@
 FROM node:18-slim AS base
 ENV TURBO_TELEMETRY_DISABLED=1
-RUN apt-get update -y && apt-get install -y openssl curl tini && rm -rf /var/lib/apt/lists/*
+RUN apt-get update -y && apt-get install -y openssl curl tini python3 python-is-python3 build-essential && rm -rf /var/lib/apt/lists/*
 
 FROM base AS builder
 WORKDIR /app
@@ -38,7 +38,7 @@ ENTRYPOINT ["tini", "--"]
 CMD ["sh", "-c", "node", "--max-old-space-size=12000", "apps/api/dist/src/index.js"]
 FROM node:18-slim AS base
 ENV TURBO_TELEMETRY_DISABLED=1
-RUN apt-get update -y && apt-get install -y openssl curl tini && rm -rf /var/lib/apt/lists/*
+RUN apt-get update -y && apt-get install -y openssl curl tini python3 python-is-python3 build-essential && rm -rf /var/lib/apt/lists/*
 
 FROM base AS builder
 WORKDIR /app
@@ -74,4 +74,3 @@ USER expressjs
 ENTRYPOINT ["tini", "--"]
 # Add debugging for startup
 CMD ["sh", "node", "--max-old-space-size=12000", "apps/api/dist/src/index.js"]
-
