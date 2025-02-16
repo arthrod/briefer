@@ -73,4 +73,4 @@ RUN chown -R expressjs:expressjs /app/node_modules/@prisma/engines
 USER expressjs
 ENTRYPOINT ["tini", "--"]
 # Add debugging for startup
-CMD ["sh", "node", "--max-old-space-size=12000", "apps/api/dist/src/index.js"]
+CMD ["node", "--max-old-space-size=12000", "apps/api/dist/src/index.js"]
