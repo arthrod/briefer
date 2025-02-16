@@ -83,13 +83,13 @@ services:
     environment:
       NODE_ENV: 'production'
       NEXT_PUBLIC_API_WS_URL: 'ws://api:7730'
-      NEXT_PUBLIC_PUBLIC_URL: 'http://web:7740'
+      NEXT_PUBLIC_PUBLIC_URL: 'http://web:4000'
       NEXT_PUBLIC_API_URL: '/api'
     depends_on:
       api:
         condition: service_healthy
     ports:
-      - '7740:4000'
+      - '4000:4000'
 
   api:
     image: briefercloud/briefer-api
@@ -114,7 +114,7 @@ services:
       POSTGRES_DATABASE: 'briefer'
       NEXT_PUBLIC_API_URL: '/api'
       NEXT_PUBLIC_API_WS_URL: 'ws://api:7730'
-      NEXT_PUBLIC_PUBLIC_URL: 'http://web:7740'
+      NEXT_PUBLIC_PUBLIC_URL: 'http://web:4000'
       ENVIRONMENT_VARIABLES_ENCRYPTION_KEY: ${ENVIRONMENT_VARIABLES_ENCRYPTION_KEY:?error}
       WORKSPACE_SECRETS_ENCRYPTION_KEY: ${WORKSPACE_SECRETS_ENCRYPTION_KEY:?error}
       DATASOURCES_ENCRYPTION_KEY: ${DATASOURCES_ENCRYPTION_KEY:?error}
