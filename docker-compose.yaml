@@ -48,12 +48,12 @@ services:
       - jupyter:/home/jupyteruser
     restart: always
     healthcheck:
-      test: ['CMD-SHELL', 'curl -f http://localhost:8888/api || exit 1']
+      test: ['CMD-SHELL', 'curl -f http://localhost:7711/api || exit 1']
       interval: 5s
       timeout: 10s
       retries: 5
     ports:
-      - '7710:8888'
+      - '7710:8000'
       - '7711:7711'
 
   ai:
