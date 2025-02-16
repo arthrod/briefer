@@ -17,7 +17,7 @@ function currentUrl() {
 
 export const NEXT_PUBLIC_API_URL = () => {
   const envUrl = process.env.NEXT_PUBLIC_API_URL || getFromWindow('NEXT_PUBLIC_API_URL')
-  if (envUrl) return envUrl
+  if (envUrl) return envUrl.replace(/\/+$/, '') // Remove trailing slashes but keep the URL exactly as provided
   return `${currentUrl()}/api`
 }
 
