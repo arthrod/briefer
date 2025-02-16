@@ -38,13 +38,15 @@ COPY turbo.json turbo.json
 
 # ARG TURBO_TOKEN
 # ENV TURBO_TOKEN=$TURBO_TOKEN
-ARG NEXT_PUBLIC_API_URL
+
+# Set build-time variables with defaults
+ARG NEXT_PUBLIC_API_URL=/api
+ARG NEXT_PUBLIC_API_WS_URL=ws://localhost:7730
+ARG NEXT_PUBLIC_PUBLIC_URL=http://localhost:7740
+
+# Make them available as environment variables during build
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
-
-ARG NEXT_PUBLIC_API_WS_URL
 ENV NEXT_PUBLIC_API_WS_URL=$NEXT_PUBLIC_API_WS_URL
-
-ARG NEXT_PUBLIC_PUBLIC_URL
 ENV NEXT_PUBLIC_PUBLIC_URL=$NEXT_PUBLIC_PUBLIC_URL
 
 RUN yarn next telemetry disable
@@ -58,6 +60,14 @@ WORKDIR /app
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 USER nextjs
+
+# Copy environment variables from installer stage
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_API_WS_URL
+ARG NEXT_PUBLIC_PUBLIC_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_WS_URL=$NEXT_PUBLIC_API_WS_URL
+ENV NEXT_PUBLIC_PUBLIC_URL=$NEXT_PUBLIC_PUBLIC_URL
 
 COPY --from=installer /app/apps/web/next.config.js .
 COPY --from=installer /app/apps/web/package.json .
