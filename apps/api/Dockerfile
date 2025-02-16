@@ -16,8 +16,14 @@ COPY --from=builder /app/out/yarn.lock ./yarn.lock
 RUN yarn install
 COPY --from=builder /app/out/full/ .
 COPY turbo.json turbo.json
-# Add this to debug the build
-RUN yarn turbo run build --filter=@briefer/api... --debug && ls -la apps/api/dist
+
+# Debug steps
+RUN ls -la
+RUN yarn list cookie
+# Ensure cookie package is installed
+RUN yarn add cookie
+# Build step
+RUN yarn turbo run build --filter=@briefer/api... --verbose
 
 FROM base AS runner
 WORKDIR /app
