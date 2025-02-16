@@ -16,16 +16,11 @@
     "postinstall": "patch-package"
   },
   "devDependencies": {
-    "@types/cookie": "^1.0.0",
     "eslint-config-custom": "*",
     "patch-package": "^8.0.0",
     "postinstall-postinstall": "^2.1.0",
     "prettier": "^2.8.8",
-<<<<<<< Updated upstream
     "turbo": "^1.9.3"
-=======
-    "ts-jest": "^29.2.5",
-    "turbo": "^2.4.2"
   },
   "resolutions": {
     "y-prosemirror": "^1.2.11",
@@ -35,9 +30,5 @@
   },
   "trustedDependencies": [
     "es5-ext"
-  ],
-  "dependencies": {
-    "uuid": "9.0.1"
->>>>>>> Stashed changes
-  }
+  ]
 }
