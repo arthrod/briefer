@@ -25,4 +25,4 @@ while true; do
 done
 
 # Start Nginx
-nginx -g 'daemon off;'
+#nginx -g 'daemon off;'
