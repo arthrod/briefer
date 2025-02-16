@@ -48,13 +48,12 @@ services:
       - jupyter:/home/jupyteruser
     restart: always
     healthcheck:
-      test: ['CMD-SHELL', 'curl -f http://localhost:7711/api || exit 1']
+      test: ['CMD-SHELL', 'curl -f http://localhost:8888/api || exit 1']
       interval: 5s
       timeout: 10s
       retries: 5
     ports:
-      - '7710:8000'
-      - '7711:7711'
+      - '7711:8888'
 
   ai:
     image: briefercloud/briefer-ai
@@ -120,7 +119,7 @@ services:
       WORKSPACE_SECRETS_ENCRYPTION_KEY: ${WORKSPACE_SECRETS_ENCRYPTION_KEY:?error}
       DATASOURCES_ENCRYPTION_KEY: ${DATASOURCES_ENCRYPTION_KEY:?error}
       JUPYTER_HOST: 'jupyter_server'
-      JUPYTER_PORT: 7711
+      JUPYTER_PORT: 8888
       JUPYTER_TOKEN: ${JUPYTER_TOKEN:?error}
     healthcheck:
       test: ['CMD-SHELL', 'curl -f http://localhost:8080/readyz || exit 1']
