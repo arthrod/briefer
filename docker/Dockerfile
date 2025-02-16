@@ -34,6 +34,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Enable the PostgreSQL APT repository
 RUN /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
 # Install the pgvector extension for PostgreSQL
+
+
 RUN apt-get update && apt-get install -y postgresql-15-pgvector && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
@@ -185,10 +187,10 @@ COPY --from=web-installer --chown=briefer:briefer /app/apps/web/start.sh ./apps/
 ##### END OF COPY API AND WEB BUILDS ####
 
 # NGINX
-RUN mkdir -p /var/log/nginx /etc/nginx /etc/nginx/conf.d
-COPY ./nginx/nginx.conf /etc/nginx/nginx.conf
-COPY ./docker/start-nginx.sh /app/start-nginx.sh
-RUN chmod +x /app/start-nginx.sh
+#RUN mkdir -p /var/log/nginx /etc/nginx /etc/nginx/conf.d
+#COPY ./nginx/nginx.conf /etc/nginx/nginx.conf
+#COPY ./docker/start-nginx.sh /app/start-nginx.sh
+#RUN chmod +x /app/start-nginx.sh
 
 
 USER postgres
@@ -211,4 +213,6 @@ COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY docker/init_db.sh /usr/local/bin/init_db.sh
 RUN chmod +x /usr/local/bin/init_db.sh
 
+RUN touch /var/log/supervisor/supervisord.log && \
+    chown briefer:briefer /var/log/supervisor/supervisord.log
 CMD ["supervisord", "-c", "/etc/supervisor/supervisord.conf"]
