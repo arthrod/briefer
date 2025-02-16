@@ -23,7 +23,7 @@ RUN yarn list cookie
 # Ensure cookie package is installed
 RUN yarn add cookie@0.7.1 -W
 # Build step
-RUN yarn turbo run build --filter=@briefer/api... --verbose
+RUN yarn turbo run build --filter=@briefer/api... --verbosity=2
 
 FROM base AS runner
 WORKDIR /app
