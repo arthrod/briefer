@@ -135,7 +135,7 @@ services:
       ai:
         condition: service_healthy
     ports:
-      - '7730:8080'
+      - '8080:8080'
 
 volumes:
   jupyter:
