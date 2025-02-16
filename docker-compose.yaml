@@ -28,7 +28,7 @@ services:
     command: ['npx', 'prisma', 'migrate', 'deploy']
     environment:
       NODE_ENV: 'production'
-      POSTGRES_PRISMA_URL: 'postgresql://${POSTGRES_USERNAME:?error}:${POSTGRES_PASSWORD:?error}@postgres:5432/briefer?schema=public'
+      POSTGRES_PRISMA_URL: 'postgresql://${POSTGRES_USERNAME:?error}:${POSTGRES_PASSWORD:?error}@postgres:5432/briefer?connection_limit=5&pool_timeout=100'
     depends_on:
       postgres:
         condition: service_healthy
