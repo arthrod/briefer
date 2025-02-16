@@ -21,7 +21,7 @@ COPY turbo.json turbo.json
 RUN ls -la
 RUN yarn list cookie
 # Ensure cookie package is installed
-RUN yarn add cookie
+RUN yarn add cookie@0.7.1 -W
 # Build step
 RUN yarn turbo run build --filter=@briefer/api... --verbose
 
