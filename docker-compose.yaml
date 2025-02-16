@@ -125,8 +125,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      db_migration:
-        condition: service_completed_successfully
       jupyter_server:
         condition: service_healthy
         restart: true
