@@ -76,6 +76,8 @@
   "devDependencies": {
     "@jest/globals": "^29.7.0",
     "@types/bcrypt": "^5.0.2",
+    "@types/bun": "latest",
+    "@types/cookie": "^1.0.0",
     "@types/cookie-parser": "^1.4.6",
     "@types/cors": "^2.8.17",
     "@types/d3-format": "^3.0.4",

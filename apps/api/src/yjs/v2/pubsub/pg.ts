@@ -1,11 +1,11 @@
 import pino from 'pino'
-import { IPubSub, MessageYProtocol } from './index.js'
+import { IPubSub, messageYProtocolSchema } from './index.js'
 import prisma, { publish, subscribe } from '@briefer/database'
 import { z } from 'zod'
 import { jsonString, uuidSchema } from '@briefer/types'
 import { logger } from '../../../logger.js'
 
-const PGMessage = MessageYProtocol.omit({ data: true }).extend({
+const PGMessage = messageYProtocolSchema.omit({ data: true }).extend({
   channel: z.string(),
   payloadId: uuidSchema,
 })
@@ -17,7 +17,7 @@ export class PGPubSub implements IPubSub {
     private readonly logger: pino.Logger
   ) {}
 
-  public async publish(message: MessageYProtocol): Promise<void> {
+  public async publish(message: z.infer<typeof messageYProtocolSchema>): Promise<void> {
     const payload = await prisma().pubSubPayload.create({
       data: {
         payload: Buffer.from(message.data),
@@ -37,7 +37,7 @@ export class PGPubSub implements IPubSub {
   }
 
   public async subscribe(
-    callback: (message: MessageYProtocol) => void
+    callback: (message: z.infer<typeof messageYProtocolSchema>) => void
   ): Promise<() => Promise<void>> {
     this.logger.trace(
       {
@@ -94,9 +94,9 @@ export class PGPubSub implements IPubSub {
         return
       }
 
-      const yjsMessage: MessageYProtocol = {
+      const yjsMessage: z.infer<typeof messageYProtocolSchema> = {
         id: parsed.data.id,
-        data: dbData.payload,
+        data: new Uint8Array(dbData.payload.buffer.slice(0)),
         senderId: parsed.data.senderId,
         targetId: parsed.data.targetId,
         clock: parsed.data.clock,

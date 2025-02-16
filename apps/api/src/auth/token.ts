@@ -15,7 +15,9 @@ import { Session } from '../types.js'
 import { config } from '../config/index.js'
 
 function signToken(data: object, secret: string, expiresIn: string | number) {
-  return jwt.sign(data, secret, {
+  const key = Buffer.from(process.env['TOKEN_KEY']!, 'hex')
+  // Convert the Buffer to a Uint8Array and then back to Buffer for jwt.sign
+  return jwt.sign(data, key, {
     expiresIn,
   })
 }

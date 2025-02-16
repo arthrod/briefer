@@ -50,7 +50,7 @@ export interface Persistor {
     doc: WSSharedDocV2,
     transactionOrigin: TransactionOrigin
   ) => boolean
-  replaceState: (clock: number, newState: Buffer) => Promise<ReplaceStateResult>
+  replaceState: (clock: number, newState: ArrayBuffer) => Promise<ReplaceStateResult>
 }
 
 export class DocumentPersistor implements Persistor {
@@ -59,10 +59,10 @@ export class DocumentPersistor implements Persistor {
     private readonly documentId: string
   ) {}
 
-  private applyUpdate(ydoc: Y.Doc, update: Buffer | Uint8Array) {
-    const start = Date.now()
-    Y.applyUpdate(ydoc, update)
-    return Date.now() - start
+  private applyUpdate(ydoc: Y.Doc, update: ArrayBuffer | Buffer | Uint8Array): number {
+    const start = performance.now()
+    Y.applyUpdate(ydoc, new Uint8Array(update))
+    return performance.now() - start
   }
 
   public async load(tx?: PrismaTransaction) {
@@ -76,7 +76,7 @@ export class DocumentPersistor implements Persistor {
         return {
           ydoc,
           clock: 0,
-          byteLength: Y.encodeStateAsUpdate(ydoc).length,
+          byteLength: Y.encodeStateAsUpdate(ydoc).byteLength,
           applyUpdateLatency: 0,
           clockUpdatedAt: new Date(),
         }
@@ -90,16 +90,16 @@ export class DocumentPersistor implements Persistor {
         select: { update: true },
         orderBy: { createdAt: 'asc' },
       })
-      let applyUpdateLatency = this.applyUpdate(ydoc, dbDoc.state)
+      let applyUpdateLatency = this.applyUpdate(ydoc, new Uint8Array(dbDoc.state))
       if (updates.length > 0) {
-        const update = Y.mergeUpdates(updates.map((u) => u.update))
+        const update = Y.mergeUpdates(updates.map((u) => new Uint8Array(u.update)))
         applyUpdateLatency += this.applyUpdate(ydoc, update)
       }
 
       return {
         ydoc,
         clock: dbDoc.clock,
-        byteLength: dbDoc.state.length,
+        byteLength: dbDoc.state.byteLength,
         applyUpdateLatency,
         clockUpdatedAt:
           dbDoc.clockUpdatedAt ?? new Date(Date.now() - 24 * 60 * 60 * 1000),
@@ -218,13 +218,13 @@ export class DocumentPersistor implements Persistor {
 
   public async replaceState(
     clock: number,
-    newState: Buffer
+    newState: ArrayBuffer
   ): Promise<ReplaceStateResult> {
     const newClock = await recoverFromNotFound(
       prisma().yjsDocument.update({
         where: { documentId: this.documentId, clock },
         data: {
-          state: newState,
+          state: Buffer.from(newState),
           clock: {
             increment: 1,
           },
@@ -255,7 +255,7 @@ export class DocumentPersistor implements Persistor {
     return {
       ydoc,
       clock: newClock.clock,
-      byteLength: newState.length,
+      byteLength: newState.byteLength,
       replaced: true,
       applyUpdateLatency,
       clockUpdatedAt:
@@ -272,10 +272,10 @@ export class AppPersistor implements Persistor {
     private readonly userId: string | null
   ) {}
 
-  private applyUpdate(ydoc: Y.Doc, update: Buffer | Uint8Array) {
-    const start = Date.now()
-    Y.applyUpdate(ydoc, update)
-    return Date.now() - start
+  private applyUpdate(ydoc: Y.Doc, update: ArrayBuffer | Buffer | Uint8Array): number {
+    const start = performance.now()
+    Y.applyUpdate(ydoc, new Uint8Array(update))
+    return performance.now() - start
   }
 
   public async load(tx?: PrismaTransaction) {
@@ -303,7 +303,7 @@ export class AppPersistor implements Persistor {
 
       const ydoc = new Y.Doc()
       const userYjsAppDoc = yjsAppDoc.userYjsAppDocuments[0]
-      let byteLength = userYjsAppDoc?.state.length ?? yjsAppDoc.state.length
+      let byteLength = userYjsAppDoc?.state.byteLength ?? yjsAppDoc.state.byteLength
       let clock = userYjsAppDoc?.clock ?? yjsAppDoc.clock
       let applyUpdateLatency: number
       let clockUpdatedAt =
@@ -355,7 +355,7 @@ export class AppPersistor implements Persistor {
     await acquireLock(`app-persistor:${this.docId}`, async () => {
       if (this.userId) {
         const userId = this.userId
-        const state = Buffer.from(Y.encodeStateAsUpdate(ydoc.ydoc))
+        const state = Y.encodeStateAsUpdate(ydoc.ydoc)
         await (tx ?? prisma()).userYjsAppDocument.upsert({
           where: {
             yjsAppDocumentId_userId: {
@@ -366,11 +366,11 @@ export class AppPersistor implements Persistor {
           create: {
             yjsAppDocumentId: this.yjsAppDocumentId,
             userId,
-            state,
+            state: Buffer.from(state),
             clock: ydoc.clock,
           },
           update: {
-            state,
+            state: Buffer.from(state),
           },
         })
       } else {
@@ -386,7 +386,7 @@ export class AppPersistor implements Persistor {
 
   public async replaceState(
     clock: number,
-    newState: Buffer
+    newState: ArrayBuffer
   ): Promise<ReplaceStateResult> {
     const ydoc = new Y.Doc()
 
@@ -403,7 +403,7 @@ export class AppPersistor implements Persistor {
             clock,
           },
           data: {
-            state: newState,
+            state: Buffer.from(newState),
             clock: {
               increment: 1,
             },
@@ -432,7 +432,7 @@ export class AppPersistor implements Persistor {
       return {
         ydoc,
         clock: newClock.clock,
-        byteLength: newState.length,
+        byteLength: newState.byteLength,
         replaced: true,
         applyUpdateLatency,
         clockUpdatedAt:
@@ -444,7 +444,7 @@ export class AppPersistor implements Persistor {
       prisma().yjsAppDocument.update({
         where: { id: this.yjsAppDocumentId, clock },
         data: {
-          state: newState,
+          state: Buffer.from(newState),
           clock: {
             increment: 1,
           },
@@ -472,7 +472,7 @@ export class AppPersistor implements Persistor {
     return {
       ydoc,
       clock: newClock.clock,
-      byteLength: newState.length,
+      byteLength: newState.byteLength,
       replaced: true,
       applyUpdateLatency,
       clockUpdatedAt:
@@ -488,7 +488,7 @@ export class AppPersistor implements Persistor {
     const prevState = Y.encodeStateAsUpdate(doc.ydoc)
     const nextDoc = new Y.Doc()
 
-    this.applyUpdate(nextDoc, prevState)
+    this.applyUpdate(nextDoc, new Uint8Array(prevState))
     readUpdate(decoding.clone(decoder), nextDoc, transactionOrigin)
 
     const layout = doc.layout

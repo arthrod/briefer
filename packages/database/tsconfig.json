@@ -1,7 +1,9 @@
 {
   "compilerOptions": {
-    "target": "es2016",
-    "module": "nodenext",
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["bun-types", "jest", "@jest/globals"],
     "outDir": "./dist",
     "declaration": true,
     "declarationDir": "./types",
@@ -15,8 +17,7 @@
     "alwaysStrict": true,
     "noUncheckedIndexedAccess": true,
     "noPropertyAccessFromIndexSignature": true,
-    "skipLibCheck": true,
-    "moduleResolution": "nodenext"
+    "skipLibCheck": true
   },
   "include": ["./src"]
 }

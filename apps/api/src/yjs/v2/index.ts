@@ -480,7 +480,7 @@ export class WSSharedDocV2 {
   }
 
   public async replaceState(state: Buffer) {
-    const result = await this.persistor.replaceState(this.clock, state)
+    const result = await this.persistor.replaceState(this.clock, state.buffer)
     await this.reset(result.ydoc, result.clock, result.byteLength)
   }
 
@@ -786,10 +786,10 @@ export class WSSharedDocV2 {
   }
 
   private async removeHistory() {
-    const ydoc = getYDocWithoutHistory(this)
+    const encodedState = Y.encodeStateAsUpdate(this.ydoc)
     const result = await this.persistor.replaceState(
       this.clock,
-      Buffer.from(Y.encodeStateAsUpdate(ydoc))
+      Buffer.from(encodedState).buffer
     )
     await this.reset(result.ydoc, result.clock, result.byteLength)
   }

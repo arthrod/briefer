@@ -41,7 +41,7 @@ export function decodeComponentState<T extends SQLBlock | PythonBlock>(
   state: string
 ): Y.XmlElement<T> {
   const ydoc = new Y.Doc()
-  Y.applyUpdate(ydoc, Buffer.from(state, 'base64'))
+  Y.applyUpdate(ydoc, new Uint8Array(Buffer.from(state, 'base64').buffer))
   const map = ydoc.getMap<Y.XmlElement<T>>(MAP_KEY)
   return map.get('component')!
 }

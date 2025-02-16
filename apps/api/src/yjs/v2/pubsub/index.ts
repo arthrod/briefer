@@ -22,14 +22,15 @@ const pongProtocolMessageType = 3
 const PING_TIMEOUT = 30 * 1000 // 30 seconds
 const RESYNC_INTERVAL = 30 * 1000 // 30 seconds
 
-export const MessageYProtocol = z.object({
+export const MessageYProtocolSchema = z.object({
   id: z.string(),
-  data: z.instanceof(Uint8Array),
-  senderId: uuidSchema,
-  targetId: z.union([z.literal('broadcast'), uuidSchema]),
+  data: z.custom<Uint8Array>((val) => val instanceof Uint8Array),
+  senderId: z.string().refine((val) => uuidSchema.safeParse(val).success),
+  targetId: z.union([z.literal('broadcast'), z.string().refine((val) => uuidSchema.safeParse(val).success)]),
   clock: z.number(),
 })
-export type MessageYProtocol = z.infer<typeof MessageYProtocol>
+
+export type MessageYProtocol = z.infer<typeof MessageYProtocolSchema>
 
 export class PubSubProvider {
   private pubsubId = uuidv4()
@@ -133,7 +134,7 @@ export class PubSubProvider {
       Array.from(this.syncedPeers.keys()).map((peer) => async () => {
         await this.pubsub.publish({
           id: this.id,
-          data,
+          data: new Uint8Array(data.buffer.slice(0)),
           clock: this.clock,
           senderId: this.pubsubId,
           targetId: peer,
@@ -190,7 +191,7 @@ export class PubSubProvider {
         Array.from(this.syncedPeers.keys()).map((peer) => async () => {
           const message: MessageYProtocol = {
             id: this.id,
-            data,
+            data: new Uint8Array(data.buffer.slice(0)),
             clock: this.clock,
             senderId: this.pubsubId,
             targetId: peer,
@@ -212,7 +213,7 @@ export class PubSubProvider {
     const data = encoding.toUint8Array(encoder)
     const message: MessageYProtocol = {
       id: this.id,
-      data,
+      data: new Uint8Array(data.buffer.slice(0)),
       clock: this.clock,
       senderId: this.pubsubId,
       targetId,
@@ -327,7 +328,7 @@ export class PubSubProvider {
           const encodedMessage = encoding.toUint8Array(encoder)
           const replyMessage: MessageYProtocol = {
             id: this.id,
-            data: encodedMessage,
+            data: new Uint8Array(encodedMessage.buffer.slice(0)),
             clock: this.clock,
             senderId: this.pubsubId,
             targetId: message.senderId,
@@ -478,7 +479,7 @@ export class PubSubProvider {
     encoding.writeVarUint(encoder, pongProtocolMessageType)
     await this.pubsub.publish({
       id: this.id,
-      data: encoding.toUint8Array(encoder),
+      data: new Uint8Array(encoding.toUint8Array(encoder).buffer.slice(0)),
       clock: this.clock,
       senderId: this.pubsubId,
       targetId: message.senderId,

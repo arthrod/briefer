@@ -1,0 +1,44 @@
+# nixpacks.toml
+
+[phases.setup]
+aptPkgs = ['wget', 'git', 'unzip']
+nixPkgs = ['bun']
+
+[phases.install]
+cmds = [
+  '/bin/bash -c "wget -qO- https://bun.sh/install | bash"',
+  # First, install dependencies
+  'bun install --frozen-lockfile',
+  # Handle untrusted packages
+  'bun pm untrusted',
+  # Trust all packages (since we're in a controlled environment)
+  'for pkg in $(bun pm untrusted | grep -oP "(?<=└── ).*(?= @)"); do bun pm trust $pkg; done',
+  # Reinstall after trusting packages to run postinstall scripts
+  'bun install --frozen-lockfile',
+  # Run postinstall explicitly
+  'bun run postinstall'
+]
+
+[phases.build]
+cmds = [
+  # Add TypeScript compilation fix for Symbol.dispose
+  'echo "/// <reference lib=\"dom.disposable\" />" > global.d.ts',
+  'bun run clean',
+  # Build with enhanced TypeScript configuration
+  'TS_NODE_TRANSPILE_ONLY=1 NODE_OPTIONS="--max-old-space-size=4096" bun run build'
+]
+
+[start]
+cmd = 'bun run start'
+
+[variables]
+NODE_ENV = 'production'
+TURBO_TELEMETRY_DISABLED = '1'
+# Add TypeScript configuration
+TSC_COMPILE_ON_ERROR = 'true'
+TS_NODE_TRANSPILE_ONLY = '1'
+
+# Environment setup for proper path resolution
+[phases.setup.env]
+NIXPACKS_BUN_PNPM_SUPPORT = 'true'
+PATH = ["$HOME/.bun/bin:$PATH"]
