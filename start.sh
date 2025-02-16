@@ -3,8 +3,8 @@ set -e
 
 # if there is no .env file, create one
 if [ ! -f .env ]; then
-  echo "POSTGRES_USERNAME=$(openssl rand -hex 12)" >> .env
-  echo "POSTGRES_PASSWORD=$(openssl rand -hex 12)" >> .env
+  echo "POSTGRES_USERNAME=briefer" >> .env
+  echo "POSTGRES_PASSWORD=briefer" >> .env
   echo "JUPYTER_TOKEN=$(openssl rand -hex 24)" >> .env
   echo "AI_BASIC_AUTH_USERNAME=$(openssl rand -hex 12)" >> .env
   echo "AI_BASIC_AUTH_PASSWORD=$(openssl rand -hex 12)" >> .env

@@ -8,9 +8,9 @@ done
 
 
 if [ ! -f /var/lib/postgresql/data/.init ]; then
-  psql -U postgres -c "CREATE USER ${POSTGRES_USERNAME} WITH PASSWORD '${POSTGRES_PASSWORD}';"
-  psql -U postgres -c "CREATE DATABASE briefer OWNER ${POSTGRES_USERNAME};"
-  psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE briefer TO ${POSTGRES_USERNAME};"
+  psql -U postgres -c "CREATE USER briefer WITH PASSWORD 'briefer';"
+  psql -U postgres -c "CREATE DATABASE briefer OWNER briefer;"
+  psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE briefer TO briefer;"
   touch /var/lib/postgresql/data/.init
 fi
 
