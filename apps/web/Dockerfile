@@ -66,6 +66,8 @@ COPY --from=installer --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/we
 COPY --from=installer --chown=nextjs:nodejs /app/apps/web/public ./apps/web/public
 COPY --from=installer --chown=nextjs:nodejs /app/apps/web/start.sh ./apps/web/start.sh
 
+RUN chmod +x /app/apps/web/start.sh
+
 EXPOSE 4000
 
 CMD ./apps/web/start.sh
