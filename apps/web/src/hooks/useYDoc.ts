@@ -1,10 +1,12 @@
 import * as Y from 'yjs'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import useResettableState from './useResettableState'
 import { getDocId, useProvider } from './useYProvider'
 import {
   getBlocks,
+  getDashboard,
   getLastUpdatedAt,
+  getLayout,
   getMetadata,
   isDirty,
   setDirty,
@@ -91,6 +93,54 @@ function getYDoc(
   return { id, cached, yDoc: fromCache.yDoc, clock: fromCache.clock, restore }
 }
 
+/**
+ * Initializes and manages a Yjs document for collaborative editing.
+ *
+ * This custom React hook handles the lifecycle of a Yjs document by performing state
+ * restoration, local persistence, caching, and synchronization with a collaborative provider.
+ * It also manages component instances based on document blocks and integrates undo/redo functionality
+ * through Yjs's UndoManager. The hook sets up multiple side effects:
+ *
+ * - Restores the document state and updates local persistence.
+ * - Observes document updates to mark changes and handle component instance removal.
+ * - Connects to and manages the provider lifecycle, including synchronization events.
+ * - Applies an initial state update to the document if provided.
+ *
+ * @param workspaceId - The identifier of the workspace in which the document is used.
+ * @param documentId - The unique identifier of the Yjs document.
+ * @param isDataApp - A flag indicating whether the document is associated with a data application.
+ * @param clock - A numeric value used to ensure document state consistency.
+ * @param userId - The current user's ID, or null if not applicable.
+ * @param publishedAt - The publication timestamp of the document, or null.
+ * @param connect - Flag to determine if the provider should automatically be connected.
+ * @param initialState - An optional buffer containing an initial update to apply to the Yjs document.
+ *
+ * @returns An object containing:
+ *  - yDoc: The Yjs document instance.
+ *  - provider: The collaborative provider responsible for document synchronization.
+ *  - syncing: A boolean indicating whether the document is currently synchronizing.
+ *  - isDirty: A flag reflecting whether there are unsaved changes in the document state.
+ *  - undo: A function to revert the last change using the integrated UndoManager.
+ *  - redo: A function to reapply a previously undone change using the integrated UndoManager.
+ *
+ * @example
+ * const { yDoc, provider, syncing, isDirty, undo, redo } = useYDoc(
+ *   'workspace123',
+ *   'doc456',
+ *   true,
+ *   42,
+ *   'user789',
+ *   null,
+ *   true,
+ *   null
+ * );
+ *
+ * // To undo a change:
+ * undo();
+ *
+ * // To redo a change:
+ * redo();
+ */
 export function useYDoc(
   workspaceId: string,
   documentId: string,
@@ -255,14 +305,45 @@ export function useYDoc(
     }
   }, [yDoc, removeComponentInstance])
 
+  const undoManager = useMemo(
+    () =>
+      new Y.UndoManager([getLayout(yDoc), getBlocks(yDoc), getDashboard(yDoc)]),
+    [yDoc]
+  )
+
+  const undo = useCallback(() => {
+    undoManager.undo()
+  }, [undoManager])
+
+  const redo = useCallback(() => {
+    undoManager.redo()
+  }, [undoManager])
+
   return {
     yDoc,
     provider,
     syncing: (syncing || restoring) && !cached,
     isDirty: metadata.state.value.getAttribute('isDirty') ?? false,
+    undo,
+    redo,
   }
 }
 
+/**
+ * Custom React hook to track and update a derived state from a Yjs document.
+ *
+ * This hook initializes a state using the provided getter applied to the Yjs document.
+ * It sets up a deep observer on the resulting Yjs type so that any changes trigger an update
+ * to the internal state. The state is resettable and automatically updated when the Yjs document or
+ * getter function changes.
+ *
+ * @param yDoc - The Yjs document used as the source for the state.
+ * @param getter - A function that extracts a specific Yjs AbstractType from the Yjs document.
+ * @returns An object containing the original Yjs document and a state object holding the tracked value.
+ *
+ * @example
+ * const { yDoc, state } = useYDocState(doc, doc => doc.get('blocks') as Y.Array<any>);
+ */
 export function useYDocState<T extends Y.AbstractType<any>>(
   yDoc: Y.Doc,
   getter: (doc: Y.Doc) => T

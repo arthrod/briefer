@@ -9,6 +9,57 @@ import { getDatabaseURL } from '@briefer/database'
 import { makeQuery } from './index.js'
 import { renderJinja } from '../index.js'
 
+/**
+ * Executes an Athena SQL query and processes the results via a generated Python script.
+ *
+ * This asynchronous function constructs and executes a SQL query against an Amazon Athena data source.
+ * It retrieves connection details from a decrypted database URL, validates that all required parameters
+ * (s3_staging_dir, aws_access_key_id, aws_secret_access_key) are present, and renders the SQL query using
+ * Jinja templating. Based on the provided configuration, it optionally adjusts result reuse settings.
+ *
+ * The function then constructs an embedded Python script which:
+ * - Uses the Boto3 Athena client to start the query execution.
+ * - Polls for query status and handles potential aborts or errors.
+ * - Downloads query results from S3, converting them into a Pandas DataFrame.
+ * - Processes duplicate column names by appending numeric suffixes.
+ * - Outputs progress and result metadata in JSON format.
+ *
+ * Finally, the function calls a separate `makeQuery` function with the generated Python code,
+ * returning a promise that resolves to a tuple. The first element is a promise for the final query result,
+ * and the second is a cancellation function that performs cleanup.
+ *
+ * @param workspaceId - Unique identifier for the workspace.
+ * @param sessionId - Unique identifier for the session.
+ * @param queryId - Unique identifier for the query.
+ * @param dataframeName - Name of the DataFrame to be created from the query results.
+ * @param datasource - Configuration object for the Athena data source including region and other metadata.
+ * @param encryptionKey - Key to decrypt the database connection details for Athena.
+ * @param sql - Raw SQL query string, possibly containing Jinja templating placeholders.
+ * @param resultOptions - Object specifying the page sizes, including `pageSize` and `dashboardPageSize`.
+ * @param onProgress - Callback function invoked with intermediate query progress and result updates.
+ * @param configuration - Optional SQL query configuration object that can include Athena-specific settings such as result reuse.
+ * @returns A promise that resolves to a tuple:
+ *   - The first element is a promise that resolves with the final query result.
+ *   - The second element is a cancellation function that returns a promise resolving after cleanup.
+ *
+ * @throws Error if the Athena datasource is missing any required connection parameters.
+ *
+ * @example
+ * const [queryResultPromise, cancelQuery] = await makeAthenaQuery(
+ *   "workspace123",
+ *   "session456",
+ *   "query789",
+ *   "myDataFrame",
+ *   athenaDatasourceConfig,
+ *   "myEncryptionKey",
+ *   "SELECT * FROM users",
+ *   { pageSize: 100, dashboardPageSize: 500 },
+ *   (result) => console.log(result),
+ *   null
+ * );
+ *
+ * const queryResult = await queryResultPromise;
+ */
 export async function makeAthenaQuery(
   workspaceId: string,
   sessionId: string,
@@ -168,8 +219,16 @@ def briefer_make_athena_query():
 
     def to_pandas(athena_data):
         columns = []
+        col_counts = {}  # Dictionary to track the count of column names
         for col in athena_data["ResultSet"]["ResultSetMetadata"]["ColumnInfo"]:
-            columns.append({"name": col["Label"], "type": col["Type"], "np_type": convert_type(col["Type"])})
+            col_name = col["Label"]
+            if col_name in col_counts:
+                col_counts[col_name] += 1
+                col_name = f"{col_name}.{col_counts[col_name]}"
+            else:
+                col_counts[col_name] = 0
+
+            columns.append({"name": col_name, "type": col["Type"], "np_type": convert_type(col["Type"])})
 
         rows = athena_data["ResultSet"]["Rows"]
         data = []

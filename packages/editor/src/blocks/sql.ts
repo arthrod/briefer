@@ -66,7 +66,7 @@ export const makeSQLBlock = (
     type: BlockType.SQL,
     title: '',
     source: new Y.Text(opts?.source ?? ''),
-    dataframeName: getDataframeName(blocks),
+    dataframeName: getDataframeName(blocks, 'query_1'),
     dataSourceId: opts?.dataSourceId ?? null,
     isFileDataSource: opts?.isFileDataSource ?? false,
     result: null,
@@ -94,6 +94,19 @@ export const makeSQLBlock = (
   return yBlock
 }
 
+/**
+ * Retrieves and consolidates all attributes for a SQL block element.
+ *
+ * This function merges the base block attributes with SQL-specific properties extracted
+ * from the provided XML element. In particular, if the `dataframeName` attribute is not set,
+ * a default name is generated using the `getDataframeName` function with a prefix of 'query_1'.
+ * Additional properties such as source text, data source IDs, pagination details, query timestamps,
+ * AI prompt state, and other configuration options are also retrieved and returned.
+ *
+ * @param block - The XML element representing the SQL block.
+ * @param blocks - A map of all Yjs blocks used to derive defaults (e.g., for generating unique dataframe names).
+ * @returns A SQLBlock object that includes both the base block attributes and SQL-specific properties.
+ */
 export function getSQLAttributes(
   block: Y.XmlElement<SQLBlock>,
   blocks: Y.Map<YBlock>
@@ -104,7 +117,7 @@ export function getSQLAttributes(
     dataframeName: getAttributeOr(
       block,
       'dataframeName',
-      getDataframeName(blocks)
+      getDataframeName(blocks, 'query_1')
     ),
     dataSourceId: getAttributeOr(block, 'dataSourceId', null),
     isFileDataSource: getAttributeOr(block, 'isFileDataSource', false),
@@ -130,6 +143,25 @@ export function getSQLAttributes(
   }
 }
 
+/**
+ * Creates a duplicate of an existing SQL block with a new identifier and optionally refreshed state.
+ *
+ * This function clones the attributes of a given SQL block, including its base and SQL-specific properties,
+ * and returns a new Y.XmlElement containing the duplicated block. It duplicates internal Yjs text attributes and,
+ * if specified, resets stateful properties such as query results and timings when the `noState` option is provided.
+ * If the `newVariableName` option is true, it generates a new dataframe name based on the current name using a prefix.
+ *
+ * @param newId - The unique identifier for the new SQL block.
+ * @param block - The original SQL block to duplicate.
+ * @param blocks - A map of all blocks used to generate a unique dataframe name.
+ * @param options - Optional parameters to control the duplication behavior:
+ *   - datasourceMap: A mapping of old to new data source IDs.
+ *   - componentId: An identifier for the component context.
+ *   - noState: If true, stateful properties (query results, timings, etc.) are reset.
+ *   - newVariableName: If true, regenerates the dataframe name using the current value as a prefix.
+ *
+ * @returns A new Y.XmlElement representing the duplicated SQL block with updated attributes.
+ */
 export function duplicateSQLBlock(
   newId: string,
   block: Y.XmlElement<SQLBlock>,
@@ -138,6 +170,7 @@ export function duplicateSQLBlock(
     datasourceMap?: Map<string, string>
     componentId?: string
     noState?: boolean
+    newVariableName?: boolean
   }
 ): Y.XmlElement<SQLBlock> {
   const prevAttributes = getSQLAttributes(block, blocks)
@@ -175,6 +208,15 @@ export function duplicateSQLBlock(
     sort: clone(prevAttributes.sort),
   }
 
+  if (options?.newVariableName) {
+    const name = getDataframeName(
+      blocks,
+      `${nextAttributes.dataframeName.value}`
+    )
+    nextAttributes.dataframeName.value = name.value
+    nextAttributes.dataframeName.newValue = name.newValue
+  }
+
   const yBlock = new Y.XmlElement<SQLBlock>('block')
   for (const [key, value] of Object.entries(nextAttributes)) {
     // @ts-ignore
@@ -184,23 +226,59 @@ export function duplicateSQLBlock(
   return yBlock
 }
 
-function getDataframeName(blocks: Y.Map<YBlock>): DataframeName {
+/**
+ * Generates a unique dataframe name by appending an incremented index to the provided prefix.
+ *
+ * This function iterates over the SQL blocks present in the given collection, extracts their
+ * existing dataframe names, and ensures that the returned name (in the form of "prefix_index")
+ * does not conflict with any names already in use. If the given prefix ends with an underscore
+ * followed by a number (e.g., "query_1"), that number is extracted and used as the starting index,
+ * and the prefix is trimmed of its numeric suffix.
+ *
+ * @param blocks - A Yjs map containing the current blocks.
+ * @param prefix - The base string for generating the dataframe name. If it ends with "_<number>",
+ *                 the numeric part is used as the starting index.
+ * @returns An object with "value" and "newValue" properties set to the unique dataframe name.
+ */
+function getDataframeName(
+  blocks: Y.Map<YBlock>,
+  prefix: string
+): DataframeName {
   const sqlBlocks = Array.from(blocks.values()).filter(isSQLBlock)
   const names = new Set(
     sqlBlocks.map((block) => block.getAttribute('dataframeName')?.value)
   )
 
-  let i = 1
-  while (names.has(`query_${i}`)) {
+  const lastPartStr = prefix.split('_').pop()
+  const lastPart = lastPartStr ? parseInt(lastPartStr) : 0
+  let i = Number.isNaN(lastPart) ? 1 : lastPart
+  if (!Number.isNaN(lastPart)) {
+    // remove last _{i} part from prefix
+    prefix = prefix.split('_').slice(0, -1).join('_')
+  }
+
+  while (names.has(`${prefix}_${i}`)) {
     i++
   }
 
   return {
-    value: `query_${i}`,
-    newValue: `query_${i}`,
+    value: `${prefix}_${i}`,
+    newValue: `${prefix}_${i}`,
   }
 }
 
+/**
+ * Determines the execution status of a SQL block.
+ *
+ * This function checks for the presence of the `lastQueryTime` attribute to decide if the block
+ * has been executed. If `lastQueryTime` is not set, or if the block does not have a `result` attribute,
+ * the function returns 'idle'. When a `result` is present, it evaluates the `type` property:
+ * - Returns 'success' if the type is 'success'.
+ * - Returns 'error' if the type is 'abort-error', 'syntax-error', or 'python-error'.
+ *
+ * @param block - The Y.XmlElement representing the SQL block.
+ * @returns The execution status of the SQL block, either 'idle', 'success', or 'error'.
+ */
 export function getSQLBlockResultStatus(
   block: Y.XmlElement<SQLBlock>
 ): ResultStatus {
