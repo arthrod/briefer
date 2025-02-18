@@ -17,7 +17,7 @@ import { logger } from './logger.js'
 import { setupYJSSocketServerV2 } from './yjs/v2/index.js'
 import { runSchedule } from './schedule/index.js'
 import { initUpdateChecker } from './update-checker.js'
-import { startPubSubPayloadCleanup } from './yjs/v2/pubsub/pg.js'
+import mfRouter from './mf/index.js'
 
 const getDBUrl = async () => {
   const username = config().POSTGRES_USERNAME
@@ -37,7 +37,6 @@ const getDBUrl = async () => {
   if (!Number.isNaN(poolTimeout)) {
     query['pool_timeout'] = poolTimeout.toString()
   }
-
   const querystring = qs.stringify(query)
   if (querystring !== '') {
     url = `${url}?${querystring}`
@@ -46,42 +45,42 @@ const getDBUrl = async () => {
   return url
 }
 
+/**
+ * Initializes and starts the main application components.
+ *
+ * This asynchronous function performs the following tasks:
+ * - Retrieves the PostgreSQL database connection URL and initializes the database.
+ * - Creates an Express application and an HTTP server.
+ * - Sets up a socket server and a YJS socket server to handle real-time communication.
+ * - Schedules background tasks and registers their shutdown functions.
+ * - Configures middleware for logging (using pino-http), cookie parsing, CORS, and body parsing with high payload limits.
+ * - Registers API routes including:
+ *   - The authentication router at '/auth'.
+ *   - A specific router for "mf" endpoints at '/v1/mf'.
+ *   - A general API v1 router at '/v1'.
+ * - Implements health check endpoints:
+ *   - '/livez' returns 200 if the server is live, or 503 if the shutdown process has started.
+ *   - '/readyz' returns 200 when the server is ready to accept requests, or 503 otherwise.
+ * - Defines and registers an error handling middleware to log uncaught errors and respond with a 500 status code.
+ * - Starts the HTTP server on port 8080 and logs the server status.
+ * - Initializes a Jupyter manager and registers its shutdown function.
+ * - Sets up graceful shutdown handling by defining an internal shutdown routine and attaching it to process signals ('SIGTERM' and 'SIGINT').
+ *
+ * @returns A Promise that resolves when the initialization process is complete.
+ */
 async function main() {
-  const cfg = config()
   const dbUrl = await getDBUrl()
-
-  const initOptions: db.InitOptions = {
-    connectionString: dbUrl,
-    ssl: false,
-  }
-  if (!cfg.POSTGRES_SSL_DISABLED) {
-    if (
-      cfg.POSTGRES_SSL_CA !== null ||
-      cfg.POSTGRES_SSL_REJECT_UNAUTHORIZED !== null
-    ) {
-      initOptions.ssl = {
-        rejectUnauthorized: cfg.POSTGRES_SSL_REJECT_UNAUTHORIZED ?? undefined,
-        ca: cfg.POSTGRES_SSL_CA ?? undefined,
-      }
-    } else {
-      initOptions.ssl = 'prefer'
-    }
-  }
-
-  db.init(initOptions)
+  db.init(dbUrl)
 
   const app = express()
   const server = http.createServer(app)
 
   let shutdownFunctions: (() => Promise<void> | void)[] = []
-  const socketServer = await createSocketServer(server)
+  const socketServer = createSocketServer(server)
   shutdownFunctions.push(() => socketServer.shutdown())
 
   const stopSchedules = await runSchedule(socketServer.io)
   shutdownFunctions.push(stopSchedules)
-
-  const stopPubSubPayloadCleanup = await startPubSubPayloadCleanup()
-  shutdownFunctions.push(stopPubSubPayloadCleanup)
 
   const yjsServerV2 = setupYJSSocketServerV2(server, socketServer.io)
   shutdownFunctions.push(() => yjsServerV2.shutdown())
@@ -113,8 +112,8 @@ async function main() {
   )
 
   app.use('/auth', authRouter(socketServer.io))
-  app.use('/v1', v1Router(socketServer.io))
-
+  app.use('/v1/mf', mfRouter(socketServer.io))  // 先注册具体路由
+  app.use('/v1', v1Router(socketServer.io))     // 后注册通用路由
   let shuttingDown = false
   app.get('/livez', (_req, res) => {
     if (shuttingDown) {
@@ -147,9 +146,8 @@ async function main() {
     res.end(res.sentry + '\n')
   })
 
-  const port = process.env['PORT'] || 8080
-  server.listen(port, () => {
-    logger().info(`Server is running on port ${port}`)
+  server.listen(8080, () => {
+    logger().info('Server is running on port 8080')
   })
 
   const jupyterManager = getJupyterManager()
@@ -158,7 +156,7 @@ async function main() {
 
   ready = true
 
-  shutdownFunctions.push(await initUpdateChecker())
+  // shutdownFunctions.push(await initUpdateChecker())
 
   let shutdownPromise: Promise<void> | null = null
   async function shutdown() {
