@@ -283,6 +283,27 @@ export function duplicateYText(text: Y.Text): Y.Text {
   return newText
 }
 
+/**
+ * Duplicates a block with a new unique identifier.
+ *
+ * This function determines the block type of the provided YBlock and delegates
+ * the duplication process to a type-specific function. It supports various block
+ * types such as SQL, Python, Visualization (including V2), Input, Dropdown Input,
+ * Date Input, Rich Text, File Upload, Dashboard Header, Writeback, and Pivot Table.
+ *
+ * @param newBlockId - The new unique identifier for the duplicated block.
+ * @param block - The original block to be duplicated.
+ * @param blocks - A map containing all blocks, used for context during duplication.
+ * @param duplicatingDocument - Indicates whether the entire document is being duplicated,
+ * influencing how state and dependencies are handled.
+ * @param options - Optional configuration parameters:
+ *   - datasourceMap: A mapping to translate old datasource IDs to new ones.
+ *   - componentId: An identifier for the component context.
+ *   - noState: If true, the state of the block is not duplicated.
+ *   - newVariableName: If set, a new variable name is applied during duplication.
+ *
+ * @returns The newly duplicated block as a YBlock.
+ */
 export function duplicateBlock(
   newBlockId: string,
   block: YBlock,
@@ -292,6 +313,7 @@ export function duplicateBlock(
     datasourceMap?: Map<string, string>
     componentId?: string
     noState?: boolean
+    newVariableName?: boolean
   }
 ): YBlock {
   return switchBlockType<YBlock>(block, {
