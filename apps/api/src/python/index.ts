@@ -1,11 +1,11 @@
 import { Output, PythonErrorOutput } from '@briefer/types'
 import * as services from '@jupyterlab/services'
+import PQueue from 'p-queue'
 
 import { logger } from '../logger.js'
 import { getJupyterManager } from '../jupyter/index.js'
 import prisma, { decrypt } from '@briefer/database'
 import { config } from '../config/index.js'
-import { acquireLock } from '../lock.js'
 
 export class PythonExecutionError extends Error {
   constructor(
@@ -56,6 +56,7 @@ const getManager = async (workspaceId: string) => {
   return { kernelManager, sessionManager }
 }
 
+const executionQueues = new Map<string, PQueue>()
 export async function executeCode(
   workspaceId: string,
   sessionId: string,
@@ -63,19 +64,27 @@ export async function executeCode(
   onOutputs: (outputs: Output[]) => void,
   opts: { storeHistory: boolean }
 ) {
+  const queueKey = `${workspaceId}-${sessionId}`
+  let queue = executionQueues.get(queueKey)
+  if (!queue) {
+    queue = new PQueue({ concurrency: 1 })
+    executionQueues.set(queueKey, queue)
+  }
+
   let aborted = false
   let executing = false
-  const promise = acquireLock(
-    `executeCode:${workspaceId}:${sessionId}`,
-    async () => {
-      if (aborted) {
-        return
-      }
-
-      executing = true
-      await innerExecuteCode(workspaceId, sessionId, code, onOutputs, opts)
-    }
+  logger().debug(
+    { workspaceId, sessionId, queueSize: queue.size },
+    'Adding code to execution queue'
   )
+  const promise = queue.add(async () => {
+    if (aborted) {
+      return
+    }
+
+    executing = true
+    await innerExecuteCode(workspaceId, sessionId, code, onOutputs, opts)
+  })
 
   return {
     async abort() {
@@ -83,12 +92,7 @@ export async function executeCode(
 
       if (executing) {
         const { kernel } = await getSession(workspaceId, sessionId)
-        await waitForKernelToBecomeIdle(
-          workspaceId,
-          sessionId,
-          kernel,
-          'abortion'
-        )
+        await kernel.interrupt()
         return
       }
     },
@@ -96,6 +100,33 @@ export async function executeCode(
   }
 }
 
+/**
+ * Executes Python code in a Jupyter kernel session and streams outputs.
+ *
+ * This asynchronous function initializes the Jupyter environment for the specified workspace and session,
+ * then sends the code for execution using the Jupyter kernel. It listens for various output message types,
+ * such as status updates, stream outputs, execution results, display data, and errors. Each received message
+ * is processed and forwarded through the provided callback in a standardized output format.
+ *
+ * The function also tracks kernel status changes to detect restarts and employs a timeout mechanism to
+ * ensure that the session does not become stalled waiting for the kernel to become idle.
+ *
+ * @param workspaceId - The identifier of the workspace.
+ * @param sessionId - The identifier of the Jupyter session.
+ * @param code - The Python code to be executed.
+ * @param onOutputs - Callback function that receives an array of output objects generated during execution.
+ * @param storeHistory - An option flag (within an object) that determines if the execution should be stored in history.
+ *
+ * @returns A promise that resolves when the execution process is complete.
+ *
+ * @throws Propagates errors encountered during execution. If the kernel restarts during execution,
+ * an error output is sent via the onOutputs callback instead of throwing an exception.
+ *
+ * @example
+ * await innerExecuteCode('workspace1', 'sessionA', 'print("Hello, World!")', (outputs) => {
+ *   outputs.forEach(output => console.log(output));
+ * }, { storeHistory: true });
+ */
 async function innerExecuteCode(
   workspaceId: string,
   sessionId: string,
@@ -103,18 +134,12 @@ async function innerExecuteCode(
   onOutputs: (outputs: Output[]) => void,
   { storeHistory }: { storeHistory: boolean }
 ): Promise<void> {
-  logger().trace(
-    { workspaceId, sessionId },
-    'Starting Jupyter for code execution.'
-  )
+  logger().trace({ workspaceId, sessionId }, 'Starting Jupyter for code execution.')
   const jupyterManager = getJupyterManager()
   await jupyterManager.ensureRunning(workspaceId)
   logger().trace({ workspaceId, sessionId }, 'Jupyter is up.')
 
   const { kernel } = await getSession(workspaceId, sessionId)
-
-  await waitForKernelToBecomeIdle(workspaceId, sessionId, kernel, 'execution')
-
   const future = kernel.requestExecute({
     code,
     allow_stdin: true,
@@ -122,15 +147,11 @@ async function innerExecuteCode(
   })
 
   let kernelRestarted = false
-  const onKernelRestarted = (
-    _: services.Kernel.IKernelConnection,
-    status: services.Kernel.Status
-  ) => {
+  kernel.statusChanged.connect((_, status) => {
     if (status === 'restarting' || status === 'autorestarting') {
       kernelRestarted = true
     }
-  }
-  kernel.statusChanged.connect(onKernelRestarted)
+  })
 
   future.onIOPub = (message) => {
     switch (message.header.msg_type) {
@@ -170,25 +191,15 @@ async function innerExecuteCode(
           'data' in message.content &&
           'application/vnd.plotly.v1+json' in message.content.data &&
           message.content.data['application/vnd.plotly.v1+json'] &&
-          typeof message.content.data['application/vnd.plotly.v1+json'] ===
-            'object' &&
+          typeof message.content.data['application/vnd.plotly.v1+json'] === 'object' &&
           'data' in message.content.data['application/vnd.plotly.v1+json']
           // :guitar:
         ) {
           onOutputs([
             {
               type: 'plotly',
-              data: message.content.data['application/vnd.plotly.v1+json'][
-                'data'
-              ],
-              layout:
-                message.content.data['application/vnd.plotly.v1+json'][
-                  'layout'
-                ],
-              frames:
-                message.content.data['application/vnd.plotly.v1+json'][
-                  'frames'
-                ],
+              data: message.content.data['application/vnd.plotly.v1+json']['data'],
+              layout: message.content.data['application/vnd.plotly.v1+json']['layout'],
             },
           ])
         } else if (
@@ -203,20 +214,14 @@ async function innerExecuteCode(
               format: 'png',
             },
           ])
-        } else if (
-          'data' in message.content &&
-          'text/html' in message.content.data
-        ) {
+        } else if ('data' in message.content && 'text/html' in message.content.data) {
           onOutputs([
             {
               type: 'html',
               html: message.content.data['text/html'] as string,
             },
           ])
-        } else if (
-          'data' in message.content &&
-          'text/plain' in message.content.data
-        ) {
+        } else if ('data' in message.content && 'text/plain' in message.content.data) {
           onOutputs([
             {
               type: 'stdio',
@@ -225,10 +230,7 @@ async function innerExecuteCode(
             },
           ])
         } else {
-          logger().warn(
-            { message },
-            `Got unsupported \`${message.header.msg_type}\` message`
-          )
+          logger().warn({ message }, `Got unsupported \`${message.header.msg_type}\` message`)
         }
         break
       case 'error':
@@ -296,24 +298,15 @@ async function innerExecuteCode(
         }
 
         if (timeout) {
-          logger().trace(
-            { workspaceId, sessionId, status, newStatus },
-            'Clearing timeout'
-          )
+          logger().trace({ workspaceId, sessionId, status, newStatus }, 'Clearing timeout')
           clearTimeout(timeout)
         }
 
         if (newStatus === 'idle') {
-          logger().trace(
-            { workspaceId, sessionId, status, newStatus },
-            'Setting timeout'
-          )
+          logger().trace({ workspaceId, sessionId, status, newStatus }, 'Setting timeout')
           timeout = setTimeout(() => {
             if (!done) {
-              logger().trace(
-                { workspaceId, sessionId, status, newStatus },
-                'Timeout reached'
-              )
+              logger().trace({ workspaceId, sessionId, status, newStatus }, 'Timeout reached')
               done = true
             }
 
@@ -326,10 +319,7 @@ async function innerExecuteCode(
 
       kernel.statusChanged.connect(onStatusChanged)
       if (status === 'idle') {
-        logger().trace(
-          { workspaceId, sessionId, status },
-          'Initial idle status, setting timeout'
-        )
+        logger().trace({ workspaceId, sessionId, status }, 'Initial idle status, setting timeout')
         timeout = setTimeout(() => {
           if (!done) {
             done = true
@@ -341,12 +331,8 @@ async function innerExecuteCode(
       }
     })
 
-    try {
-      await Promise.race([future.done, idlePromise])
-      done = true
-    } finally {
-      kernel.statusChanged.disconnect(onKernelRestarted)
-    }
+    await Promise.race([future.done, idlePromise])
+    done = true
   } catch (err) {
     if (kernelRestarted) {
       onOutputs([
@@ -424,10 +410,21 @@ type Jupyter = {
   kernel: services.Kernel.IKernelConnection
 }
 const sessions = new Map<string, Jupyter>()
-async function getSession(
-  workspaceId: string,
-  sessionId: string
-): Promise<Jupyter> {
+/**
+ * Retrieves or creates a Jupyter session for the given workspace and session ID.
+ *
+ * This function first checks if an existing session is available in the cache. If a cached session
+ * is found and its kernel is connected, the session is returned immediately. Otherwise, any stale
+ * session is disposed, and a new session is established. The new session is either reconnected
+ * using an existing session model or started anew with retries. An error is thrown if the resulting
+ * session does not have an active kernel.
+ *
+ * @param workspaceId - Identifier of the workspace.
+ * @param sessionId - Unique identifier of the session.
+ * @returns A Promise that resolves to a Jupyter session object containing both the session and its kernel.
+ * @throws Error if the newly created session lacks an active kernel.
+ */
+async function getSession(workspaceId: string, sessionId: string): Promise<Jupyter> {
   const key = `${workspaceId}-${sessionId}`
   let jupyter = sessions.get(key)
   if (jupyter) {
@@ -445,9 +442,7 @@ async function getSession(
 
   const session = sessionModel
     ? sessionManager.connectTo({ model: sessionModel })
-    : await withRetry(() =>
-        startNewSession(sessionManager, workspaceId, sessionId)
-      )
+    : await withRetry(() => startNewSession(sessionManager, workspaceId, sessionId))
 
   if (!session.kernel) {
     throw new Error('session.kernel is null')
@@ -458,6 +453,20 @@ async function getSession(
   return jupyter
 }
 
+/**
+ * Updates environment variables for all active sessions in the specified workspace.
+ *
+ * This function iterates through all active sessions and applies changes to the environment
+ * variables of sessions with keys that start with the provided `workspaceId`. For each matching
+ * session, it calls the `setEnvironmentVariables` function on the session's kernel to add new variables
+ * and remove specified ones.
+ *
+ * @param workspaceId - The identifier of the workspace. Only sessions with keys starting with this value will be updated.
+ * @param variables - An object containing:
+ *   - `add`: An array of objects with `name` and `value` properties to add or update.
+ *   - `remove`: An array of strings representing the names of environment variables to remove.
+ * @returns A promise that resolves when all matching sessions have been updated.
+ */
 export async function updateEnvironmentVariables(
   workspaceId: string,
   variables: { add: { name: string; value: string }[]; remove: string[] }
@@ -471,11 +480,28 @@ export async function updateEnvironmentVariables(
   )
 }
 
-async function withRetry<T>(
-  fn: () => Promise<T>,
-  maxRetries = 5,
-  maxTimeout = 15000
-): Promise<T> {
+/**
+ * Executes an asynchronous function with retry logic using exponential backoff.
+ *
+ * This function attempts to call the provided asynchronous function `fn`, and if it fails
+ * (i.e., throws an error), it will retry the call up to `maxRetries` times. Between each
+ * attempt, it waits for a period that doubles on each retry, with the wait time capped at
+ * `maxTimeout` milliseconds. If the final attempt fails, the function rethrows the last error.
+ *
+ * @param fn - The asynchronous function to execute.
+ * @param maxRetries - The maximum number of retry attempts (default is 5).
+ * @param maxTimeout - The maximum delay in milliseconds for exponential backoff (default is 15000).
+ * @returns The resolved value from the asynchronous function.
+ *
+ * @example
+ * try {
+ *   const result = await withRetry(() => fetchData());
+ *   console.log('Fetched data:', result);
+ * } catch (error) {
+ *   console.error('Operation failed after retries:', error);
+ * }
+ */
+async function withRetry<T>(fn: () => Promise<T>, maxRetries = 5, maxTimeout = 15000): Promise<T> {
   let attempt = 1
   while (attempt <= maxRetries) {
     try {
@@ -488,9 +514,7 @@ async function withRetry<T>(
       logger().warn({ attempt, err }, 'Retrying')
       attempt++
       // exponential backoff
-      await new Promise((resolve) =>
-        setTimeout(resolve, Math.min(2 ** attempt * 1000, maxTimeout))
-      )
+      await new Promise((resolve) => setTimeout(resolve, Math.min(2 ** attempt * 1000, maxTimeout)))
     }
   }
 
@@ -583,72 +607,4 @@ export async function disposeAll(workspaceId: string) {
     })
   )
   sessions.clear()
-}
-
-async function waitForKernelToBecomeIdle(
-  workspaceId: string,
-  sessionId: string,
-  kernel: services.Kernel.IKernelConnection,
-  reason: 'execution' | 'abortion'
-) {
-  const startTime = Date.now()
-
-  let kernelStatus = kernel.status
-  const onStatusChanged = (
-    _: services.Kernel.IKernelConnection,
-    status: services.Kernel.Status
-  ) => {
-    kernelStatus = status
-  }
-  kernel.statusChanged.connect(onStatusChanged)
-
-  while (kernelStatus !== 'idle') {
-    // stuck trying to get an idle kernel to run code for more than a minute
-    if (Date.now() - startTime > 60000) {
-      logger().error(
-        {
-          workspaceId,
-          sessionId,
-          kernelStatus: kernel.status,
-          reason,
-        },
-        'Spent more than 1 minute attempting to make the kernel be idle. Crashing.'
-      )
-      throw new Error('Failed to get an idle kernel')
-    }
-
-    // stuck trying to interrupt a non idle kernel for more than 10 seconds
-    // we'll restart the kernel
-    if (Date.now() - startTime > 10000) {
-      logger().warn(
-        {
-          workspaceId,
-          sessionId,
-          kernelStatus: kernel.status,
-          reason,
-        },
-        'Spent more than 10 seconds trying to interrupt a non idle kernel. Restarting kernel instead.'
-      )
-      await kernel.restart()
-      await new Promise((resolve) => setTimeout(resolve, 500))
-      continue
-    }
-
-    // since we make sure that only a single code execution is running at a time
-    // if we found a non idle kernel, we first interrupt it
-    logger().warn(
-      {
-        workspaceId,
-        sessionId,
-        kernelStatus: kernel.status,
-        reason,
-      },
-      reason === 'abortion'
-        ? 'Interrupting kernel because of abortion'
-        : 'Found non idle kernel before attempting to execute code. Interrupting first.'
-    )
-    await kernel.interrupt()
-    await new Promise((resolve) => setTimeout(resolve, 500))
-  }
-  kernel.statusChanged.disconnect(onStatusChanged)
 }
