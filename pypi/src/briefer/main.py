@@ -8,6 +8,7 @@ import sys
 import threading
 import time
 import webbrowser
+from security import safe_requests
 
 ENV_VARS = [
     "LOG_LEVEL",
@@ -139,12 +140,12 @@ def start_or_run_container(client, container_name, image, detach):
     def check_reachability():
         while True:
             try:
-                response = requests.get(f"{api_url}/readyz")
+                response = safe_requests.get(f"{api_url}/readyz")
                 if response.status_code != 200:
                     time.sleep(1)
                     continue
 
-                response = requests.get(web_url)
+                response = safe_requests.get(web_url)
                 if response.status_code == 200:
                     webbrowser.open(web_url)
                     break
