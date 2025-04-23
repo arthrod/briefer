@@ -96,7 +96,7 @@ def setup_apps():
         logging.info('Postgres is ready')
         logging.info('Changing default user password')
         cur = conn.cursor()
-        cur.execute(f"ALTER USER briefer WITH PASSWORD '{cfg['POSTGRES_PASSWORD']}'")
+        cur.execute("ALTER USER briefer WITH PASSWORD ?", (cfg['POSTGRES_PASSWORD'], ))
         conn.commit()
         logging.info('Password changed')
 
