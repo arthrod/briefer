@@ -10,7 +10,7 @@
     "build": "prisma generate && tsc"
   },
   "dependencies": {
-    "@aws-sdk/rds-signer": "^3.465.0",
+    "@aws-sdk/rds-signer": "^3.730.0",
     "@briefer/types": "*",
     "@prisma/client": "^5.4.2",
     "p-queue": "^8.0.1",
